@@ -1,7 +1,7 @@
 /**
  * AMONG US // CYBER STATION COMPLETE ENGINE
- * Strict Wall Collisions, BFS Waypoint Bot Pathfinding, Realtime Firestore Sync,
- * Synchronized Room Start for Host + Friend, Radar, and Minigame Tasks.
+ * Strict Wall Collisions, BFS Waypoint Pathfinding, Single-Document Realtime Sync,
+ * Host-Client Bot Replication, and Remote Player Rendering.
  */
 
 import { STATION_MAP } from "./station-map.js";
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     x: 1000,
     y: 290,
     radius: 16,
-    speed: 3.4, // Balanced comfortable speed
+    speed: 3.4,
     color: '#c51111',
     name: 'Оператор',
     isImpostor: false,
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const code = await network.createRoom(player.name, player.color);
       openWaitingRoom(code, true);
     } catch (e) {
-      openWaitingRoom('BCK' + Math.floor(1000 + Math.random() * 9000), true);
+      alert('Ошибка базы Firebase: ' + e.message);
     } finally {
       btnCreateRoom.disabled = false;
       btnCreateRoom.textContent = '⚡ СОЗДАТЬ КОМНАТУ';
@@ -153,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
     screenWaiting.classList.remove('hidden');
     waitingCodeBadge.textContent = code;
 
-    // Show/Hide Start Button (only Host can start)
     if (isHost) {
       btnStartMatch.classList.remove('hidden');
       btnStartMatch.textContent = '🚀 НАЧАТЬ ИГРУ СЕЙЧАС';
@@ -161,11 +160,10 @@ document.addEventListener('DOMContentLoaded', () => {
       btnStartMatch.classList.add('hidden');
     }
 
-    // Realtime Listener for room players & start signal
+    // Realtime Listener for room players & match start
     network.listenToRoom(
       code,
       (players) => {
-        // Render updated player list
         waitingPlayerList.innerHTML = '';
         players.forEach(p => {
           const item = document.createElement('div');
@@ -177,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
           waitingPlayerList.appendChild(item);
         });
 
-        // Bots placeholder slot
         const botSlot = document.createElement('div');
         botSlot.className = 'waiting-player-slot';
         botSlot.style.color = '#5a759e';
@@ -188,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
         waitingPlayerList.appendChild(botSlot);
       },
       (roomData) => {
-        // Host started match -> start match for friend automatically!
         if (gameState === 'LOBBY') {
           screenWaiting.classList.add('hidden');
           startMatch(code, roomData.secretPick);
@@ -197,23 +193,21 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
 
-  // Click Big Code to Copy
   waitingCodeBadge.addEventListener('click', () => {
     navigator.clipboard.writeText(activeRoomCode).then(() => {
       showFloatingNotif(`Код ${activeRoomCode} скопирован в буфер!`);
     }).catch(() => {});
   });
 
-  // Host clicks Start Match
-  btnStartMatch.addEventListener('click', () => {
+  // Host starts match
+  btnStartMatch.addEventListener('click', async () => {
     const totalParticipants = 8;
     const secretPick = Math.floor(Math.random() * totalParticipants);
-    network.startMatchInFirestore(secretPick);
+    await network.startMatchInFirestore(secretPick);
     screenWaiting.classList.add('hidden');
     startMatch(activeRoomCode, secretPick);
   });
 
-  // Cancel Room
   btnCancelRoom.addEventListener('click', () => {
     screenWaiting.classList.add('hidden');
     document.getElementById('screen-lobby').classList.remove('hidden');
@@ -248,9 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const impBotIdx = Math.min(botManager.bots.length - 1, secretPick - 2);
       botManager.bots[impBotIdx].isImpostor = true;
     }
-
-    // Start coordinates listener
-    network.listenToRemotePlayers();
 
     // Role Intro Splash
     const introModal = document.getElementById('modal-role-intro');
@@ -442,7 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
     voteGrid.innerHTML = '';
     buildVoteCard(voteGrid, 'player', player.name, player.color, player.isAlive);
     
-    // Add remote players to voting
     network.remotePlayers.forEach(rp => {
       buildVoteCard(voteGrid, rp.id, rp.name, rp.color, rp.isAlive);
     });
@@ -677,11 +667,16 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (STATION_MAP.isWalkable(player.x, player.y + stepY, player.radius)) {
             player.y += stepY;
           }
-
-          // Broadcast Coordinates to Friend
-          network.broadcastPosition(player.x, player.y, player.isAlive);
         }
       }
+
+      // Broadcast Local Player Coordinates and Host Bots
+      network.broadcastPosition(
+        player.x, 
+        player.y, 
+        player.isAlive, 
+        network.isHost ? botManager.bots : null
+      );
 
       if (player.isImpostor) {
         player.killCooldown = Math.max(0, player.killCooldown - delta);
@@ -704,10 +699,22 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       btnReport.classList.toggle('active-prompt', nearBody);
 
-      // Update Bots
-      botManager.update(delta, player, (type, reporter, body) => {
-        startEmergencyMeeting(type, reporter, body);
-      });
+      // Only Host runs bot simulation; Client receives synced bot positions
+      if (network.isHost) {
+        botManager.update(delta, player, (type, reporter, body) => {
+          startEmergencyMeeting(type, reporter, body);
+        });
+      } else if (network.remoteBots && network.remoteBots.length > 0) {
+        // Client mirrors host's bots
+        network.remoteBots.forEach((rb, idx) => {
+          if (botManager.bots[idx]) {
+            botManager.bots[idx].x += (rb.x - botManager.bots[idx].x) * 0.35;
+            botManager.bots[idx].y += (rb.y - botManager.bots[idx].y) * 0.35;
+            botManager.bots[idx].isAlive = rb.isAlive;
+            botManager.bots[idx].speechBubble = rb.speechBubble;
+          }
+        });
+      }
     }
 
     renderCanvas();
