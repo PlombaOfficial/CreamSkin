@@ -123,14 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Create Room -> Open Waiting Room Screen
   btnCreateRoom.addEventListener('click', async () => {
     player.name = inputPlayerName.value.trim() || 'Оператор';
-    player.isImpostor = (selectedRole === 'impostor');
     try {
       btnCreateRoom.disabled = true;
       btnCreateRoom.textContent = 'Создание...';
       const code = await network.createRoom(player.name);
       openWaitingRoom(code);
     } catch (e) {
-      // Offline fallback
       openWaitingRoom('BCK' + Math.floor(1000 + Math.random() * 9000));
     } finally {
       btnCreateRoom.disabled = false;
@@ -138,10 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Join Room -> Open Waiting Room or Start
+  // Join Room -> Open Waiting Room
   btnJoinRoom.addEventListener('click', async () => {
     player.name = inputPlayerName.value.trim() || 'Оператор';
-    player.isImpostor = (selectedRole === 'impostor');
     const code = inputRoomCode.value.trim();
     if (!code) {
       alert('Введите код комнаты (например, BCK4092)!');
@@ -166,7 +163,6 @@ document.addEventListener('DOMContentLoaded', () => {
     screenWaiting.classList.remove('hidden');
     waitingCodeBadge.textContent = code;
 
-    // Render Lobby Players
     waitingPlayerList.innerHTML = `
       <div class="waiting-player-slot">
         <div class="waiting-player-dot" style="background: ${player.color};"></div>
@@ -205,21 +201,35 @@ document.addEventListener('DOMContentLoaded', () => {
   function startMatch(roomCode) {
     audio.init();
     document.getElementById('screen-lobby').classList.add('hidden');
+    screenWaiting.classList.add('hidden');
     document.getElementById('game-hud').classList.remove('hidden');
     document.getElementById('hud-room-code-tag').textContent = `КОМНАТА: ${roomCode}`;
 
-    // Reset Player
+    // Reset Player coordinates & state
     player.x = 1000;
     player.y = 290;
     player.isAlive = true;
     player.inVent = false;
     player.killCooldown = 12.0;
+    player.completedTasks = 0;
+    document.getElementById('task-bar-fill').style.width = '0%';
 
-    // Init 6 Bots
+    // Initialize 6 Bots
     botManager.initBots(6);
-    if (!player.isImpostor) {
-      const impBot = botManager.bots[Math.floor(Math.random() * botManager.bots.length)];
-      impBot.isImpostor = true;
+
+    // 🎲 100% SECRET RANDOM ROLE ASSIGNMENT
+    // 1 in 7 chance for the Player, otherwise 1 of the Bots is secretly picked!
+    const totalParticipants = 1 + botManager.bots.length; // Player + 6 Bots = 7
+    const secretPick = Math.floor(Math.random() * totalParticipants);
+
+    if (secretPick === 0) {
+      // Player is the secret Impostor!
+      player.isImpostor = true;
+    } else {
+      // One of the bots is the secret Impostor!
+      player.isImpostor = false;
+      const impostorBotIdx = secretPick - 1;
+      botManager.bots[impostorBotIdx].isImpostor = true;
     }
 
     // Role Intro Splash
@@ -230,13 +240,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (player.isImpostor) {
       roleText.textContent = 'ПРЕДАТЕЛЬ (IMPOSTOR)';
       roleText.style.color = '#ff3333';
-      roleDesc.textContent = 'Устраняйте членов экипажа, используйте вентиляцию и не дайте завершить задания!';
+      roleDesc.textContent = 'Устраняйте экипаж, используйте вентиляцию и не дайте завершить задания!';
       btnKill.classList.remove('hidden');
       btnVent.classList.remove('hidden');
     } else {
       roleText.textContent = 'ЧЛЕН ЭКИПАЖА (CREWMATE)';
       roleText.style.color = '#00f0ff';
-      roleDesc.textContent = 'Выполняйте задания на станции и вычислите предателя на собрании!';
+      roleDesc.textContent = 'Среди нас 1 тайный Предатель... Выполняйте задания и найдите его!';
       btnKill.classList.add('hidden');
       btnVent.classList.add('hidden');
     }
