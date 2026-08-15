@@ -1,4 +1,4 @@
-345534<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -60,7 +60,7 @@
       <!-- TAB CONTENTS -->
       <main class="tab-viewport">
 
-        <!-- 1. TAB: CLICKER & UPGRADES -->
+        <!-- 1. TAB: CLICKER & 10-TIER HARDWARE -->
         <section class="app-tab-view" id="tab-view-clicker">
           <div class="clicker-view-layout">
             <!-- Left: Giant Interactive Clicker Orb -->
@@ -72,47 +72,33 @@
                 </div>
               </div>
               <div class="clicker-tip">Кликайте по Квантовому Ядру для генерации капитала!</div>
-            </div>
 
-            <!-- Right: Quick Hardware Upgrades -->
-            <div class="clicker-upgrades-section">
-              <div class="section-title">⚡ БАЗОВЫЕ МОДЕРНИЗАЦИИ</div>
-
-              <div class="upgrade-card">
-                <div class="upgrade-card-info">
-                  <div class="upgrade-name">Нейро-Импульс Клика</div>
-                  <div class="upgrade-desc">Увеличивает силу каждого нажатия.</div>
-                  <div class="upgrade-level" id="lvl-upgrade-click">Ур. 1</div>
-                </div>
+              <!-- Click Booster Upgrade -->
+              <div class="click-booster-card">
+                <div class="upgrade-name">Нейро-Импульс Клика</div>
+                <div class="upgrade-desc">Увеличивает силу каждого нажатия.</div>
+                <div class="upgrade-level" id="lvl-upgrade-click">Ур. 1</div>
                 <button class="btn-action-upgrade" id="btn-upgrade-click">
                   <span>ПРОКАЧАТЬ</span>
                   <b id="cost-upgrade-click">$15 NC</b>
                 </button>
               </div>
 
-              <div class="upgrade-card">
-                <div class="upgrade-card-info">
-                  <div class="upgrade-name">Авто-Майнер "Квант-1"</div>
-                  <div class="upgrade-desc">Генерирует пассивный доход в секунду.</div>
-                  <div class="upgrade-level" id="count-miners">0 шт.</div>
-                </div>
-                <button class="btn-action-upgrade" id="btn-buy-miner">
-                  <span>КУПИТЬ</span>
-                  <b id="cost-buy-miner">$50 NC</b>
-                </button>
-              </div>
-
-              <!-- Prestige Card -->
-              <div class="upgrade-card prestige-card">
-                <div class="upgrade-card-info">
-                  <div class="upgrade-name">🔮 Квантовое Перерождение (Престиж)</div>
-                  <div class="upgrade-desc">Сбрасывает баланс в обмен на +50% вечного бонуса ко всей прибыли и Квантовые Кристаллы!</div>
-                </div>
+              <!-- Prestige Rebirth -->
+              <div class="prestige-card">
+                <div class="upgrade-name">🔮 Квантовое Перерождение (Престиж)</div>
+                <div class="upgrade-desc">+50% постоянного множителя ко всей прибыли навсегда!</div>
                 <button class="btn-action-upgrade btn-prestige" id="btn-do-prestige" disabled>
                   <span>ПЕРЕРОЖДЕНИЕ</span>
-                  <b id="cost-prestige">$50,000 NC</b>
+                  <b id="cost-prestige">$100,000 NC</b>
                 </button>
               </div>
+            </div>
+
+            <!-- Right: 10 Tiers of Long-Term Hardware Auto-Miners -->
+            <div class="clicker-upgrades-section">
+              <div class="section-title">🏭 ПРОМЫШЛЕННЫЙ МАЙНИНГ (10 УРОВНЕЙ)</div>
+              <div class="hardware-tiers-list" id="hardware-tiers-list"></div>
             </div>
           </div>
         </section>
@@ -120,7 +106,6 @@
         <!-- 2. TAB: CLANS -->
         <section class="app-tab-view hidden" id="tab-view-clans">
           <div class="clans-view-layout">
-            <!-- No Clan View -->
             <div class="no-clan-panel hidden" id="no-clan-panel">
               <div class="no-clan-card">
                 <div class="no-clan-icon">🛡️</div>
@@ -130,7 +115,6 @@
               </div>
             </div>
 
-            <!-- My Clan HQ -->
             <div class="my-clan-info-panel" id="my-clan-info-panel">
               <div class="clan-header-card">
                 <div class="clan-main-info">
@@ -144,7 +128,6 @@
                 </div>
               </div>
 
-              <!-- Clan Perks Buffs -->
               <div class="clan-perks-grid">
                 <div class="perk-card">
                   <div class="perk-icon">⚡</div>
@@ -159,23 +142,32 @@
                 </div>
               </div>
 
-              <!-- Clan Members List -->
               <div class="section-title">👥 СОСТАВ КЛАНА</div>
               <div class="clan-members-list" id="clan-members-list"></div>
             </div>
 
-            <!-- Public Clans Catalog -->
             <div class="section-title">🌐 ВСЕ КЛАНЫ СЕРВЕРА</div>
             <div class="all-clans-list" id="all-clans-list"></div>
           </div>
         </section>
 
-        <!-- 3. TAB: MARKETPLACE -->
+        <!-- 3. TAB: MARKETPLACE 2.0 -->
         <section class="app-tab-view hidden" id="tab-view-market">
           <div class="market-view-header">
             <div class="section-title">🏪 ОТКРЫТЫЙ РЫНОК ИГРОКОВ (P2P)</div>
             <button class="btn-primary-sm" id="btn-market-list-item">➕ ВЫСТАВИТЬ ПРЕДМЕТ НА ПРОДАЖУ</button>
           </div>
+
+          <!-- Market Category Filters -->
+          <div class="market-filters-row">
+            <button class="market-cat-btn active" data-cat="all">ВСЕ ТОВАРЫ</button>
+            <button class="market-cat-btn" data-cat="hardware">ОБОРУДОВАНИЕ</button>
+            <button class="market-cat-btn" data-cat="relic">РЕЛИКВИИ</button>
+            <button class="market-cat-btn" data-cat="aura">АУРЫ</button>
+            <button class="market-cat-btn" data-cat="frame">РАМКИ</button>
+            <button class="market-cat-btn" data-cat="title">ТИТУЛЫ</button>
+          </div>
+
           <div class="market-listings-grid" id="market-listings-grid"></div>
         </section>
 
@@ -193,7 +185,6 @@
             </div>
 
             <div class="trade-boxes-split">
-              <!-- Party A (You) -->
               <div class="trade-side-card">
                 <div class="trade-side-title" id="trade-party-a-name">Вы</div>
                 <div class="badge-wait" id="trade-status-a">⏳ ВЫБОР...</div>
@@ -203,7 +194,6 @@
                 <button class="btn-primary-sm" id="btn-trade-ready">ГОТОВ К СДЕЛКЕ</button>
               </div>
 
-              <!-- Party B (Partner) -->
               <div class="trade-side-card">
                 <div class="trade-side-title" id="trade-party-b-name">Партнер</div>
                 <div class="badge-ready" id="trade-status-b">✔ ГОТОВ</div>
@@ -272,19 +262,30 @@
 
       </main>
 
-      <!-- RIGHT: LIVE SOCIAL CHAT SIDEBAR -->
+      <!-- RIGHT: SOCIAL PANEL WITH CHAT CHANNELS & ONLINE PLAYERS -->
       <aside class="social-chat-sidebar">
-        <div class="chat-sidebar-header">
-          <span class="chat-title">💬 ГЛОБАЛЬНЫЙ ЧАТ</span>
-          <span class="live-dot" title="Онлайн">● LIVE</span>
+        <!-- Chat Channels Tabs -->
+        <div class="chat-channels-bar">
+          <button class="chat-channel-btn active" data-channel="global">🌐 ГЛОБАЛ</button>
+          <button class="chat-channel-btn" data-channel="clan">🛡️ КЛАН</button>
+          <button class="chat-channel-btn" data-channel="pm">✉️ ЛС</button>
         </div>
 
         <div class="global-chat-feed" id="global-chat-feed"></div>
 
         <form class="chat-send-form" id="chat-send-form">
-          <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Написать в чат (клик по нику для @тега)..." maxlength="120">
+          <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Написать в чат..." maxlength="120">
           <button type="submit" class="btn-chat-send">➤</button>
         </form>
+
+        <!-- Active Online Players Section -->
+        <div class="online-players-sidebar-section">
+          <div class="online-section-header">
+            <span>ИГРОКИ ОНЛАЙН (Клик для действий)</span>
+            <span class="live-dot">● LIVE</span>
+          </div>
+          <div class="online-players-scroll" id="online-players-scroll"></div>
+        </div>
       </aside>
 
     </div>

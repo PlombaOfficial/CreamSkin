@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEO-CLICKER ONLINE // CYBER-FINTECH SOCIAL MMO STYLES
+   NEO-CLICKER ONLINE // CLEAN CYBER-FINTECH SOCIAL MMO STYLES
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&family=JetBrains+Mono:wght@700;800&display=swap');
@@ -7,10 +7,10 @@
 :root {
   --font-main: 'Montserrat', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --bg-dark: #090d16;
-  --bg-panel: #111726;
-  --bg-card: #182238;
-  --border-color: #243354;
+  --bg-dark: #080c14;
+  --bg-panel: #0f172a;
+  --bg-card: #162238;
+  --border-color: #20314d;
   --color-cyan: #00f0ff;
   --color-gold: #f59e0b;
   --color-purple: #a855f7;
@@ -57,7 +57,7 @@ button {
   width: 100vw;
 }
 
-/* Server Event Banner */
+/* Top Event Banner */
 .server-event-banner {
   background: linear-gradient(90deg, #f59e0b, #ec4899);
   color: #ffffff;
@@ -70,13 +70,8 @@ button {
   z-index: 100;
 }
 
-.server-event-banner.visible {
-  display: block;
-}
-
-.server-event-banner.rush-active {
-  animation: rushPulse 0.5s infinite alternate;
-}
+.server-event-banner.visible { display: block; }
+.server-event-banner.rush-active { animation: rushPulse 0.5s infinite alternate; }
 
 @keyframes rushPulse {
   0% { filter: brightness(1); }
@@ -111,7 +106,7 @@ button {
 .brand-tag {
   font-size: 10px;
   font-weight: 800;
-  background: #243354;
+  background: #20314d;
   color: #88a0c8;
   padding: 2px 6px;
   border-radius: 4px;
@@ -119,11 +114,11 @@ button {
 
 .header-stats-row {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .stat-pill {
-  background: #151e33;
+  background: #141e33;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 6px 14px;
@@ -132,22 +127,12 @@ button {
   gap: 8px;
 }
 
-.pill-label {
-  font-size: 10px;
-  font-weight: 800;
-  color: #7b93b8;
-}
-
-.pill-val {
-  font-size: 14px;
-  font-weight: 900;
-  font-family: var(--font-mono);
-}
-
+.pill-label { font-size: 10px; font-weight: 800; color: #7b93b8; }
+.pill-val { font-size: 14px; font-weight: 900; font-family: var(--font-mono); }
 .nc-val { color: var(--color-cyan); text-shadow: 0 0 8px rgba(0, 240, 255, 0.4); }
 .qc-val { color: var(--color-pink); text-shadow: 0 0 8px rgba(236, 72, 153, 0.4); }
 
-/* Main Body Split */
+/* Main Body */
 .main-body-container {
   flex: 1;
   display: flex;
@@ -157,7 +142,7 @@ button {
 /* Nav Bar */
 .main-nav-bar {
   width: 140px;
-  background: #0d1322;
+  background: #0b111e;
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -176,15 +161,15 @@ button {
   transition: all 0.15s ease;
 }
 
-.main-nav-btn:hover { background: #162038; color: #ffffff; }
+.main-nav-btn:hover { background: #162238; color: #ffffff; }
 .main-nav-btn.active {
-  background: #18284c;
+  background: #192a4a;
   color: var(--color-cyan);
   border: 1px solid var(--color-cyan);
   box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
 }
 
-/* Tab Viewport */
+/* Viewport */
 .tab-viewport {
   flex: 1;
   background: var(--bg-dark);
@@ -192,57 +177,53 @@ button {
   overflow-y: auto;
 }
 
-/* Social Chat Sidebar */
+/* --------------------------------------------------------------------------
+   RIGHT SIDEBAR: CHAT CHANNELS & ONLINE PLAYERS
+   -------------------------------------------------------------------------- */
+
 .social-chat-sidebar {
-  width: 320px;
-  background: #0e1424;
+  width: 330px;
+  background: #0d1424;
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
 }
 
-.chat-sidebar-header {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-color);
+.chat-channels-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.chat-title {
-  font-size: 12px;
-  font-weight: 900;
+.chat-channel-btn {
+  flex: 1;
+  background: #111a2e;
   color: #88a0c8;
-}
-
-.live-dot {
   font-size: 11px;
   font-weight: 800;
-  color: var(--color-green);
+  padding: 10px 4px;
+  border-right: 1px solid var(--border-color);
+  transition: all 0.15s ease;
+}
+
+.chat-channel-btn:last-child { border-right: none; }
+.chat-channel-btn.active {
+  background: #192a4a;
+  color: var(--color-cyan);
+  border-bottom: 2px solid var(--color-cyan);
 }
 
 .global-chat-feed {
   flex: 1;
-  padding: 12px;
+  padding: 10px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-height: 200px;
 }
 
-.chat-row {
-  font-size: 12px;
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-.system-msg {
-  color: #ffb703;
-  background: rgba(245, 158, 11, 0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
+.chat-row { font-size: 12px; line-height: 1.4; word-break: break-word; }
+.system-msg { color: #ffb703; background: rgba(245, 158, 11, 0.1); padding: 4px 8px; border-radius: 4px; }
 .chat-time { font-size: 10px; color: #556b8d; margin-right: 4px; }
 .chat-clan-badge { font-weight: 900; color: #ff0077; margin-right: 2px; }
 .chat-title-badge { font-weight: 900; color: #00ffcc; margin-right: 4px; }
@@ -250,8 +231,9 @@ button {
 .chat-author:hover { text-decoration: underline; }
 
 .chat-send-form {
-  padding: 10px;
+  padding: 8px;
   border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   gap: 6px;
 }
@@ -275,27 +257,81 @@ button {
   padding: 0 14px;
 }
 
+/* Online Players Section */
+.online-players-sidebar-section {
+  height: 190px;
+  display: flex;
+  flex-direction: column;
+  background: #090e1a;
+}
+
+.online-section-header {
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #7b93b8;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.live-dot { color: var(--color-green); font-size: 10px; font-weight: 900; }
+
+.online-players-scroll {
+  flex: 1;
+  padding: 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.online-player-card {
+  background: #111a2e;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.online-player-card:hover {
+  background: #182847;
+  border-color: var(--color-cyan);
+}
+
+.online-p-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.online-p-dot { color: var(--color-green); font-size: 8px; }
+.online-p-lvl { font-size: 10px; color: var(--color-gold); margin-left: auto; font-family: var(--font-mono); }
+.online-p-status { font-size: 10px; color: #7b93b8; margin-top: 2px; }
+
 /* --------------------------------------------------------------------------
    CLICKER TAB & ORB
    -------------------------------------------------------------------------- */
 
 .clicker-view-layout {
   display: flex;
-  gap: 30px;
+  gap: 24px;
   height: 100%;
 }
 
 .clicker-orb-section {
-  flex: 1;
+  width: 320px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 14px;
 }
 
 .clicker-orb-wrap {
-  width: 260px;
-  height: 260px;
+  width: 220px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -303,8 +339,8 @@ button {
 }
 
 .clicker-main-orb {
-  width: 200px;
-  height: 200px;
+  width: 170px;
+  height: 170px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, #00f0ff 0%, #0b3c66 60%, #05142b 100%);
   display: flex;
@@ -327,66 +363,88 @@ button {
 }
 
 .orb-core-symbol {
-  font-size: 64px;
+  font-size: 54px;
   color: #ffffff;
   text-shadow: 0 0 20px #00f0ff;
   pointer-events: none;
 }
 
 .clicker-tip {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #88a0c8;
-  margin-top: 18px;
+  text-align: center;
 }
 
-/* Floating click numbers */
-.floating-click-num {
+.click-booster-card, .prestige-card {
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prestige-card { border-color: var(--color-purple); }
+
+/* Clean Floating Click Numbers */
+.clean-click-number {
   position: fixed;
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 900;
   color: var(--color-cyan);
   text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
   pointer-events: none;
-  animation: floatUp 0.9s ease-out forwards;
+  animation: cleanFloatUp 0.7s ease-out forwards;
   z-index: 9999;
 }
 
-@keyframes floatUp {
-  0% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-70px) scale(1.3); }
+@keyframes cleanFloatUp {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
 }
 
-/* Upgrades Section */
+/* 10-Tier Hardware Upgrades List */
 .clicker-upgrades-section {
-  width: 380px;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .section-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   color: #88a0c8;
   letter-spacing: 1px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.hardware-tiers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: calc(100vh - 150px);
+  padding-right: 6px;
 }
 
 .upgrade-card {
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
 
+.upgrade-card-icon { font-size: 26px; }
 .upgrade-card-info { flex: 1; text-align: left; }
-.upgrade-name { font-weight: 900; font-size: 14px; color: #ffffff; }
+.upgrade-name { font-weight: 900; font-size: 13px; color: #ffffff; }
 .upgrade-desc { font-size: 11px; color: #7b93b8; margin: 2px 0; }
 .upgrade-level { font-size: 11px; font-weight: 800; color: var(--color-cyan); }
 
@@ -400,113 +458,126 @@ button {
   flex-direction: column;
   align-items: center;
   transition: all 0.15s ease;
+  min-width: 100px;
 }
 
 .btn-action-upgrade span { font-size: 10px; font-weight: 900; color: var(--color-cyan); }
 .btn-action-upgrade b { font-size: 12px; font-family: var(--font-mono); }
 .btn-action-upgrade:hover { background: var(--color-cyan); color: #000; }
 .btn-action-upgrade:hover span { color: #000; }
+.btn-action-upgrade:disabled { opacity: 0.4; pointer-events: none; }
 
-.prestige-card { border-color: var(--color-purple); }
 .btn-prestige { border-color: var(--color-purple); }
 .btn-prestige span { color: var(--color-pink); }
-.btn-prestige:hover { background: var(--color-pink); }
-
-/* Golden Meteor Event */
-.golden-meteor-drop {
-  position: fixed;
-  font-size: 48px;
-  cursor: pointer;
-  animation: meteorFly 7s linear forwards, spin 2s infinite linear;
-  z-index: 9999;
-  filter: drop-shadow(0 0 20px #ffd700);
-}
-
-@keyframes spin { 100% { transform: rotate(360deg); } }
+.btn-prestige:hover { background: var(--color-pink); color: #fff; }
 
 /* --------------------------------------------------------------------------
-   CLANS TAB
+   MARKETPLACE & FILTERS
    -------------------------------------------------------------------------- */
 
-.clans-view-layout {
+.market-filters-row {
   display: flex;
-  flex-direction: column;
-  gap: 18px;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
+.market-cat-btn {
+  background: #141e33;
+  color: #88a0c8;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  transition: all 0.15s ease;
+}
+
+.market-cat-btn.active {
+  background: var(--color-cyan);
+  color: #000;
+  border-color: var(--color-cyan);
+}
+
+.market-listings-grid, .inventory-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.market-item-card, .inv-card {
+  background: var(--bg-panel);
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.market-card-icon, .inv-card-icon { font-size: 28px; }
+.market-card-name, .inv-card-name { font-size: 12px; font-weight: 900; }
+.market-card-rarity { font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.market-card-desc, .inv-card-desc { font-size: 10px; color: #7b93b8; }
+.market-card-seller { font-size: 10px; color: #88a0c8; }
+.market-card-buy-row { display: flex; justify-content: space-between; width: 100%; align-items: center; margin-top: 4px; }
+.market-price { font-size: 12px; font-weight: 900; color: var(--color-gold); font-family: var(--font-mono); }
+
+/* --------------------------------------------------------------------------
+   CLANS, TRADES & PROFILE
+   -------------------------------------------------------------------------- */
+
+.clans-view-layout { display: flex; flex-direction: column; gap: 14px; }
 .clan-header-card {
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 20px;
+  padding: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.clan-level-tag { font-size: 12px; font-weight: 800; color: #88a0c8; margin-top: 4px; }
-.clan-treasury-box {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
+.clan-level-tag { font-size: 11px; font-weight: 800; color: #88a0c8; margin-top: 2px; }
+.clan-treasury-box { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.clan-treasury-box .val { font-size: 16px; font-weight: 900; color: var(--color-gold); font-family: var(--font-mono); }
 
-.clan-treasury-box .label { font-size: 11px; font-weight: 800; color: #7b93b8; }
-.clan-treasury-box .val { font-size: 18px; font-weight: 900; color: var(--color-gold); font-family: var(--font-mono); }
-
-.clan-perks-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
+.clan-perks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .perk-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 8px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-.perk-icon { font-size: 24px; }
-.perk-name { font-size: 13px; font-weight: 900; }
-.perk-val { font-size: 14px; font-weight: 900; color: var(--color-green); }
-
-.clan-members-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
+.perk-val { font-size: 13px; font-weight: 900; color: var(--color-green); }
+.clan-members-list { display: flex; flex-direction: column; gap: 4px; }
 .clan-member-row {
   background: var(--bg-card);
   border-radius: 6px;
   padding: 8px 12px;
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-.all-clans-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
+.all-clans-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .clan-card-item {
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 8px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-.clan-card-head { display: flex; justify-content: space-between; font-size: 14px; }
+.clan-card-head { display: flex; justify-content: space-between; font-size: 13px; }
 .clan-card-desc { font-size: 11px; color: #7b93b8; }
 .clan-card-footer { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #88a0c8; }
 
@@ -527,209 +598,107 @@ button {
   background: var(--color-cyan);
   color: #000000;
   font-weight: 900;
-  font-size: 14px;
-  padding: 12px 24px;
+  font-size: 13px;
+  padding: 10px 20px;
   border-radius: 8px;
   width: 100%;
 }
 
-/* --------------------------------------------------------------------------
-   MARKETPLACE & INVENTORY GRIDS
-   -------------------------------------------------------------------------- */
-
-.market-view-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.market-listings-grid, .inventory-items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
-}
-
-.market-item-card, .inv-card {
-  background: var(--bg-panel);
-  border: 2px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 6px;
-}
-
-.market-card-icon, .inv-card-icon { font-size: 32px; margin-bottom: 4px; }
-.market-card-name, .inv-card-name { font-size: 13px; font-weight: 900; }
-.market-card-rarity { font-size: 10px; font-weight: 800; text-transform: uppercase; }
-.market-card-desc, .inv-card-desc { font-size: 11px; color: #7b93b8; }
-.market-card-seller { font-size: 11px; color: #88a0c8; }
-.market-card-buy-row { display: flex; justify-content: space-between; width: 100%; align-items: center; margin-top: 6px; }
-.market-price { font-size: 13px; font-weight: 900; color: var(--color-gold); font-family: var(--font-mono); }
-
-.inv-card.equipped { border-color: var(--color-green); box-shadow: 0 0 12px rgba(16, 185, 129, 0.4); }
-
-/* --------------------------------------------------------------------------
-   TRADES TAB
-   -------------------------------------------------------------------------- */
-
-.trade-view-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 650px;
-  margin: 0 auto;
-}
-
-.trade-header-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.trade-partner-select {
-  background: #151e33;
-  color: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 6px 12px;
-}
-
-.trade-boxes-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
+.trade-view-layout { display: flex; flex-direction: column; gap: 14px; max-width: 600px; margin: 0 auto; }
+.trade-boxes-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .trade-side-card {
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-.trade-side-title { font-size: 14px; font-weight: 900; }
 .badge-ready { font-size: 11px; font-weight: 900; color: var(--color-green); }
 .badge-wait { font-size: 11px; font-weight: 900; color: var(--color-gold); }
+.trade-items-box { background: #080c14; border-radius: 6px; padding: 8px; min-height: 100px; font-size: 11px; }
 
-.trade-items-box {
-  background: #0b0f19;
-  border-radius: 6px;
-  padding: 10px;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.trade-chip {
-  background: #182238;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-/* --------------------------------------------------------------------------
-   LEADERBOARDS & PROFILE
-   -------------------------------------------------------------------------- */
-
-.lb-header-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
+.lb-header-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .lb-category-btn {
-  background: #151e33;
+  background: #141e33;
   color: #88a0c8;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  padding: 8px 14px;
-  font-size: 12px;
+  padding: 6px 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
 .lb-category-btn.active { background: var(--color-cyan); color: #000; font-weight: 900; }
-
-.leaderboard-rows-container {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
+.leaderboard-rows-container { display: flex; flex-direction: column; gap: 6px; }
 .lb-row {
   background: var(--bg-panel);
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 6px;
+  padding: 8px 14px;
   display: flex;
   align-items: center;
-  gap: 14px;
-}
-
-.lb-row.local-player { border: 1px solid var(--color-cyan); background: #16243d; }
-.lb-rank { font-size: 16px; font-weight: 900; color: var(--color-gold); width: 30px; }
-.lb-name { flex: 1; text-align: left; }
-.lb-val { font-size: 14px; font-weight: 900; font-family: var(--font-mono); }
-
-.profile-view-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  max-width: 600px;
-}
-
-.profile-main-card {
-  background: var(--bg-panel);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.prof-avatar-orb {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: #1d2b47;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-}
-
-.profile-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
+.lb-row.local-player { border: 1px solid var(--color-cyan); background: #16243d; }
+.lb-rank { font-size: 14px; font-weight: 900; color: var(--color-gold); width: 26px; }
+.lb-name { flex: 1; text-align: left; font-size: 12px; }
+.lb-val { font-size: 13px; font-weight: 900; font-family: var(--font-mono); }
+
+.profile-view-layout { display: flex; flex-direction: column; gap: 14px; max-width: 550px; }
+.profile-main-card {
+  background: var(--bg-panel);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.prof-avatar-orb {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #1b263d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+}
+
+.profile-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stat-card {
   background: var(--bg-panel);
   border-radius: 8px;
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.stat-card .label { font-size: 11px; font-weight: 800; color: #7b93b8; }
-.stat-card .val { font-size: 15px; font-weight: 900; color: var(--color-cyan); font-family: var(--font-mono); }
+.stat-card .label { font-size: 10px; font-weight: 800; color: #7b93b8; }
+.stat-card .val { font-size: 14px; font-weight: 900; color: var(--color-cyan); font-family: var(--font-mono); }
 
 .save-backup-box {
   background: var(--bg-panel);
   border-radius: 8px;
-  padding: 16px;
-  font-size: 12px;
+  padding: 14px;
+  font-size: 11px;
   color: #88a0c8;
 }
 
-.backup-btns-row { display: flex; gap: 8px; margin-top: 10px; }
+.backup-btns-row { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Golden Meteor Drop */
+.golden-meteor-drop {
+  position: fixed;
+  font-size: 42px;
+  cursor: pointer;
+  animation: meteorFly 7s linear forwards, spin 2s infinite linear;
+  z-index: 9999;
+  filter: drop-shadow(0 0 20px #ffd700);
+}
+
+@keyframes spin { 100% { transform: rotate(360deg); } }

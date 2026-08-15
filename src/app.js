@@ -1,19 +1,24 @@
 /**
  * NEO-CLICKER ONLINE // MASTER SOCIAL MMO CLICKER ENGINE
- * Coordinates all tabs: Clicker Orb, Upgrades, Clans, P2P Trade, Marketplace,
- * Live Chat, PMs, Leaderboards, Cosmetics, and Server Events.
+ * 1. Clean, High-Contrast Cyber-Fintech UI.
+ * 2. 10-Tier Hardware Upgrades list.
+ * 3. 3 Chat Channels: Global, Dedicated Clan HQ, and Private PMs.
+ * 4. Active Online Players Panel with Player Action Inspector.
+ * 5. Marketplace 2.0 with Category and Rarity filters.
  */
 
 import { ClickerCore } from "./clicker-core.js";
 import { ClanSystem } from "./clan-system.js";
 import { SocialChatEngine } from "./social-chat.js";
 import { TradeMarketEngine } from "./trade-market.js";
-import { LeaderboardAndEventsEngine, ACHIEVEMENTS_LIST } from "./leaderboard-events.js";
+import { LeaderboardAndEventsEngine } from "./leaderboard-events.js";
 import { ITEMS_DATABASE, RARITY_CONFIG } from "./items-collectibles.js";
 
 // Global Singletons
 let core, clans, chat, market, events;
 let activeTab = 'clicker';
+let activeMarketCategory = 'all';
+let activeMarketRarity = 'all';
 let selectedTradePartner = 'Alex_Pro';
 
 function initGame() {
@@ -21,8 +26,10 @@ function initGame() {
   clans = new ClanSystem();
   market = new TradeMarketEngine();
 
-  chat = new SocialChatEngine((type, msg) => {
-    renderChatMessage(msg);
+  chat = new SocialChatEngine((channel, msg) => {
+    if (channel === chat.activeChannel) {
+      renderChatFeed();
+    }
   });
 
   events = new LeaderboardAndEventsEngine((action, data) => {
@@ -38,15 +45,16 @@ function initGame() {
   setupLeaderboardsTab();
   setupInventoryTab();
   setupProfileTab();
-  setupChatInputs();
+  setupChatChannelTabs();
+  setupOnlinePlayersList();
 
-  // 10 FPS UI & Auto-income Loop
+  // 10 FPS Loop
   setInterval(tick, 100);
   renderAll();
 }
 
 // ----------------------------------------------------------------------------
-// 1. CLICKER ORB & INTERACTION
+// 1. CLEAN CLICKER ORB & NUMBERS
 // ----------------------------------------------------------------------------
 function setupClickerOrb() {
   const orb = document.getElementById('clicker-main-orb');
@@ -57,33 +65,35 @@ function setupClickerOrb() {
     const clanBonus = clans.getClanBonus(core.clanId).clickBonus;
     let earned = core.performClick(clanBonus);
 
-    // Apply Rush Hour Multiplier if active
     if (events.activeEvent && events.activeEvent.type === 'rush_hour') {
       earned *= 5;
       core.neoCoins += earned * 4;
     }
 
-    // Damage World Boss if active
     if (events.activeEvent && events.activeEvent.type === 'world_boss') {
       events.damageBoss(earned);
     }
 
-    spawnFloatingNumber(e.clientX, e.clientY, `+${formatNumber(earned)}`);
+    const rect = orb.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + 20;
+    spawnCleanFloatingNumber(x, y, `+${formatNumber(earned)}`);
+
     orb.classList.add('orb-pulse');
-    setTimeout(() => orb.classList.remove('orb-pulse'), 80);
+    setTimeout(() => orb.classList.remove('orb-pulse'), 70);
 
     updateStatsHUD();
   });
 }
 
-function spawnFloatingNumber(x, y, text) {
+function spawnCleanFloatingNumber(x, y, text) {
   const el = document.createElement('div');
-  el.className = 'floating-click-num';
+  el.className = 'clean-click-number';
   el.textContent = text;
-  el.style.left = `${x + (Math.random() - 0.5) * 40}px`;
-  el.style.top = `${y - 20}px`;
+  el.style.left = `${x + (Math.random() - 0.5) * 60}px`;
+  el.style.top = `${y}px`;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 900);
+  setTimeout(() => el.remove(), 700);
 }
 
 // ----------------------------------------------------------------------------
@@ -100,6 +110,7 @@ function setupNavigationTabs() {
       const view = document.getElementById(`tab-view-${activeTab}`);
       if (view) view.classList.remove('hidden');
 
+      if (activeTab === 'clicker') renderUpgrades();
       if (activeTab === 'clans') renderClans();
       if (activeTab === 'market') renderMarket();
       if (activeTab === 'leaderboard') renderLeaderboard();
@@ -110,7 +121,7 @@ function setupNavigationTabs() {
 }
 
 // ----------------------------------------------------------------------------
-// 3. UPGRADES TAB
+// 3. 10-TIER HARDWARE UPGRADES
 // ----------------------------------------------------------------------------
 function setupUpgradesTab() {
   const btnUpClick = document.getElementById('btn-upgrade-click');
@@ -123,21 +134,11 @@ function setupUpgradesTab() {
     });
   }
 
-  const btnBuyMiner = document.getElementById('btn-buy-miner');
-  if (btnBuyMiner) {
-    btnBuyMiner.addEventListener('click', () => {
-      if (core.buyAutoMiner()) {
-        renderUpgrades();
-        updateStatsHUD();
-      }
-    });
-  }
-
   const btnPrestige = document.getElementById('btn-do-prestige');
   if (btnPrestige) {
     btnPrestige.addEventListener('click', () => {
       if (core.canPrestige()) {
-        if (confirm(`Совершить Квантовое Перерождение? Вы получите +50% постоянного дохода и ${50 * (core.prestigeLevel + 1)} Квантовых Кристаллов!`)) {
+        if (confirm(`Совершить Квантовое Перерождение? Вы получите +50% постоянного дохода и ${75 * (core.prestigeLevel + 1)} Квантовых Кристаллов!`)) {
           core.doPrestige();
           chat.addSystemMessage(`👑 Игрок ${core.name} совершил Квантовое Перерождение #${core.prestigeLevel}!`);
           renderAll();
@@ -154,11 +155,42 @@ function renderUpgrades() {
   const clickLvlEl = document.getElementById('lvl-upgrade-click');
   if (clickLvlEl) clickLvlEl.textContent = `Ур. ${core.clickLevel}`;
 
-  const minerCostEl = document.getElementById('cost-buy-miner');
-  if (minerCostEl) minerCostEl.textContent = `$${formatNumber(core.getAutoMinerCost())} NC`;
+  // Render 10 Hardware Tiers Dynamically
+  const hardwareList = document.getElementById('hardware-tiers-list');
+  if (hardwareList) {
+    hardwareList.innerHTML = '';
+    const hardItems = ITEMS_DATABASE.filter(i => i.type === 'hardware');
 
-  const minerCountEl = document.getElementById('count-miners');
-  if (minerCountEl) minerCountEl.textContent = `${core.autoMinersCount} шт.`;
+    hardItems.forEach(h => {
+      const count = core.hardwareTiers[h.id] || 0;
+      const cost = core.getHardwareCost(h.id);
+      const canAfford = core.neoCoins >= cost;
+
+      const card = document.createElement('div');
+      card.className = 'upgrade-card';
+      card.innerHTML = `
+        <div class="upgrade-card-icon">${h.icon}</div>
+        <div class="upgrade-card-info">
+          <div class="upgrade-name">${h.name}</div>
+          <div class="upgrade-desc">${h.desc}</div>
+          <div class="upgrade-level">Куплено: <b>${count} шт.</b> (+${formatNumber(count * (h.bonus.autoIncome || 0))} NC/сек)</div>
+        </div>
+        <button class="btn-action-upgrade buy-hw-btn" ${!canAfford ? 'disabled' : ''}>
+          <span>КУПИТЬ</span>
+          <b>$${formatNumber(cost)} NC</b>
+        </button>
+      `;
+
+      card.querySelector('.buy-hw-btn').addEventListener('click', () => {
+        if (core.buyHardwareTier(h.id)) {
+          renderUpgrades();
+          updateStatsHUD();
+        }
+      });
+
+      hardwareList.appendChild(card);
+    });
+  }
 
   const prestigeBtn = document.getElementById('btn-do-prestige');
   const prestigeCostEl = document.getElementById('cost-prestige');
@@ -202,7 +234,7 @@ function setupClansTab() {
       if (val > 0 && core.neoCoins >= val) {
         core.neoCoins -= val;
         clans.donateToBank(clan.id, core.name, val);
-        chat.addChatMessage(core.name, clan.tag, core.equippedTitle, `Внёс в казну клана $${formatNumber(val)} NC! 💰`);
+        chat.addChatMessage('clan', core.name, clan.tag, core.equippedTitle, `Внёс в казну клана $${formatNumber(val)} NC! 💰`);
         renderClans();
         updateStatsHUD();
       }
@@ -236,7 +268,6 @@ function renderClans() {
     document.getElementById('clan-click-boost-val').textContent = `+${(myClan.perks.clickBoostLevel || 0) * 15}% к клику`;
     document.getElementById('clan-income-boost-val').textContent = `+${(myClan.perks.incomeBoostLevel || 0) * 15}% к авто-доходу`;
 
-    // Members list
     const membersList = document.getElementById('clan-members-list');
     if (membersList) {
       membersList.innerHTML = '';
@@ -252,7 +283,6 @@ function renderClans() {
     if (noClanPanel) noClanPanel.classList.remove('hidden');
   }
 
-  // All Clans List
   const allList = document.getElementById('all-clans-list');
   if (allList) {
     allList.innerHTML = '';
@@ -286,9 +316,18 @@ function renderClans() {
 }
 
 // ----------------------------------------------------------------------------
-// 5. MARKETPLACE TAB
+// 5. MARKETPLACE 2.0 & FILTERS
 // ----------------------------------------------------------------------------
 function setupMarketTab() {
+  document.querySelectorAll('.market-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.market-cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeMarketCategory = btn.dataset.cat;
+      renderMarket();
+    });
+  });
+
   const btnSell = document.getElementById('btn-market-list-item');
   if (btnSell) {
     btnSell.addEventListener('click', () => {
@@ -298,7 +337,7 @@ function setupMarketTab() {
       const num = parseInt(pick, 10);
       if (num >= 1 && num <= core.inventory.length) {
         const itemId = core.inventory[num - 1];
-        const priceStr = prompt('Введите цену в Нео-Коинах (NC):', '500');
+        const priceStr = prompt('Введите цену в Нео-Коинах (NC):', '1000');
         const price = parseInt(priceStr, 10);
         if (price > 0) {
           core.removeItem(itemId);
@@ -317,7 +356,20 @@ function renderMarket() {
   if (!list) return;
   list.innerHTML = '';
 
-  market.marketListings.forEach(l => {
+  let filtered = market.marketListings;
+  if (activeMarketCategory !== 'all') {
+    filtered = filtered.filter(l => {
+      const it = ITEMS_DATABASE.find(i => i.id === l.itemId);
+      return it && it.type === activeMarketCategory;
+    });
+  }
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-msg">Нет товаров в этой категории. Выставьте свой предмет на продажу!</div>';
+    return;
+  }
+
+  filtered.forEach(l => {
     const item = ITEMS_DATABASE.find(i => i.id === l.itemId);
     if (!item) return;
 
@@ -354,7 +406,137 @@ function renderMarket() {
 }
 
 // ----------------------------------------------------------------------------
-// 6. BILATERAL P2P TRADE TAB
+// 6. MULTI-CHANNEL CHAT & CLAN HQ CHAT
+// ----------------------------------------------------------------------------
+function setupChatChannelTabs() {
+  document.querySelectorAll('.chat-channel-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.chat-channel-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      chat.activeChannel = btn.dataset.channel;
+
+      const input = document.getElementById('chat-input-text');
+      if (chat.activeChannel === 'clan') {
+        input.placeholder = core.clanId ? 'Написать в клановый чат гильдии...' : 'Вы не состоите в клане!';
+        input.disabled = !core.clanId;
+      } else if (chat.activeChannel === 'pm') {
+        input.placeholder = `Написать личное сообщение ${chat.activePMTarget}...`;
+        input.disabled = false;
+      } else {
+        input.placeholder = 'Написать в общий чат (клик по нику для @тега)...';
+        input.disabled = false;
+      }
+
+      renderChatFeed();
+    });
+  });
+
+  const form = document.getElementById('chat-send-form');
+  const input = document.getElementById('chat-input-text');
+  if (form && input) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      const clan = clans.clans.get(core.clanId);
+      const clanTag = clan ? clan.tag : null;
+      const titleItem = core.equippedTitle ? ITEMS_DATABASE.find(i => i.id === core.equippedTitle) : null;
+      const titleText = titleItem ? titleItem.tagText : null;
+
+      if (chat.activeChannel === 'pm') {
+        chat.sendPrivateMessage(core.name, chat.activePMTarget, text);
+      } else {
+        chat.addChatMessage(chat.activeChannel, core.name, clanTag, titleText, text);
+      }
+      renderChatFeed();
+    });
+  }
+}
+
+function renderChatFeed() {
+  const feed = document.getElementById('global-chat-feed');
+  if (!feed) return;
+  feed.innerHTML = '';
+
+  const messages = chat.getMessages(chat.activeChannel, core.clanId);
+  messages.forEach(msg => {
+    const el = document.createElement('div');
+    el.className = `chat-row ${msg.isSystem ? 'system-msg' : ''}`;
+
+    if (msg.isSystem) {
+      el.innerHTML = `<span class="chat-sys-icon">⚡</span> <span class="chat-sys-text">${msg.text}</span>`;
+    } else {
+      el.innerHTML = `
+        <span class="chat-time">${msg.time}</span>
+        ${msg.clanTag ? `<span class="chat-clan-badge">[${msg.clanTag}]</span>` : ''}
+        ${msg.title ? `<span class="chat-title-badge">[${msg.title}]</span>` : ''}
+        <b class="chat-author" style="color: #00d2ff">${msg.sender}:</b>
+        <span class="chat-body">${msg.text}</span>
+      `;
+
+      el.querySelector('.chat-author').addEventListener('click', () => {
+        openPlayerInspector(msg.sender);
+      });
+    }
+
+    feed.appendChild(el);
+  });
+
+  feed.scrollTop = feed.scrollHeight;
+}
+
+// ----------------------------------------------------------------------------
+// 7. ACTIVE ONLINE PLAYERS LIST & INSPECTOR
+// ----------------------------------------------------------------------------
+function setupOnlinePlayersList() {
+  const list = document.getElementById('online-players-scroll');
+  if (!list) return;
+  list.innerHTML = '';
+
+  chat.onlinePlayers.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'online-player-card';
+    item.innerHTML = `
+      <div class="online-p-head">
+        <span class="online-p-dot">●</span>
+        ${p.clan ? `<span class="clan-tag">[${p.clan}]</span>` : ''}
+        <b>${p.name}</b>
+        <span class="online-p-lvl">Ур. ${p.level}</span>
+      </div>
+      <div class="online-p-status">${p.status}</div>
+    `;
+
+    item.addEventListener('click', () => {
+      openPlayerInspector(p.name);
+    });
+
+    list.appendChild(item);
+  });
+}
+
+function openPlayerInspector(playerName) {
+  if (playerName === core.name) return;
+
+  const action = prompt(`Игрок: ${playerName}\n\n1. 💬 Написать в ЛС\n2. 🤝 Предложить Трейд\n3. 🛡️ Пригласить в Клан\n\nВведите номер действия (1-3):`, '1');
+  if (action === '1') {
+    chat.activePMTarget = playerName;
+    const pmTab = document.querySelector('[data-channel="pm"]');
+    if (pmTab) pmTab.click();
+  } else if (action === '2') {
+    selectedTradePartner = playerName;
+    const tradeTab = document.querySelector('[data-tab="trades"]');
+    if (tradeTab) tradeTab.click();
+    startTradeSession();
+  } else if (action === '3') {
+    if (!core.clanId) return alert('Вы должны состоять в клане, чтобы приглашать игроков!');
+    alert(`Приглашение в клан отправлено игроку ${playerName}!`);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 8. TRADES, LEADERBOARDS, INVENTORY & PROFILE
 // ----------------------------------------------------------------------------
 function setupTradeTab() {
   const partnerSelect = document.getElementById('trade-partner-select');
@@ -391,8 +573,7 @@ function setupTradeTab() {
 
 function startTradeSession() {
   market.startTrade(core.name, selectedTradePartner);
-  // Give partner simulated items & offer for trading
-  market.setOffer(false, 1500, ['gpu_rtx', 'chip_v1']);
+  market.setOffer(false, 2500, ['gpu_rtx', 'chip_v1']);
   market.activeTrade.partyB.ready = true;
   renderTradeWindow();
 }
@@ -404,21 +585,18 @@ function renderTradeWindow() {
   document.getElementById('trade-party-a-name').textContent = `${core.name} (Вы)`;
   document.getElementById('trade-party-b-name').textContent = selectedTradePartner;
 
-  // Party A (Player)
   const readyA = document.getElementById('trade-status-a');
   if (readyA) {
     readyA.textContent = trade.partyA.ready ? '✔ ГОТОВ' : '⏳ ВЫБОР...';
     readyA.className = trade.partyA.ready ? 'badge-ready' : 'badge-wait';
   }
 
-  // Party B (Partner)
   const readyB = document.getElementById('trade-status-b');
   if (readyB) {
     readyB.textContent = trade.partyB.ready ? '✔ ГОТОВ' : '⏳ ВЫБОР...';
     readyB.className = trade.partyB.ready ? 'badge-ready' : 'badge-wait';
   }
 
-  // Offer items B
   const listB = document.getElementById('trade-items-b');
   if (listB) {
     listB.innerHTML = `<div>💵 Предложение: $${formatNumber(trade.partyB.coins)} NC</div>`;
@@ -434,9 +612,6 @@ function renderTradeWindow() {
   }
 }
 
-// ----------------------------------------------------------------------------
-// 7. LEADERBOARDS & ACHIEVEMENTS TAB
-// ----------------------------------------------------------------------------
 function setupLeaderboardsTab() {
   document.querySelectorAll('.lb-category-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -473,9 +648,6 @@ function renderLeaderboard(cat = 'coins') {
   });
 }
 
-// ----------------------------------------------------------------------------
-// 8. INVENTORY & COSMETICS TAB
-// ----------------------------------------------------------------------------
 function setupInventoryTab() {}
 
 function renderInventory() {
@@ -517,9 +689,6 @@ function renderInventory() {
   });
 }
 
-// ----------------------------------------------------------------------------
-// 9. PROFILE & PERSISTENT SAVES TAB
-// ----------------------------------------------------------------------------
 function setupProfileTab() {
   const btnName = document.getElementById('btn-change-name');
   if (btnName) {
@@ -563,7 +732,6 @@ function renderProfile() {
   document.getElementById('prof-prestige').textContent = `Уровень ${core.prestigeLevel} (x${core.prestigeMultiplier} Multiplier)`;
   document.getElementById('prof-crystals').textContent = `${core.quantumCrystals} QC`;
 
-  // Avatar Aura Glow
   const avatar = document.getElementById('prof-avatar-orb');
   if (avatar) {
     avatar.style.boxShadow = 'none';
@@ -575,62 +743,7 @@ function renderProfile() {
 }
 
 // ----------------------------------------------------------------------------
-// 10. CHAT INPUTS & PMs
-// ----------------------------------------------------------------------------
-function setupChatInputs() {
-  const form = document.getElementById('chat-send-form');
-  const input = document.getElementById('chat-input-text');
-  if (form && input) {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-
-      const clan = clans.clans.get(core.clanId);
-      const clanTag = clan ? clan.tag : null;
-      const titleItem = core.equippedTitle ? ITEMS_DATABASE.find(i => i.id === core.equippedTitle) : null;
-      const titleText = titleItem ? titleItem.tagText : null;
-
-      chat.addChatMessage(core.name, clanTag, titleText, text);
-    });
-  }
-}
-
-function renderChatMessage(msg) {
-  const feed = document.getElementById('global-chat-feed');
-  if (!feed) return;
-
-  const el = document.createElement('div');
-  el.className = `chat-row ${msg.type === 'system' ? 'system-msg' : ''}`;
-
-  if (msg.type === 'system') {
-    el.innerHTML = `<span class="chat-sys-icon">⚡</span> <span class="chat-sys-text">${msg.text}</span>`;
-  } else {
-    el.innerHTML = `
-      <span class="chat-time">${msg.time}</span>
-      ${msg.clanTag ? `<span class="chat-clan-badge">[${msg.clanTag}]</span>` : ''}
-      ${msg.title ? `<span class="chat-title-badge">[${msg.title}]</span>` : ''}
-      <b class="chat-author" style="color: #00d2ff">${msg.sender}:</b>
-      <span class="chat-body">${msg.text}</span>
-    `;
-
-    // Click author to mention in input
-    el.querySelector('.chat-author').addEventListener('click', () => {
-      const inp = document.getElementById('chat-input-text');
-      if (inp) {
-        inp.value = `@${msg.sender} ` + inp.value;
-        inp.focus();
-      }
-    });
-  }
-
-  feed.appendChild(el);
-  feed.scrollTop = feed.scrollHeight;
-}
-
-// ----------------------------------------------------------------------------
-// 11. LIVE SERVER EVENTS
+// 9. LIVE SERVER EVENTS
 // ----------------------------------------------------------------------------
 function handleServerEvent(type, data) {
   const banner = document.getElementById('server-event-banner');
@@ -672,7 +785,7 @@ function spawnMeteorDrop(reward) {
 }
 
 // ----------------------------------------------------------------------------
-// 12. MASTER TICK & UI UPDATE
+// 10. MASTER TICK & UI UPDATE
 // ----------------------------------------------------------------------------
 function tick() {
   const clanBonus = clans.getClanBonus(core.clanId).incomeBonus;
@@ -697,6 +810,7 @@ function renderAll() {
   renderLeaderboard();
   renderInventory();
   renderProfile();
+  renderChatFeed();
 }
 
 function formatNumber(num) {

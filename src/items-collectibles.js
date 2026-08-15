@@ -1,6 +1,6 @@
 /**
  * NEO-CLICKER ONLINE // ITEMS, COSMETICS & COLLECTIBLES DATABASE
- * 40+ Items: Hardware Chips, Ancient Relics, Profile Frames, Glowing Auras, and Titles.
+ * 10 Tiers of Long-Term Hardware, Relics, Profile Frames, Glowing Auras, and Titles.
  */
 
 export const RARITY_CONFIG = {
@@ -13,56 +13,106 @@ export const RARITY_CONFIG = {
 };
 
 export const ITEMS_DATABASE = [
-  // --- HARDWARE AUTO-MINERS & CHIPS ---
+  // --- 10 TIERS OF LONG-TERM HARDWARE AUTO-MINERS ---
   {
     id: 'chip_v1',
     name: 'Кремниевый Чип v1',
     type: 'hardware',
     rarity: 'common',
-    desc: 'Базовый микроконтроллер для майнинга. +5 NC/сек.',
-    bonus: { autoIncome: 5 },
+    desc: 'Базовый микроконтроллер для майнинга. +2 NC/сек.',
+    bonus: { autoIncome: 2 },
     basePrice: 50,
     icon: '💾'
   },
   {
+    id: 'gpu_gtx',
+    name: 'Видеокарта GTX-4060',
+    type: 'hardware',
+    rarity: 'common',
+    desc: 'Домашняя видеокарта для хэширования. +12 NC/сек.',
+    bonus: { autoIncome: 12 },
+    basePrice: 250,
+    icon: '📼'
+  },
+  {
     id: 'gpu_rtx',
-    name: 'Квантовая Видеокарта RTX-9090',
+    name: 'Квантовая Ферма RTX-9090',
     type: 'hardware',
     rarity: 'rare',
-    desc: 'Мощный видеочип для параллельных вычислений. +35 NC/сек.',
-    bonus: { autoIncome: 35 },
-    basePrice: 350,
+    desc: 'Мощный риг для параллельных вычислений. +80 NC/сек.',
+    bonus: { autoIncome: 80 },
+    basePrice: 1500,
     icon: '⚡'
   },
   {
-    id: 'asic_rig',
-    name: 'ASIC-Ферма "Атлант"',
+    id: 'datacenter',
+    name: 'Промышленный Дата-Центр',
     type: 'hardware',
-    rarity: 'epic',
-    desc: 'Промышленная майнинг-стойка с водяным охлаждением. +180 NC/сек.',
-    bonus: { autoIncome: 180 },
-    basePrice: 1800,
-    icon: '🏭'
+    rarity: 'rare',
+    desc: 'Стойка серверов в подземном бункере. +450 NC/сек.',
+    bonus: { autoIncome: 450 },
+    basePrice: 8000,
+    icon: '🏢'
   },
   {
-    id: 'quantum_core',
-    name: 'Квантовое Ядро "Сингулярность"',
+    id: 'ai_neural',
+    name: 'Нейросеть GPT-Cyber',
+    type: 'hardware',
+    rarity: 'epic',
+    desc: 'Автономный искусственный интеллект для трейдинга. +2,800 NC/сек.',
+    bonus: { autoIncome: 2800 },
+    basePrice: 45000,
+    icon: '🧠'
+  },
+  {
+    id: 'orbital_sat',
+    name: 'Орбитальный Спутник Майнинга',
+    type: 'hardware',
+    rarity: 'epic',
+    desc: 'Космический модуль на солнечной энергии. +18,000 NC/сек.',
+    bonus: { autoIncome: 18000 },
+    basePrice: 250000,
+    icon: '🛰️'
+  },
+  {
+    id: 'tokamak_reactor',
+    name: 'Термоядерный Реактор "Токамак"',
     type: 'hardware',
     rarity: 'legendary',
-    desc: 'Вычисляет блоки в 5 параллельных вселенных. +1,200 NC/сек.',
-    bonus: { autoIncome: 1200 },
-    basePrice: 12000,
+    desc: 'Сверхмощный реактор синтеза энергии. +120,000 NC/сек.',
+    bonus: { autoIncome: 120000 },
+    basePrice: 1500000,
+    icon: '⚛️'
+  },
+  {
+    id: 'dyson_sphere',
+    name: 'Сфера Дайсона "Солнце"',
+    type: 'hardware',
+    rarity: 'legendary',
+    desc: 'Поглощает излучение звезды целиком. +900,000 NC/сек.',
+    bonus: { autoIncome: 900000 },
+    basePrice: 10000000,
+    icon: '☀️'
+  },
+  {
+    id: 'quantum_ai_core',
+    name: 'Квантовый ИИ "Сингулярность"',
+    type: 'hardware',
+    rarity: 'mythic',
+    desc: 'Вычисляет мультивселенные блоки. +7,500,000 NC/сек.',
+    bonus: { autoIncome: 7500000 },
+    basePrice: 75000000,
     icon: '🔮'
   },
   {
-    id: 'dyson_grid',
-    name: 'Сфера Дайсона "Солнечный Пульсар"',
+    id: 'galactic_rift',
+    name: 'Межгалактический Разлом',
     type: 'hardware',
-    rarity: 'mythic',
-    desc: 'Поглощает энергию целой звезды для генерации капитала. +10,000 NC/сек.',
-    bonus: { autoIncome: 10000 },
-    basePrice: 100000,
-    icon: '☀️'
+    rarity: 'divine',
+    desc: 'Извлекает чистую темную материю из разлома космоса. +60,000,000 NC/сек.',
+    bonus: { autoIncome: 60000000 },
+    basePrice: 500000000,
+    icon: '🌌'
   },
 
   // --- RELICS & CLICK ENHANCERS ---
@@ -71,9 +121,9 @@ export const ITEMS_DATABASE = [
     name: 'Перчатка Нейро-Клика',
     type: 'relic',
     rarity: 'rare',
-    desc: 'Синхронизирует импульсы мозга с кликером. +15 к силе клика.',
-    bonus: { clickPower: 15 },
-    basePrice: 200,
+    desc: 'Синхронизирует импульсы мозга с кликером. +25 к силе клика.',
+    bonus: { clickPower: 25 },
+    basePrice: 600,
     icon: '🧤'
   },
   {
@@ -81,9 +131,9 @@ export const ITEMS_DATABASE = [
     name: 'Печать Мидаса',
     type: 'relic',
     rarity: 'epic',
-    desc: 'Каждый клик с шансом 10% приносит 5-кратную прибыль.',
-    bonus: { critChance: 0.1, critMulti: 5 },
-    basePrice: 2500,
+    desc: 'Каждый клик с шансом 12% приносит 5-кратную прибыль.',
+    bonus: { critChance: 0.12, critMulti: 5 },
+    basePrice: 8500,
     icon: '👑'
   },
   {
@@ -93,7 +143,7 @@ export const ITEMS_DATABASE = [
     rarity: 'legendary',
     desc: 'Ускоряет перезарядку серверных ивентов на 30%.',
     bonus: { eventCooldownRed: 0.3 },
-    basePrice: 15000,
+    basePrice: 60000,
     icon: '⏳'
   },
   {
@@ -103,8 +153,8 @@ export const ITEMS_DATABASE = [
     rarity: 'divine',
     desc: 'Удваивает вообще ВСЕ доходы на сервере навсегда.',
     bonus: { globalMultiplier: 2.0 },
-    basePrice: 500000,
-    icon: '🌌'
+    basePrice: 2500000,
+    icon: '🌀'
   },
 
   // --- GLOWING PROFILE AURAS ---
@@ -115,7 +165,7 @@ export const ITEMS_DATABASE = [
     rarity: 'rare',
     desc: 'Светящееся бирюзово-розовое поле вокруг профиля.',
     cssGlow: '0 0 20px #00f0ff, 0 0 40px #ff0077',
-    basePrice: 1000,
+    basePrice: 2000,
     icon: '🌀'
   },
   {
@@ -125,7 +175,7 @@ export const ITEMS_DATABASE = [
     rarity: 'epic',
     desc: 'Пылающий огненный ореол вокруг аватара в чате.',
     cssGlow: '0 0 25px #ff5500, 0 0 50px #ffaa00',
-    basePrice: 5000,
+    basePrice: 15000,
     icon: '🔥'
   },
   {
@@ -135,7 +185,7 @@ export const ITEMS_DATABASE = [
     rarity: 'legendary',
     desc: 'Фиолетово-чёрная гравитационная воронка.',
     cssGlow: '0 0 30px #a855f7, 0 0 60px #4c1d95',
-    basePrice: 25000,
+    basePrice: 85000,
     icon: '🖤'
   },
   {
@@ -145,7 +195,7 @@ export const ITEMS_DATABASE = [
     rarity: 'divine',
     desc: 'Ослепительный золотой нимб высшего божества сервера.',
     cssGlow: '0 0 40px #ffd700, 0 0 80px #fff7aa',
-    basePrice: 200000,
+    basePrice: 500000,
     icon: '✨'
   },
 
@@ -157,7 +207,7 @@ export const ITEMS_DATABASE = [
     rarity: 'rare',
     desc: 'Элегантная золотая рамка вокруг аватара.',
     borderColor: '#ffd700',
-    basePrice: 800,
+    basePrice: 1800,
     icon: '🖼️'
   },
   {
@@ -167,7 +217,7 @@ export const ITEMS_DATABASE = [
     rarity: 'epic',
     desc: 'Рамка с шипами и рубиновыми кристаллами.',
     borderColor: '#ef4444',
-    basePrice: 4000,
+    basePrice: 12000,
     icon: '🐉'
   },
   {
@@ -177,7 +227,7 @@ export const ITEMS_DATABASE = [
     rarity: 'mythic',
     desc: 'Анимированная радужная рамка высшего ранга.',
     borderColor: '#ec4899',
-    basePrice: 50000,
+    basePrice: 150000,
     icon: '💠'
   },
 
@@ -189,7 +239,7 @@ export const ITEMS_DATABASE = [
     rarity: 'rare',
     tagText: 'МАГНАТ',
     color: '#00d2ff',
-    basePrice: 500,
+    basePrice: 1000,
     icon: '💼'
   },
   {
@@ -199,7 +249,7 @@ export const ITEMS_DATABASE = [
     rarity: 'epic',
     tagText: 'ВЛАСТЕЛИН',
     color: '#a855f7',
-    basePrice: 3000,
+    basePrice: 8000,
     icon: '⚔️'
   },
   {
@@ -209,7 +259,7 @@ export const ITEMS_DATABASE = [
     rarity: 'mythic',
     tagText: 'ЛЕГЕНДА',
     color: '#f59e0b',
-    basePrice: 75000,
+    basePrice: 200000,
     icon: '🏆'
   }
 ];

@@ -1,7 +1,6 @@
 /**
- * NEO-CLICKER ONLINE // CORE CLICKER & ECONOMY ENGINE
- * Zero-data-loss versioned persistence, auto-generated unique device nickname,
- * auto-income calculations, inventory, prestige rebirths, and stat tracking.
+ * NEO-CLICKER ONLINE // CORE CLICKER & LONG-TERM PROGRESSION ENGINE
+ * 10-Tier hardware scaling, click multipliers, prestige, inventory, and zero-data-loss storage.
  */
 
 import { ITEMS_DATABASE } from "./items-collectibles.js";
@@ -18,7 +17,12 @@ export class ClickerCore {
 
     // Upgrades
     this.clickLevel = 1;
-    this.autoMinersCount = 0;
+    // Map of hardware tier counts: { chip_v1: 0, gpu_gtx: 0, ... }
+    this.hardwareTiers = {};
+    ITEMS_DATABASE.filter(i => i.type === 'hardware').forEach(h => {
+      this.hardwareTiers[h.id] = 0;
+    });
+
     this.prestigeLevel = 0;
     this.prestigeMultiplier = 1.0;
 
@@ -38,15 +42,12 @@ export class ClickerCore {
     this.loadFromStorage();
   }
 
-  // Generate cool unique cyberpunk nickname based on device fingerprint hash
   generateUniqueDeviceNickname() {
     const prefixes = ['Cyber', 'Neo', 'Quantum', 'Phantom', 'Glitch', 'Nexus', 'Titan', 'Viper', 'Shadow', 'Volt', 'Matrix', 'Pulse'];
     const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
     const uniqueId = Math.floor(1000 + Math.random() * 9000);
     return `${prefix}_#${uniqueId}`;
   }
-
-  // --- 1. PERSISTENCE & MIGRATION ---
 
   saveToStorage() {
     try {
@@ -58,7 +59,7 @@ export class ClickerCore {
         totalClicks: this.totalClicks,
         totalEarned: this.totalEarned,
         clickLevel: this.clickLevel,
-        autoMinersCount: this.autoMinersCount,
+        hardwareTiers: this.hardwareTiers,
         prestigeLevel: this.prestigeLevel,
         prestigeMultiplier: this.prestigeMultiplier,
         inventory: this.inventory,
@@ -85,7 +86,13 @@ export class ClickerCore {
         this.totalClicks = Number(data.totalClicks) || 0;
         this.totalEarned = Number(data.totalEarned) || this.neoCoins;
         this.clickLevel = Math.max(1, Number(data.clickLevel) || 1);
-        this.autoMinersCount = Number(data.autoMinersCount) || 0;
+
+        if (data.hardwareTiers && typeof data.hardwareTiers === 'object') {
+          this.hardwareTiers = Object.assign(this.hardwareTiers, data.hardwareTiers);
+        } else if (data.autoMinersCount) {
+          this.hardwareTiers['chip_v1'] = Number(data.autoMinersCount) || 0;
+        }
+
         this.prestigeLevel = Number(data.prestigeLevel) || 0;
         this.prestigeMultiplier = Math.max(1.0, Number(data.prestigeMultiplier) || 1.0);
         this.inventory = Array.isArray(data.inventory) ? data.inventory : [];
@@ -95,7 +102,6 @@ export class ClickerCore {
         this.clanId = data.clanId || null;
         this.createdDate = data.createdDate || Date.now();
       } else {
-        // Initial Starter Bonus for new device
         this.neoCoins = 15;
         this.saveToStorage();
       }
@@ -121,10 +127,10 @@ export class ClickerCore {
     }
   }
 
-  // --- 2. STATS & INCOME CALCULATIONS ---
+  // --- INCOME CALCULATIONS ---
 
   getClickPower(clanBonus = 0) {
-    let power = this.clickLevel * (1 + (this.clickLevel - 1) * 0.25);
+    let power = this.clickLevel * (1 + (this.clickLevel - 1) * 0.3);
 
     this.inventory.forEach(itemId => {
       const item = ITEMS_DATABASE.find(i => i.id === itemId);
@@ -142,12 +148,13 @@ export class ClickerCore {
   }
 
   getAutoIncomePerSec(clanBonus = 0) {
-    let income = this.autoMinersCount * 2.0;
+    let income = 0;
 
-    this.inventory.forEach(itemId => {
-      const item = ITEMS_DATABASE.find(i => i.id === itemId);
-      if (item && item.bonus && item.bonus.autoIncome) {
-        income += item.bonus.autoIncome;
+    // Calculate from hardware tiers
+    ITEMS_DATABASE.filter(i => i.type === 'hardware').forEach(h => {
+      const count = this.hardwareTiers[h.id] || 0;
+      if (count > 0 && h.bonus && h.bonus.autoIncome) {
+        income += count * h.bonus.autoIncome;
       }
     });
 
@@ -159,7 +166,7 @@ export class ClickerCore {
     return Math.round(income * 10) / 10;
   }
 
-  // --- 3. ACTIONS ---
+  // --- UPGRADES ---
 
   performClick(clanBonus = 0) {
     let amount = this.getClickPower(clanBonus);
@@ -176,7 +183,7 @@ export class ClickerCore {
   }
 
   upgradeClick() {
-    const cost = Math.round(15 * Math.pow(1.35, this.clickLevel - 1));
+    const cost = this.getClickUpgradeCost();
     if (this.neoCoins >= cost) {
       this.neoCoins -= cost;
       this.clickLevel++;
@@ -187,31 +194,37 @@ export class ClickerCore {
   }
 
   getClickUpgradeCost() {
-    return Math.round(15 * Math.pow(1.35, this.clickLevel - 1));
+    return Math.round(15 * Math.pow(1.32, this.clickLevel - 1));
   }
 
-  buyAutoMiner() {
-    const cost = Math.round(50 * Math.pow(1.25, this.autoMinersCount));
+  buyHardwareTier(hardwareId) {
+    const hardware = ITEMS_DATABASE.find(i => i.id === hardwareId);
+    if (!hardware) return false;
+
+    const cost = this.getHardwareCost(hardwareId);
     if (this.neoCoins >= cost) {
       this.neoCoins -= cost;
-      this.autoMinersCount++;
+      this.hardwareTiers[hardwareId] = (this.hardwareTiers[hardwareId] || 0) + 1;
       this.saveToStorage();
       return true;
     }
     return false;
   }
 
-  getAutoMinerCost() {
-    return Math.round(50 * Math.pow(1.25, this.autoMinersCount));
+  getHardwareCost(hardwareId) {
+    const hardware = ITEMS_DATABASE.find(i => i.id === hardwareId);
+    if (!hardware) return 999999;
+    const count = this.hardwareTiers[hardwareId] || 0;
+    return Math.round(hardware.basePrice * Math.pow(1.22, count));
   }
 
   canPrestige() {
-    const required = 50000 * Math.pow(2.5, this.prestigeLevel);
+    const required = 100000 * Math.pow(3.0, this.prestigeLevel);
     return this.neoCoins >= required;
   }
 
   getPrestigeCost() {
-    return Math.round(50000 * Math.pow(2.5, this.prestigeLevel));
+    return Math.round(100000 * Math.pow(3.0, this.prestigeLevel));
   }
 
   doPrestige() {
@@ -219,10 +232,10 @@ export class ClickerCore {
     if (this.neoCoins >= req) {
       this.prestigeLevel++;
       this.prestigeMultiplier += 0.5;
-      this.quantumCrystals += 50 * this.prestigeLevel;
+      this.quantumCrystals += 75 * this.prestigeLevel;
       this.neoCoins = 0;
       this.clickLevel = 1;
-      this.autoMinersCount = 0;
+      Object.keys(this.hardwareTiers).forEach(k => this.hardwareTiers[k] = 0);
       this.saveToStorage();
       return true;
     }
