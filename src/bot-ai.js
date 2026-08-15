@@ -1,7 +1,7 @@
 /**
- * AMONG US // SMART BOT AI WITH STRICT MAP NAVIGATION
- * Bots strictly stay inside rooms and corridors, perform simulated tasks,
- * stalk victims when Impostor, report bodies, and engage in debate.
+ * AMONG US // SMART BOT AI WITH WAYPOINT GRAPH PATHFINDING
+ * Bots find exact paths through corridors between rooms using BFS pathfinding.
+ * Speeds are balanced, bots do tasks, stalk victims, report bodies, and vote.
  */
 
 export class BotManager {
@@ -32,7 +32,7 @@ export class BotManager {
 
     for (let i = 0; i < count; i++) {
       const col = this.botColors[i % this.botColors.length];
-      const startRoom = this.map.rooms[0]; // Cafeteria
+      const startWp = this.map.waypoints[0]; // Cafeteria
 
       this.bots.push({
         id: 'bot_' + i,
@@ -40,11 +40,11 @@ export class BotManager {
         color: col.hex,
         isImpostor: false,
         isAlive: true,
-        x: startRoom.x + 60 + Math.random() * (startRoom.w - 120),
-        y: startRoom.y + 60 + Math.random() * (startRoom.h - 120),
-        speed: 2.2,
-        targetX: 1000,
-        targetY: 290,
+        x: startWp.x + (Math.random() - 0.5) * 80,
+        y: startWp.y + (Math.random() - 0.5) * 80,
+        speed: 3.0, // Balanced smooth speed
+        path: [], // Array of waypoints to follow
+        currentWpIndex: 0,
         state: 'IDLE',
         taskTimer: 0,
         killCooldown: 15.0,
@@ -52,6 +52,49 @@ export class BotManager {
         speechTimer: 0
       });
     }
+  }
+
+  // Find nearest waypoint to coordinate (x, y)
+  findNearestWaypoint(x, y) {
+    let nearest = this.map.waypoints[0];
+    let minDist = Infinity;
+    this.map.waypoints.forEach(wp => {
+      const d = Math.hypot(wp.x - x, wp.y - y);
+      if (d < minDist) {
+        minDist = d;
+        nearest = wp;
+      }
+    });
+    return nearest;
+  }
+
+  // BFS Pathfinding on waypoint network
+  findPath(startWp, targetWp) {
+    if (startWp.id === targetWp.id) return [targetWp];
+
+    const queue = [[startWp]];
+    const visited = new Set([startWp.id]);
+
+    while (queue.length > 0) {
+      const currentPath = queue.shift();
+      const lastNode = currentPath[currentPath.length - 1];
+
+      for (let i = 0; i < lastNode.links.length; i++) {
+        const neighborId = lastNode.links[i];
+        if (!visited.has(neighborId)) {
+          visited.add(neighborId);
+          const neighborNode = this.map.waypoints.find(w => w.id === neighborId);
+          if (neighborNode) {
+            const newPath = [...currentPath, neighborNode];
+            if (neighborId === targetWp.id) {
+              return newPath;
+            }
+            queue.push(newPath);
+          }
+        }
+      }
+    }
+    return [targetWp];
   }
 
   update(delta, player, onEmergencyMeeting) {
@@ -69,7 +112,7 @@ export class BotManager {
 
       // Check dead bodies nearby
       this.deadBodies.forEach(body => {
-        if (!body.reported && Math.hypot(bot.x - body.x, bot.y - body.y) < 80) {
+        if (!body.reported && Math.hypot(bot.x - body.x, bot.y - body.y) < 85) {
           body.reported = true;
           if (onEmergencyMeeting) {
             onEmergencyMeeting('body', bot, body);
@@ -79,36 +122,31 @@ export class BotManager {
 
       // AI State Machine
       if (bot.state === 'IDLE') {
-        // Pick a random room or task as next destination
-        const targetRoom = this.map.rooms[Math.floor(Math.random() * this.map.rooms.length)];
-        bot.targetX = targetRoom.x + 40 + Math.random() * (targetRoom.w - 80);
-        bot.targetY = targetRoom.y + 40 + Math.random() * (targetRoom.h - 80);
+        const randomTargetWp = this.map.waypoints[Math.floor(Math.random() * this.map.waypoints.length)];
+        const currentNearWp = this.findNearestWaypoint(bot.x, bot.y);
+        bot.path = this.findPath(currentNearWp, randomTargetWp);
+        bot.currentWpIndex = 0;
         bot.state = 'WALKING';
       } 
       else if (bot.state === 'WALKING') {
-        const dx = bot.targetX - bot.x;
-        const dy = bot.targetY - bot.y;
-        const dist = Math.hypot(dx, dy);
+        if (bot.path && bot.path.length > 0 && bot.currentWpIndex < bot.path.length) {
+          const targetWp = bot.path[bot.currentWpIndex];
+          const dx = targetWp.x - bot.x;
+          const dy = targetWp.y - bot.y;
+          const dist = Math.hypot(dx, dy);
 
-        if (dist > 12) {
-          const stepX = (dx / dist) * bot.speed;
-          const stepY = (dy / dist) * bot.speed;
-
-          // Strict collision checking for bots
-          if (this.map.isWalkable(bot.x + stepX, bot.y + stepY, 14)) {
-            bot.x += stepX;
-            bot.y += stepY;
-          } else if (this.map.isWalkable(bot.x + stepX, bot.y, 14)) {
-            bot.x += stepX;
-          } else if (this.map.isWalkable(bot.x, bot.y + stepY, 14)) {
-            bot.y += stepY;
+          if (dist > 8) {
+            bot.x += (dx / dist) * bot.speed;
+            bot.y += (dy / dist) * bot.speed;
           } else {
-            // Reroute if stuck
-            bot.state = 'IDLE';
+            bot.currentWpIndex++;
+            if (bot.currentWpIndex >= bot.path.length) {
+              bot.state = 'TASK';
+              bot.taskTimer = 4.0 + Math.random() * 4.0;
+            }
           }
         } else {
-          bot.state = 'TASK';
-          bot.taskTimer = 4.0 + Math.random() * 4.0;
+          bot.state = 'IDLE';
         }
       }
       else if (bot.state === 'TASK') {

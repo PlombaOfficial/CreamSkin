@@ -1,7 +1,7 @@
 /**
  * AMONG US // CYBER STATION COMPLETE ENGINE
- * Strict Wall Collisions, Minimap Radar, Room Code Multiplayer + Bots,
- * Tasks, Kill/Vent Actions, and Dynamic Emergency Meetings.
+ * Strict Wall Collisions, BFS Waypoint Bot Pathfinding, Realtime Firestore Sync,
+ * Synchronized Room Start for Host + Friend, Radar, and Minigame Tasks.
  */
 
 import { STATION_MAP } from "./station-map.js";
@@ -25,21 +25,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const audio = new AmongUsAudioEngine();
   const taskManager = new TaskManager(audio);
   const botManager = new BotManager(STATION_MAP, audio);
-  const network = new MultiplayerManager(null);
+  const network = new MultiplayerManager();
 
   // 2. Player State
   const player = {
     x: 1000,
     y: 290,
-    radius: 18,
-    speed: 4.8,
+    radius: 16,
+    speed: 3.4, // Balanced comfortable speed
     color: '#c51111',
     name: 'Оператор',
     isImpostor: false,
     isAlive: true,
     inVent: false,
     currentVentIdx: 0,
-    killCooldown: 10.0,
+    killCooldown: 12.0,
     completedTasks: 0,
     totalTasks: 4,
     speechBubble: null,
@@ -47,11 +47,12 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Game Status
-  let gameState = 'LOBBY'; // 'LOBBY' | 'ROLE_INTRO' | 'PLAYING' | 'MEETING' | 'EJECTION' | 'GAME_OVER'
+  let gameState = 'LOBBY';
   let meetingTimer = 30;
   let meetingInterval = null;
   let votes = {};
   let hasPlayerVoted = false;
+  let activeRoomCode = null;
 
   // Keyboard State
   const keys = { w: false, a: false, s: false, d: false };
@@ -89,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnReport.addEventListener('click', handleReport);
 
   // --------------------------------------------------------------------------
-  // LOBBY SETUP & MULTIPLAYER WAITING ROOM
+  // LOBBY SETUP & REALTIME FIRESTORE WAITING ROOM
   // --------------------------------------------------------------------------
   const inputPlayerName = document.getElementById('input-player-name');
   const inputRoomCode = document.getElementById('input-room-code');
@@ -101,17 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnStartMatch = document.getElementById('btn-start-match');
   const btnCancelRoom = document.getElementById('btn-cancel-room');
 
-  let selectedRole = 'crew';
-  let activeRoomCode = null;
-
-  document.querySelectorAll('.role-pick-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.role-pick-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedRole = btn.dataset.role;
-    });
-  });
-
   document.querySelectorAll('.color-dot').forEach(dot => {
     dot.addEventListener('click', () => {
       document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
@@ -120,23 +110,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Create Room -> Open Waiting Room Screen
+  // 1. Host creates room
   btnCreateRoom.addEventListener('click', async () => {
     player.name = inputPlayerName.value.trim() || 'Оператор';
     try {
       btnCreateRoom.disabled = true;
       btnCreateRoom.textContent = 'Создание...';
-      const code = await network.createRoom(player.name);
-      openWaitingRoom(code);
+      const code = await network.createRoom(player.name, player.color);
+      openWaitingRoom(code, true);
     } catch (e) {
-      openWaitingRoom('BCK' + Math.floor(1000 + Math.random() * 9000));
+      openWaitingRoom('BCK' + Math.floor(1000 + Math.random() * 9000), true);
     } finally {
       btnCreateRoom.disabled = false;
       btnCreateRoom.textContent = '⚡ СОЗДАТЬ КОМНАТУ';
     }
   });
 
-  // Join Room -> Open Waiting Room
+  // 2. Friend joins room
   btnJoinRoom.addEventListener('click', async () => {
     player.name = inputPlayerName.value.trim() || 'Оператор';
     const code = inputRoomCode.value.trim();
@@ -147,8 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       btnJoinRoom.disabled = true;
       btnJoinRoom.textContent = 'Вход...';
-      const joinedCode = await network.joinRoom(code, player.name);
-      openWaitingRoom(joinedCode);
+      const joinedCode = await network.joinRoom(code, player.name, player.color);
+      openWaitingRoom(joinedCode, false);
     } catch (e) {
       alert(e.message || 'Комната не найдена');
     } finally {
@@ -157,26 +147,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function openWaitingRoom(code) {
+  function openWaitingRoom(code, isHost) {
     activeRoomCode = code;
     document.getElementById('screen-lobby').classList.add('hidden');
     screenWaiting.classList.remove('hidden');
     waitingCodeBadge.textContent = code;
 
-    waitingPlayerList.innerHTML = `
-      <div class="waiting-player-slot">
-        <div class="waiting-player-dot" style="background: ${player.color};"></div>
-        <span>${player.name} (Вы - Хост)</span>
-      </div>
-      <div class="waiting-player-slot" style="color: #8fa0b5;">
-        <div class="waiting-player-dot" style="background: #555;"></div>
-        <span>Ожидание подключения друга...</span>
-      </div>
-      <div class="waiting-player-slot" style="color: #5a759e;">
-        <div class="waiting-player-dot" style="background: #132ed1;"></div>
-        <span>+ 6 Умных AI-Ботов (Заполнят экипаж)</span>
-      </div>
-    `;
+    // Show/Hide Start Button (only Host can start)
+    if (isHost) {
+      btnStartMatch.classList.remove('hidden');
+      btnStartMatch.textContent = '🚀 НАЧАТЬ ИГРУ СЕЙЧАС';
+    } else {
+      btnStartMatch.classList.add('hidden');
+    }
+
+    // Realtime Listener for room players & start signal
+    network.listenToRoom(
+      code,
+      (players) => {
+        // Render updated player list
+        waitingPlayerList.innerHTML = '';
+        players.forEach(p => {
+          const item = document.createElement('div');
+          item.className = 'waiting-player-slot';
+          item.innerHTML = `
+            <div class="waiting-player-dot" style="background: ${p.color};"></div>
+            <span>${p.name} ${p.isHost ? '(Хост)' : '(Подключен)'}</span>
+          `;
+          waitingPlayerList.appendChild(item);
+        });
+
+        // Bots placeholder slot
+        const botSlot = document.createElement('div');
+        botSlot.className = 'waiting-player-slot';
+        botSlot.style.color = '#5a759e';
+        botSlot.innerHTML = `
+          <div class="waiting-player-dot" style="background: #132ed1;"></div>
+          <span>+ ${Math.max(0, 8 - players.length)} Умных AI-Ботов (Заполнят экипаж)</span>
+        `;
+        waitingPlayerList.appendChild(botSlot);
+      },
+      (roomData) => {
+        // Host started match -> start match for friend automatically!
+        if (gameState === 'LOBBY') {
+          screenWaiting.classList.add('hidden');
+          startMatch(code, roomData.secretPick);
+        }
+      }
+    );
   }
 
   // Click Big Code to Copy
@@ -186,10 +204,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }).catch(() => {});
   });
 
-  // Start Match
+  // Host clicks Start Match
   btnStartMatch.addEventListener('click', () => {
+    const totalParticipants = 8;
+    const secretPick = Math.floor(Math.random() * totalParticipants);
+    network.startMatchInFirestore(secretPick);
     screenWaiting.classList.add('hidden');
-    startMatch(activeRoomCode);
+    startMatch(activeRoomCode, secretPick);
   });
 
   // Cancel Room
@@ -198,14 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('screen-lobby').classList.remove('hidden');
   });
 
-  function startMatch(roomCode) {
+  function startMatch(roomCode, secretPick = 0) {
     audio.init();
     document.getElementById('screen-lobby').classList.add('hidden');
     screenWaiting.classList.add('hidden');
     document.getElementById('game-hud').classList.remove('hidden');
     document.getElementById('hud-room-code-tag').textContent = `КОМНАТА: ${roomCode}`;
 
-    // Reset Player coordinates & state
+    // Reset Player
     player.x = 1000;
     player.y = 290;
     player.isAlive = true;
@@ -214,23 +235,22 @@ document.addEventListener('DOMContentLoaded', () => {
     player.completedTasks = 0;
     document.getElementById('task-bar-fill').style.width = '0%';
 
-    // Initialize 6 Bots
+    // Init Bots
     botManager.initBots(6);
 
-    // 🎲 100% SECRET RANDOM ROLE ASSIGNMENT
-    // 1 in 7 chance for the Player, otherwise 1 of the Bots is secretly picked!
-    const totalParticipants = 1 + botManager.bots.length; // Player + 6 Bots = 7
-    const secretPick = Math.floor(Math.random() * totalParticipants);
-
+    // Synchronized Secret Impostor Assignment
     if (secretPick === 0) {
-      // Player is the secret Impostor!
-      player.isImpostor = true;
+      player.isImpostor = network.isHost;
+    } else if (secretPick === 1) {
+      player.isImpostor = !network.isHost;
     } else {
-      // One of the bots is the secret Impostor!
       player.isImpostor = false;
-      const impostorBotIdx = secretPick - 1;
-      botManager.bots[impostorBotIdx].isImpostor = true;
+      const impBotIdx = Math.min(botManager.bots.length - 1, secretPick - 2);
+      botManager.bots[impBotIdx].isImpostor = true;
     }
+
+    // Start coordinates listener
+    network.listenToRemotePlayers();
 
     // Role Intro Splash
     const introModal = document.getElementById('modal-role-intro');
@@ -258,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2800);
   }
 
-  // Click Room Code to Copy
+  // Room Code Copy in HUD
   document.getElementById('hud-room-code-tag').addEventListener('click', () => {
     const text = document.getElementById('hud-room-code-tag').textContent.replace('КОМНАТА: ', '');
     navigator.clipboard.writeText(text).then(() => {
@@ -278,14 +298,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleUseOrVent() {
     if (gameState !== 'PLAYING' || !player.isAlive) return;
 
-    // 1. Emergency Table
     const distToTable = Math.hypot(player.x - STATION_MAP.emergencyTable.x, player.y - STATION_MAP.emergencyTable.y);
     if (distToTable < 70) {
       startEmergencyMeeting('emergency', { name: player.name });
       return;
     }
 
-    // 2. Task Consoles
     for (let i = 0; i < STATION_MAP.tasks.length; i++) {
       const t = STATION_MAP.tasks[i];
       if (Math.hypot(player.x - t.x, player.y - t.y) < 65) {
@@ -301,27 +319,39 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleKill() {
     if (gameState !== 'PLAYING' || !player.isImpostor || player.killCooldown > 0 || !player.isAlive) return;
 
-    let nearestBot = null;
-    let minDist = 80;
+    let nearestVictim = null;
+    let minDist = 75;
 
+    // Check bots
     botManager.bots.forEach(bot => {
       if (bot.isAlive) {
         const dist = Math.hypot(player.x - bot.x, player.y - bot.y);
         if (dist < minDist) {
           minDist = dist;
-          nearestBot = bot;
+          nearestVictim = bot;
         }
       }
     });
 
-    if (nearestBot) {
-      nearestBot.isAlive = false;
+    // Check remote friend
+    network.remotePlayers.forEach(rp => {
+      if (rp.isAlive) {
+        const dist = Math.hypot(player.x - rp.x, player.y - rp.y);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestVictim = rp;
+        }
+      }
+    });
+
+    if (nearestVictim) {
+      nearestVictim.isAlive = false;
       player.killCooldown = 22.0;
       botManager.deadBodies.push({
-        x: nearestBot.x,
-        y: nearestBot.y,
-        color: nearestBot.color,
-        name: nearestBot.name,
+        x: nearestVictim.x,
+        y: nearestVictim.y,
+        color: nearestVictim.color,
+        name: nearestVictim.name,
         reported: false
       });
       audio.playKill();
@@ -411,6 +441,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     voteGrid.innerHTML = '';
     buildVoteCard(voteGrid, 'player', player.name, player.color, player.isAlive);
+    
+    // Add remote players to voting
+    network.remotePlayers.forEach(rp => {
+      buildVoteCard(voteGrid, rp.id, rp.name, rp.color, rp.isAlive);
+    });
+
     botManager.bots.forEach(bot => {
       buildVoteCard(voteGrid, bot.id, bot.name, bot.color, bot.isAlive);
     });
@@ -460,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') sendPlayerMeetingChat();
   });
 
-  // HUD Chat Input on key T
+  // HUD Quick Chat
   const hudChatBox = document.getElementById('hud-chat-input-box');
   const hudChatInput = document.getElementById('hud-chat-input');
 
@@ -620,7 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (player.speechTimer <= 0) player.speechBubble = null;
       }
 
-      // Strict Player Movement Collision
+      // Player Movement Collision
       if (player.isAlive && !player.inVent) {
         let mx = 0, my = 0;
         if (keys.w) my -= 1;
@@ -633,7 +669,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const stepX = (mx / len) * player.speed;
           const stepY = (my / len) * player.speed;
 
-          // Check if next coordinate is strictly walkable
           if (STATION_MAP.isWalkable(player.x + stepX, player.y + stepY, player.radius)) {
             player.x += stepX;
             player.y += stepY;
@@ -642,6 +677,9 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (STATION_MAP.isWalkable(player.x, player.y + stepY, player.radius)) {
             player.y += stepY;
           }
+
+          // Broadcast Coordinates to Friend
+          network.broadcastPosition(player.x, player.y, player.isAlive);
         }
       }
 
@@ -652,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnKill.classList.toggle('ready', player.killCooldown <= 0);
       }
 
-      // Check nearby tasks for USE button prompt
+      // Nearby Prompts
       let nearTask = false;
       STATION_MAP.tasks.forEach(t => {
         if (Math.hypot(player.x - t.x, player.y - t.y) < 65) nearTask = true;
@@ -660,14 +698,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (Math.hypot(player.x - STATION_MAP.emergencyTable.x, player.y - STATION_MAP.emergencyTable.y) < 70) nearTask = true;
       btnUse.classList.toggle('active-prompt', nearTask);
 
-      // Check nearby dead body for REPORT button
       let nearBody = false;
       botManager.deadBodies.forEach(b => {
         if (!b.reported && Math.hypot(player.x - b.x, player.y - b.y) < 90) nearBody = true;
       });
       btnReport.classList.toggle('active-prompt', nearBody);
 
-      // Update Bot AI
+      // Update Bots
       botManager.update(delta, player, (type, reporter, body) => {
         startEmergencyMeeting(type, reporter, body);
       });
@@ -684,16 +721,16 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.save();
     ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
 
-    // 1. Draw Spaceship Outer Hull Shadow
+    // 1. Spaceship Hull Background
     ctx.fillStyle = '#0f141f';
     STATION_MAP.rooms.forEach(r => ctx.fillRect(r.x - 12, r.y - 12, r.w + 24, r.h + 24));
     STATION_MAP.corridors.forEach(c => ctx.fillRect(c.x - 12, c.y - 12, c.w + 24, c.h + 24));
 
-    // 2. Draw Walkable Corridors
+    // 2. Corridors
     ctx.fillStyle = '#1c2433';
     STATION_MAP.corridors.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h));
 
-    // 3. Draw Walkable Rooms with Metal Borders
+    // 3. Rooms
     STATION_MAP.rooms.forEach(r => {
       ctx.fillStyle = r.color;
       ctx.fillRect(r.x, r.y, r.w, r.h);
@@ -702,14 +739,13 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.lineWidth = 6;
       ctx.strokeRect(r.x, r.y, r.w, r.h);
 
-      // Room Name Header
       ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
       ctx.font = 'bold 20px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(r.name, r.x + r.w / 2, r.y + 36);
     });
 
-    // 4. Draw Emergency Table with Big Red Button
+    // 4. Emergency Table
     ctx.fillStyle = '#151b24';
     ctx.beginPath();
     ctx.arc(STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y, STATION_MAP.emergencyTable.radius, 0, Math.PI * 2);
@@ -726,7 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.font = 'bold 10px sans-serif';
     ctx.fillText('SOS', STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y + 4);
 
-    // 5. Draw Vents
+    // 5. Vents
     STATION_MAP.vents.forEach(v => {
       ctx.fillStyle = '#111111';
       ctx.fillRect(v.x - 20, v.y - 12, 40, 24);
@@ -735,7 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.strokeRect(v.x - 20, v.y - 12, 40, 24);
     });
 
-    // 6. Draw Task Consoles (Glowing Yellow with Icon)
+    // 6. Tasks
     STATION_MAP.tasks.forEach(t => {
       ctx.fillStyle = '#ffdd00';
       ctx.shadowColor = '#ffdd00';
@@ -750,7 +786,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.textAlign = 'center';
       ctx.fillText('!', t.x, t.y + 5);
 
-      // Task Name floating tag
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       ctx.fillRect(t.x - 70, t.y - 32, 140, 20);
       ctx.fillStyle = '#ffdd00';
@@ -758,17 +793,24 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fillText(t.name, t.x, t.y - 18);
     });
 
-    // 7. Draw Dead Bodies
+    // 7. Dead Bodies
     botManager.deadBodies.forEach(b => drawDeadBody(ctx, b.x, b.y, b.color));
 
-    // 8. Draw Bots
+    // 8. Remote Real-Time Players (Friend!)
+    network.remotePlayers.forEach(rp => {
+      if (rp.isAlive) {
+        drawAstronaut(ctx, rp.x, rp.y, rp.color, rp.name, false, null);
+      }
+    });
+
+    // 9. Bots
     botManager.bots.forEach(bot => {
       if (bot.isAlive) {
         drawAstronaut(ctx, bot.x, bot.y, bot.color, bot.name, false, bot.speechBubble);
       }
     });
 
-    // 9. Draw Player
+    // 10. Local Player
     if (player.isAlive && !player.inVent) {
       drawAstronaut(ctx, player.x, player.y, player.color, player.name, true, player.speechBubble);
     }
@@ -780,14 +822,12 @@ document.addEventListener('DOMContentLoaded', () => {
     c.save();
     c.translate(x, y);
 
-    // Backpack
     c.fillStyle = color;
     c.fillRect(-22, -12, 10, 24);
     c.strokeStyle = '#000';
     c.lineWidth = 2;
     c.strokeRect(-22, -12, 10, 24);
 
-    // Main Body
     c.fillStyle = color;
     c.beginPath();
     c.arc(0, -6, 16, Math.PI, 0);
@@ -799,7 +839,6 @@ document.addEventListener('DOMContentLoaded', () => {
     c.fill();
     c.stroke();
 
-    // Visor Glass
     c.fillStyle = '#66ccff';
     c.beginPath();
     c.ellipse(6, -6, 10, 6, 0, 0, Math.PI * 2);
@@ -808,13 +847,11 @@ document.addEventListener('DOMContentLoaded', () => {
     c.lineWidth = 2;
     c.stroke();
 
-    // Name Label
     c.fillStyle = isPlayer ? '#ffff55' : '#ffffff';
     c.font = 'bold 14px sans-serif';
     c.textAlign = 'center';
     c.fillText(name, 0, -26);
 
-    // Speech Bubble
     if (speech) {
       c.fillStyle = 'rgba(0, 0, 0, 0.85)';
       c.strokeStyle = '#00f0ff';
@@ -866,13 +903,9 @@ document.addEventListener('DOMContentLoaded', () => {
     mctx.fillStyle = 'rgba(10, 15, 25, 0.85)';
     mctx.fillRect(0, 0, mw, mh);
 
-    // Draw rooms
     mctx.fillStyle = '#334460';
-    STATION_MAP.rooms.forEach(r => {
-      mctx.fillRect(r.x * sx, r.y * sy, r.w * sx, r.h * sy);
-    });
+    STATION_MAP.rooms.forEach(r => mctx.fillRect(r.x * sx, r.y * sy, r.w * sx, r.h * sy));
 
-    // Draw tasks (yellow blinking dots)
     mctx.fillStyle = '#ffdd00';
     STATION_MAP.tasks.forEach(t => {
       mctx.beginPath();
@@ -880,7 +913,6 @@ document.addEventListener('DOMContentLoaded', () => {
       mctx.fill();
     });
 
-    // Draw player dot (cyan)
     mctx.fillStyle = '#00f0ff';
     mctx.beginPath();
     mctx.arc(player.x * sx, player.y * sy, 4, 0, Math.PI * 2);

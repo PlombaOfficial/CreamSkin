@@ -1,14 +1,12 @@
 /**
- * AMONG US // CYBER STATION MAP WITH STRICT WALL COLLISIONS
- * Defines rooms, strict walkable corridors, solid impenetrable walls,
- * task stations, and vents.
+ * AMONG US // CYBER STATION MAP WITH WAYPOINT NAVIGATION GRAPH & STRICT COLLISIONS
  */
 
 export const STATION_MAP = {
   width: 2000,
   height: 1400,
 
-  // Walkable Rooms (X, Y, W, H, Color, Name)
+  // Walkable Rooms
   rooms: [
     { id: 'cafeteria', name: 'СТОЛОВАЯ', x: 800, y: 150, w: 400, h: 280, color: '#1e2b3d' },
     { id: 'weapons', name: 'ОРУЖЕЙНАЯ', x: 1350, y: 120, w: 260, h: 220, color: '#2d2238' },
@@ -24,7 +22,7 @@ export const STATION_MAP = {
     { id: 'lower_engine', name: 'НИЖНИЙ ДВИГАТЕЛЬ', x: 280, y: 850, w: 200, h: 180, color: '#22222b' }
   ],
 
-  // Walkable Corridors connecting the rooms
+  // Walkable Corridors
   corridors: [
     { x: 680, y: 250, w: 140, h: 80 },   // Medbay -> Cafeteria
     { x: 1180, y: 250, w: 190, h: 80 },  // Cafeteria -> Weapons
@@ -42,6 +40,37 @@ export const STATION_MAP = {
 
   emergencyTable: { x: 1000, y: 290, radius: 45 },
 
+  // Waypoint Navigation Network for 100% Smooth Bot Pathfinding (NO WALL BUMPING)
+  waypoints: [
+    { id: 'wp_cafeteria', x: 1000, y: 290, links: ['wp_caf_left', 'wp_caf_right', 'wp_caf_bottom'] },
+    { id: 'wp_caf_left', x: 750, y: 290, links: ['wp_cafeteria', 'wp_medbay'] },
+    { id: 'wp_caf_right', x: 1250, y: 290, links: ['wp_cafeteria', 'wp_weapons'] },
+    { id: 'wp_caf_bottom', x: 920, y: 500, links: ['wp_cafeteria', 'wp_admin'] },
+
+    { id: 'wp_medbay', x: 590, y: 340, links: ['wp_caf_left', 'wp_upper_engine'] },
+    { id: 'wp_upper_engine', x: 380, y: 290, links: ['wp_medbay', 'wp_reactor_top'] },
+    { id: 'wp_reactor_top', x: 220, y: 450, links: ['wp_upper_engine', 'wp_reactor'] },
+    { id: 'wp_reactor', x: 220, y: 630, links: ['wp_reactor_top', 'wp_reactor_bot', 'wp_electrical'] },
+    { id: 'wp_reactor_bot', x: 220, y: 800, links: ['wp_reactor', 'wp_lower_engine'] },
+    { id: 'wp_lower_engine', x: 380, y: 940, links: ['wp_reactor_bot', 'wp_storage_left'] },
+
+    { id: 'wp_electrical', x: 570, y: 630, links: ['wp_reactor', 'wp_admin_left'] },
+    { id: 'wp_admin_left', x: 800, y: 660, links: ['wp_electrical', 'wp_admin'] },
+    { id: 'wp_admin', x: 1060, y: 680, links: ['wp_caf_bottom', 'wp_admin_left', 'wp_admin_bottom'] },
+    { id: 'wp_admin_bottom', x: 1120, y: 820, links: ['wp_admin', 'wp_storage'] },
+
+    { id: 'wp_storage_left', x: 600, y: 920, links: ['wp_lower_engine', 'wp_storage'] },
+    { id: 'wp_storage', x: 920, y: 990, links: ['wp_storage_left', 'wp_admin_bottom'] },
+
+    { id: 'wp_weapons', x: 1480, y: 230, links: ['wp_caf_right', 'wp_o2_top'] },
+    { id: 'wp_o2_top', x: 1490, y: 420, links: ['wp_weapons', 'wp_o2'] },
+    { id: 'wp_o2', x: 1350, y: 570, links: ['wp_o2_top', 'wp_nav_corridor', 'wp_shields_corridor'] },
+    { id: 'wp_nav_corridor', x: 1550, y: 590, links: ['wp_o2', 'wp_navigation'] },
+    { id: 'wp_navigation', x: 1770, y: 620, links: ['wp_nav_corridor'] },
+    { id: 'wp_shields_corridor', x: 1490, y: 750, links: ['wp_o2', 'wp_shields'] },
+    { id: 'wp_shields', x: 1480, y: 960, links: ['wp_shields_corridor'] }
+  ],
+
   vents: [
     { id: 'v1', x: 1160, y: 200, room: 'cafeteria', connectsTo: ['v2'] },
     { id: 'v2', x: 1000, y: 620, room: 'admin', connectsTo: ['v1'] },
@@ -52,7 +81,6 @@ export const STATION_MAP = {
     { id: 'v7', x: 1540, y: 1000, room: 'shields', connectsTo: ['v5', 'v6'] }
   ],
 
-  // Interactive Task Stations with Big Visible Markers
   tasks: [
     { id: 't_wires_elec', type: 'wires', name: 'Соединить провода', room: 'electrical', x: 620, y: 590 },
     { id: 't_wires_caf', type: 'wires', name: 'Соединить провода', room: 'cafeteria', x: 840, y: 200 },
@@ -63,9 +91,7 @@ export const STATION_MAP = {
     { id: 't_o2_filter', type: 'o2_filter', name: 'Очистить фильтр O2', room: 'o2', x: 1390, y: 560 }
   ],
 
-  // Strict Collision Check: Is (x, y) inside ANY walkable room or corridor?
-  isWalkable(x, y, radius = 18) {
-    // Check inside any room
+  isWalkable(x, y, radius = 16) {
     for (let i = 0; i < this.rooms.length; i++) {
       const r = this.rooms[i];
       if (
@@ -78,7 +104,6 @@ export const STATION_MAP = {
       }
     }
 
-    // Check inside any corridor
     for (let i = 0; i < this.corridors.length; i++) {
       const c = this.corridors[i];
       if (
