@@ -4,10 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>NEO-CLICKER ONLINE // Социальная Онлайн-Кликер MMO</title>
-  <meta name="description" content="Масштабный социальный онлайн-кликер: кланы с бонусами и казной, живой чат, P2P трейды, рынок игроков, редкие реликвии и серверные ивенты.">
+  <meta name="description" content="Масштабный социальный онлайн-кликер: реальный мультиплеер, кланы с бонусами и казной, живой чат, P2P трейды, рынок игроков, редкие реликвии и серверные ивенты.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 
   <link rel="stylesheet" href="styles.css">
+
+  <!-- Firebase Realtime Network SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -173,37 +177,78 @@
           <div class="market-listings-grid" id="market-listings-grid"></div>
         </section>
 
-        <!-- 4. TAB: TRADES -->
+        <!-- 4. TAB: INTERACTIVE BILATERAL P2P TRADES -->
         <section class="app-tab-view hidden" id="tab-view-trades">
           <div class="trade-view-layout">
             <div class="trade-header-bar">
-              <span class="label">ПАРТНЕР ПО ОБМЕНУ:</span>
+              <span class="label">🤝 ВЫБЕРИТЕ ПАРТНЕРА ДЛЯ ОБМЕНА:</span>
               <select class="trade-partner-select" id="trade-partner-select">
                 <option value="Alex_Pro">Alex_Pro [CYBER]</option>
                 <option value="FlameMaster">FlameMaster [FIRE]</option>
                 <option value="SunGoddess">SunGoddess [FIRE]</option>
+                <option value="Crypto_Whale">Crypto_Whale [МАГНАТ]</option>
                 <option value="ByteHunter">ByteHunter [WOLF]</option>
               </select>
             </div>
 
+            <!-- Two Trade Sides -->
             <div class="trade-boxes-split">
+              <!-- Side A: You -->
               <div class="trade-side-card">
-                <div class="trade-side-title" id="trade-party-a-name">Вы</div>
-                <div class="badge-wait" id="trade-status-a">⏳ ВЫБОР...</div>
-                <div class="trade-items-box" id="trade-items-a">
-                  <div class="trade-hint-msg">Ваше предложение готово к сделке.</div>
+                <div class="trade-side-header">
+                  <span class="trade-side-title" id="trade-party-a-name">Вы</span>
+                  <span class="badge-wait" id="trade-status-a">⏳ ВЫБОР ПРЕДЛОЖЕНИЯ...</span>
                 </div>
-                <button class="btn-primary-sm" id="btn-trade-ready">ГОТОВ К СДЕЛКЕ</button>
+
+                <!-- Your Offer Coins -->
+                <div class="trade-coins-offer-bar">
+                  <span class="label">ПРЕДЛОЖЕНО МОНЕТ:</span>
+                  <span class="coins-val" id="trade-offer-coins-a">$0 NC</span>
+                </div>
+
+                <div class="trade-quick-coins-row">
+                  <button class="trade-coin-btn" data-add="500">+$500</button>
+                  <button class="trade-coin-btn" data-add="2000">+$2,000</button>
+                  <button class="trade-coin-btn" data-add="10000">+$10,000</button>
+                  <button class="trade-coin-btn reset" data-add="0">Сброс</button>
+                </div>
+
+                <!-- Your Offer Item Slots -->
+                <div class="trade-items-slots-box" id="trade-items-slots-a"></div>
+
+                <!-- Your Inventory Picker to add items -->
+                <div class="trade-inv-picker-section">
+                  <div class="picker-title">🎒 ВАШ ИНВЕНТАРЬ (Кликните, чтобы добавить в трейд):</div>
+                  <div class="trade-inventory-picker-grid" id="trade-inventory-picker-grid"></div>
+                </div>
+
+                <button class="btn-trade-action ready" id="btn-trade-ready">✔ ГОТОВ К СДЕЛКЕ</button>
               </div>
 
+              <!-- Side B: Partner -->
               <div class="trade-side-card">
-                <div class="trade-side-title" id="trade-party-b-name">Партнер</div>
-                <div class="badge-ready" id="trade-status-b">✔ ГОТОВ</div>
-                <div class="trade-items-box" id="trade-items-b"></div>
+                <div class="trade-side-header">
+                  <span class="trade-side-title" id="trade-party-b-name">Партнер</span>
+                  <span class="badge-ready" id="trade-status-b">✔ ГОТОВ</span>
+                </div>
+
+                <div class="trade-coins-offer-bar">
+                  <span class="label">ПРЕДЛОЖЕНО МОНЕТ:</span>
+                  <span class="coins-val" id="trade-offer-coins-b">$1,500 NC</span>
+                </div>
+
+                <div class="trade-items-slots-box partner-slots" id="trade-items-slots-b"></div>
+
+                <div class="partner-trade-status-box">
+                  <span>Предложение партнера зафиксировано и ожидает вашего подтверждения.</span>
+                </div>
               </div>
             </div>
 
-            <button class="btn-primary-lg" id="btn-trade-confirm" disabled>🤝 ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ СДЕЛКУ</button>
+            <!-- Main Confirm Action Button -->
+            <button class="btn-primary-lg btn-confirm-trade" id="btn-trade-confirm" disabled>
+              🤝 ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ СДЕЛКУ
+            </button>
           </div>
         </section>
 
@@ -276,7 +321,7 @@
         <div class="global-chat-feed" id="global-chat-feed"></div>
 
         <form class="chat-send-form" id="chat-send-form">
-          <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Написать в чат (боты ответят вам!)..." maxlength="120">
+          <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Написать в чат (боты и реальные игроки ответят!)..." maxlength="120">
           <button type="submit" class="btn-chat-send">➤</button>
         </form>
 

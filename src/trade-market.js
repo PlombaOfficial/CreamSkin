@@ -1,7 +1,7 @@
 /**
  * NEO-CLICKER ONLINE // BILATERAL P2P TRADE & OPEN MARKETPLACE ENGINE
- * 1. 2-Sided Secure Bilateral Trade Window (Items + Coins).
- * 2. Global Player Marketplace for listing & purchasing items with search & filters.
+ * 1. Interactive 2-Sided Secure Bilateral Trade with Item Slot Staging.
+ * 2. Global Player Marketplace for listing & purchasing items with category filters.
  */
 
 import { ITEMS_DATABASE } from "./items-collectibles.js";
@@ -36,11 +36,11 @@ export class TradeMarketEngine {
 
   seedDefaultMarket() {
     this.marketListings = [
-      { id: 'm_1', seller: 'Alex_Pro', itemId: 'gpu_rtx', price: 320, time: Date.now() },
-      { id: 'm_2', seller: 'FlameMaster', itemId: 'cyber_glove', price: 180, time: Date.now() },
-      { id: 'm_3', seller: 'SunGoddess', itemId: 'aura_cyber', price: 950, time: Date.now() },
-      { id: 'm_4', seller: 'Matrix_King', itemId: 'frame_gold', price: 750, time: Date.now() },
-      { id: 'm_5', seller: 'ByteHunter', itemId: 'title_tycoon', price: 450, time: Date.now() }
+      { id: 'm_1', seller: 'Alex_Pro', itemId: 'gpu_rtx', price: 1400, time: Date.now() },
+      { id: 'm_2', seller: 'FlameMaster', itemId: 'cyber_glove', price: 550, time: Date.now() },
+      { id: 'm_3', seller: 'SunGoddess', itemId: 'golden_touch', price: 8000, time: Date.now() },
+      { id: 'm_4', seller: 'Matrix_King', itemId: 'aura_cyber', price: 1900, time: Date.now() },
+      { id: 'm_5', seller: 'ByteHunter', itemId: 'frame_gold', price: 1700, time: Date.now() }
     ];
     this.saveMarket();
   }
@@ -69,7 +69,6 @@ export class TradeMarketEngine {
       return { success: false, msg: 'Недостаточно Нео-Коинов для покупки!' };
     }
 
-    // Process Transaction
     buyerCore.neoCoins -= listing.price;
     buyerCore.addItem(listing.itemId);
 
@@ -83,7 +82,7 @@ export class TradeMarketEngine {
     };
   }
 
-  // --- BILATERAL P2P TRADE SYSTEM ---
+  // --- INTERACTIVE BILATERAL P2P TRADE SYSTEM ---
 
   startTrade(playerA_Name, playerB_Name) {
     this.activeTrade = {
@@ -97,58 +96,84 @@ export class TradeMarketEngine {
       },
       partyB: {
         name: playerB_Name,
-        coins: 0,
-        items: [],
-        ready: false,
+        coins: 1500,
+        items: ['gpu_rtx'],
+        ready: true,
         confirmed: false
       },
-      status: 'active' // 'active', 'completed', 'cancelled'
+      status: 'active'
     };
     return this.activeTrade;
   }
 
-  setOffer(isPartyA, coins, items) {
+  addItemToTrade(itemId, playerCore) {
     if (!this.activeTrade || this.activeTrade.status !== 'active') return;
-    const party = isPartyA ? this.activeTrade.partyA : this.activeTrade.partyB;
+    if (!playerCore.inventory.includes(itemId)) return;
 
-    party.coins = Math.max(0, Math.round(coins));
-    party.items = Array.isArray(items) ? items : [];
-
-    // Reset ready states if offer changes (anti-scam safeguard)
-    this.activeTrade.partyA.ready = false;
-    this.activeTrade.partyB.ready = false;
-    this.activeTrade.partyA.confirmed = false;
-    this.activeTrade.partyB.confirmed = false;
+    this.activeTrade.partyA.items.push(itemId);
+    this.resetReadyStates();
   }
 
-  setReady(isPartyA) {
-    if (!this.activeTrade) return;
-    const party = isPartyA ? this.activeTrade.partyA : this.activeTrade.partyB;
-    party.ready = !party.ready;
-  }
-
-  confirmTrade(isPartyA, playerCore) {
-    if (!this.activeTrade) return false;
-    const party = isPartyA ? this.activeTrade.partyA : this.activeTrade.partyB;
-    const otherParty = isPartyA ? this.activeTrade.partyB : this.activeTrade.partyA;
-
-    if (!party.ready || !otherParty.ready) return false;
-    party.confirmed = true;
-
-    if (this.activeTrade.partyA.confirmed && this.activeTrade.partyB.confirmed) {
-      // Execute Atomic Transfer
-      this.activeTrade.status = 'completed';
-
-      // Deduct local player assets & give partner assets
-      playerCore.neoCoins -= this.activeTrade.partyA.coins;
-      this.activeTrade.partyA.items.forEach(it => playerCore.removeItem(it));
-
-      playerCore.neoCoins += this.activeTrade.partyB.coins;
-      this.activeTrade.partyB.items.forEach(it => playerCore.addItem(it));
-
-      return true;
+  removeItemFromTrade(index) {
+    if (!this.activeTrade || this.activeTrade.status !== 'active') return;
+    if (index >= 0 && index < this.activeTrade.partyA.items.length) {
+      this.activeTrade.partyA.items.splice(index, 1);
+      this.resetReadyStates();
     }
-    return false;
+  }
+
+  setCoinsOffer(amount) {
+    if (!this.activeTrade || this.activeTrade.status !== 'active') return;
+    this.activeTrade.partyA.coins = Math.max(0, Math.round(amount));
+    this.resetReadyStates();
+  }
+
+  resetReadyStates() {
+    if (this.activeTrade) {
+      this.activeTrade.partyA.ready = false;
+      this.activeTrade.partyB.ready = false;
+      this.activeTrade.partyA.confirmed = false;
+      this.activeTrade.partyB.confirmed = false;
+
+      // Bot adjusts its counter-offer and sets ready after a brief moment
+      setTimeout(() => {
+        if (this.activeTrade) {
+          this.activeTrade.partyB.ready = true;
+        }
+      }, 800);
+    }
+  }
+
+  toggleReady() {
+    if (!this.activeTrade) return;
+    this.activeTrade.partyA.ready = !this.activeTrade.partyA.ready;
+  }
+
+  canConfirm() {
+    if (!this.activeTrade) return false;
+    return this.activeTrade.partyA.ready && this.activeTrade.partyB.ready;
+  }
+
+  confirmAndExecuteTrade(playerCore) {
+    if (!this.canConfirm()) return false;
+
+    const trade = this.activeTrade;
+    if (playerCore.neoCoins < trade.partyA.coins) {
+      alert('У вас недостаточно монет для этого предложения!');
+      return false;
+    }
+
+    trade.status = 'completed';
+
+    // Transfer A -> Deduct coins & items
+    playerCore.neoCoins -= trade.partyA.coins;
+    trade.partyA.items.forEach(itId => playerCore.removeItem(itId));
+
+    // Transfer B -> Give partner coins & items
+    playerCore.neoCoins += trade.partyB.coins;
+    trade.partyB.items.forEach(itId => playerCore.addItem(itId));
+
+    return true;
   }
 
   cancelTrade() {

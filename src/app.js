@@ -1,10 +1,8 @@
 /**
  * NEO-CLICKER ONLINE // MASTER SOCIAL MMO CLICKER ENGINE
- * 1. Clean, High-Contrast Cyber-Fintech UI with Sound Engine.
- * 2. Interactive AI Bot Chat that argues, roasts, trades, and replies to player messages.
- * 3. 30-Player Dynamic Live Leaderboard.
- * 4. PvP Click Duels Mini-Game.
- * 5. 10-Tier Hardware Upgrades and Marketplace 2.0.
+ * 1. Real Multiplayer Firebase Firestore Sync (Live Chat & Online Players).
+ * 2. Intuitive Interactive Bilateral P2P Trade System.
+ * 3. 10-Tier Hardware Upgrades, Marketplace 2.0, SoundEngine, and PvP Duels.
  */
 
 import { ClickerCore } from "./clicker-core.js";
@@ -13,10 +11,11 @@ import { SocialChatEngine } from "./social-chat.js";
 import { TradeMarketEngine } from "./trade-market.js";
 import { LeaderboardAndEventsEngine } from "./leaderboard-events.js";
 import { SoundEngine } from "./sound-engine.js";
+import { RealMultiplayerSync } from "./multiplayer-sync.js";
 import { ITEMS_DATABASE, RARITY_CONFIG } from "./items-collectibles.js";
 
 // Global Singletons
-let core, clans, chat, market, events, audio;
+let core, clans, chat, market, events, audio, network;
 let activeTab = 'clicker';
 let activeMarketCategory = 'all';
 let selectedTradePartner = 'Alex_Pro';
@@ -43,6 +42,24 @@ function initGame() {
     if (audio) audio.playChatSound();
   });
 
+  // Real Firebase Multiplayer Network Sync
+  network = new RealMultiplayerSync(
+    (remoteMsg) => {
+      // Real player message received from Firestore
+      if (remoteMsg.sender !== core.name) {
+        chat.addChatMessage(remoteMsg.channel || 'global', remoteMsg.sender, remoteMsg.clanTag, remoteMsg.title, remoteMsg.text);
+      }
+    },
+    (remotePlayers) => {
+      // Real online players list
+      mergeRealOnlinePlayers(remotePlayers);
+    },
+    (remoteListings) => {
+      market.marketListings = remoteListings;
+      renderMarket();
+    }
+  );
+
   events = new LeaderboardAndEventsEngine((action, data) => {
     handleServerEvent(action, data);
   });
@@ -61,9 +78,32 @@ function initGame() {
   setupSoundToggle();
   setupPvPDuel();
 
+  // Heartbeat every 12 seconds
+  setInterval(() => {
+    if (network) network.sendHeartbeat(core, clans);
+  }, 12000);
+
   // 10 FPS Loop
   setInterval(tick, 100);
   renderAll();
+}
+
+function mergeRealOnlinePlayers(realPlayers) {
+  realPlayers.forEach(rp => {
+    if (!chat.onlinePlayers.some(p => p.name === rp.name)) {
+      chat.onlinePlayers.unshift({
+        name: rp.name,
+        clan: rp.clan,
+        title: rp.title,
+        level: rp.level || 1,
+        coins: rp.coins || 0,
+        aura: 'aura_cyber',
+        status: '🟢 РЕАЛЬНЫЙ ИГРОК В СЕТИ',
+        isReal: true
+      });
+    }
+  });
+  setupOnlinePlayersList();
 }
 
 function setupSoundToggle() {
@@ -143,6 +183,7 @@ function setupNavigationTabs() {
       if (activeTab === 'clicker') renderUpgrades();
       if (activeTab === 'clans') renderClans();
       if (activeTab === 'market') renderMarket();
+      if (activeTab === 'trades') renderTradeWindow();
       if (activeTab === 'leaderboard') renderLeaderboard();
       if (activeTab === 'inventory') renderInventory();
       if (activeTab === 'profile') renderProfile();
@@ -376,7 +417,8 @@ function setupMarketTab() {
         const price = parseInt(priceStr, 10);
         if (price > 0) {
           core.removeItem(itemId);
-          market.createListing(core.name, itemId, price);
+          const listing = market.createListing(core.name, itemId, price);
+          if (network) network.syncMarketListing(listing);
           if (audio) audio.playCoinSound();
           chat.addSystemMessage(`🏪 ${core.name} выставил на рынок "${ITEMS_DATABASE.find(i => i.id === itemId)?.name}" за $${formatNumber(price)} NC!`);
           renderMarket();
@@ -428,6 +470,7 @@ function renderMarket() {
     card.querySelector('.buy-listing-btn').addEventListener('click', () => {
       const res = market.buyListing(l.id, core);
       if (res.success) {
+        if (network) network.removeMarketListing(l.id);
         if (audio) audio.playCoinSound();
         chat.addSystemMessage(`💸 ${core.name} купил "${item.name}" у ${l.seller} за $${formatNumber(l.price)} NC!`);
         renderMarket();
@@ -443,7 +486,7 @@ function renderMarket() {
 }
 
 // ----------------------------------------------------------------------------
-// 6. MULTI-CHANNEL CHAT & INTERACTIVE AI REPLIES
+// 6. MULTI-CHANNEL CHAT & REAL FIREBASE BROADCAST
 // ----------------------------------------------------------------------------
 function setupChatChannelTabs() {
   document.querySelectorAll('.chat-channel-btn').forEach(btn => {
@@ -460,7 +503,7 @@ function setupChatChannelTabs() {
         input.placeholder = `Написать личное сообщение ${chat.activePMTarget}...`;
         input.disabled = false;
       } else {
-        input.placeholder = 'Написать в общий чат (боты ответят вам!)...';
+        input.placeholder = 'Написать в общий онлайн-чат...';
         input.disabled = false;
       }
 
@@ -486,6 +529,8 @@ function setupChatChannelTabs() {
         chat.sendPrivateMessage(core.name, chat.activePMTarget, text);
       } else {
         chat.addChatMessage(chat.activeChannel, core.name, clanTag, titleText, text);
+        // Broadcast to real Firebase players
+        if (network) network.broadcastChatMessage(core.name, clanTag, titleText, text, chat.activeChannel);
         // Trigger Smart Bot Reply
         chat.handlePlayerInput(chat.activeChannel, core, text);
       }
@@ -536,10 +581,10 @@ function setupOnlinePlayersList() {
 
   chat.onlinePlayers.forEach(p => {
     const item = document.createElement('div');
-    item.className = 'online-player-card';
+    item.className = `online-player-card ${p.isReal ? 'real-player-highlight' : ''}`;
     item.innerHTML = `
       <div class="online-p-head">
-        <span class="online-p-dot">●</span>
+        <span class="online-p-dot ${p.isReal ? 'real-dot' : ''}">●</span>
         ${p.clan ? `<span class="clan-tag">[${p.clan}]</span>` : ''}
         <b>${p.name}</b>
         <span class="online-p-lvl">Ур. ${p.level}</span>
@@ -615,7 +660,6 @@ function startPvPDuel(opponentName, bet = 1000) {
     duelTimeLeft--;
     document.getElementById('duel-timer-val').textContent = duelTimeLeft;
 
-    // AI Clicks
     duelOpponentClicks += Math.floor(2 + Math.random() * 4);
     document.getElementById('duel-opponent-score').textContent = duelOpponentClicks;
 
@@ -639,7 +683,7 @@ function startPvPDuel(opponentName, bet = 1000) {
 }
 
 // ----------------------------------------------------------------------------
-// 8. TRADES, LEADERBOARDS, INVENTORY & PROFILE
+// 8. INTERACTIVE BILATERAL P2P TRADE SYSTEM
 // ----------------------------------------------------------------------------
 function setupTradeTab() {
   const partnerSelect = document.getElementById('trade-partner-select');
@@ -650,10 +694,25 @@ function setupTradeTab() {
     });
   }
 
+  // Quick Coin Buttons for Trade Offer
+  document.querySelectorAll('.trade-coin-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const add = parseInt(btn.dataset.add, 10);
+      if (add === 0) {
+        market.setCoinsOffer(0);
+      } else {
+        const cur = market.activeTrade ? market.activeTrade.partyA.coins : 0;
+        market.setCoinsOffer(cur + add);
+      }
+      renderTradeWindow();
+    });
+  });
+
   const btnTradeReady = document.getElementById('btn-trade-ready');
   if (btnTradeReady) {
     btnTradeReady.addEventListener('click', () => {
-      market.setReady(true);
+      market.toggleReady();
+      if (audio) audio.playClickSound();
       renderTradeWindow();
     });
   }
@@ -661,11 +720,11 @@ function setupTradeTab() {
   const btnTradeConfirm = document.getElementById('btn-trade-confirm');
   if (btnTradeConfirm) {
     btnTradeConfirm.addEventListener('click', () => {
-      if (market.confirmTrade(true, core)) {
+      if (market.confirmAndExecuteTrade(core)) {
         if (audio) audio.playCoinSound();
         chat.addSystemMessage(`🤝 Трейд между ${core.name} и ${selectedTradePartner} успешно завершен!`);
-        alert('🎉 Сделка успешно состоялась! Предметы и валюта получены.');
-        renderTradeWindow();
+        alert('🎉 Сделка успешно состоялась! Предметы и валюта переведены.');
+        startTradeSession();
         renderInventory();
         updateStatsHUD();
       }
@@ -677,8 +736,6 @@ function setupTradeTab() {
 
 function startTradeSession() {
   market.startTrade(core.name, selectedTradePartner);
-  market.setOffer(false, 3500, ['gpu_rtx', 'chip_v1']);
-  market.activeTrade.partyB.ready = true;
   renderTradeWindow();
 }
 
@@ -689,33 +746,99 @@ function renderTradeWindow() {
   document.getElementById('trade-party-a-name').textContent = `${core.name} (Вы)`;
   document.getElementById('trade-party-b-name').textContent = selectedTradePartner;
 
+  // Party A Offer Coins & Items
+  document.getElementById('trade-offer-coins-a').textContent = `$${formatNumber(trade.partyA.coins)} NC`;
+
+  const itemsSlotA = document.getElementById('trade-items-slots-a');
+  if (itemsSlotA) {
+    itemsSlotA.innerHTML = '';
+    if (trade.partyA.items.length === 0) {
+      itemsSlotA.innerHTML = '<div class="empty-trade-slot">Кликните предметы из инвентаря ниже, чтобы добавить их сюда</div>';
+    } else {
+      trade.partyA.items.forEach((itId, idx) => {
+        const it = ITEMS_DATABASE.find(i => i.id === itId);
+        if (it) {
+          const chip = document.createElement('div');
+          chip.className = 'trade-chip-item';
+          chip.innerHTML = `${it.icon} ${it.name} <span class="chip-remove">✖</span>`;
+          chip.addEventListener('click', () => {
+            market.removeItemFromTrade(idx);
+            renderTradeWindow();
+          });
+          itemsSlotA.appendChild(chip);
+        }
+      });
+    }
+  }
+
+  // Render Your Inventory Picker right inside the trade screen
+  const invPicker = document.getElementById('trade-inventory-picker-grid');
+  if (invPicker) {
+    invPicker.innerHTML = '';
+    if (core.inventory.length === 0) {
+      invPicker.innerHTML = '<div class="empty-msg">У вас нет предметов в инвентаре для добавления в трейд.</div>';
+    } else {
+      core.inventory.forEach(itId => {
+        const it = ITEMS_DATABASE.find(i => i.id === itId);
+        if (!it) return;
+        const rarity = RARITY_CONFIG[it.rarity] || RARITY_CONFIG.common;
+
+        const card = document.createElement('div');
+        card.className = 'trade-inv-card';
+        card.style.borderColor = rarity.color;
+        card.innerHTML = `${it.icon} <b>${it.name}</b> <span class="add-tag">+ В ТРЕЙД</span>`;
+        card.addEventListener('click', () => {
+          market.addItemToTrade(itId, core);
+          renderTradeWindow();
+        });
+        invPicker.appendChild(card);
+      });
+    }
+  }
+
+  // Party B Offer
+  document.getElementById('trade-offer-coins-b').textContent = `$${formatNumber(trade.partyB.coins)} NC`;
+  const itemsSlotB = document.getElementById('trade-items-slots-b');
+  if (itemsSlotB) {
+    itemsSlotB.innerHTML = '';
+    trade.partyB.items.forEach(itId => {
+      const it = ITEMS_DATABASE.find(i => i.id === itId);
+      if (it) {
+        const chip = document.createElement('div');
+        chip.className = 'trade-chip-item partner';
+        chip.innerHTML = `${it.icon} ${it.name}`;
+        itemsSlotB.appendChild(chip);
+      }
+    });
+  }
+
+  // Status Badges
   const readyA = document.getElementById('trade-status-a');
   if (readyA) {
-    readyA.textContent = trade.partyA.ready ? '✔ ГОТОВ' : '⏳ ВЫБОР...';
+    readyA.textContent = trade.partyA.ready ? '✔ ГОТОВ' : '⏳ ВЫБОР ПРЕДЛОЖЕНИЯ...';
     readyA.className = trade.partyA.ready ? 'badge-ready' : 'badge-wait';
   }
 
   const readyB = document.getElementById('trade-status-b');
   if (readyB) {
-    readyB.textContent = trade.partyB.ready ? '✔ ГОТОВ' : '⏳ ВЫБОР...';
+    readyB.textContent = trade.partyB.ready ? '✔ ГОТОВ' : '⏳ ОЦЕНИВАЕТ...';
     readyB.className = trade.partyB.ready ? 'badge-ready' : 'badge-wait';
-  }
-
-  const listB = document.getElementById('trade-items-b');
-  if (listB) {
-    listB.innerHTML = `<div>💵 Предложение: $${formatNumber(trade.partyB.coins)} NC</div>`;
-    trade.partyB.items.forEach(itId => {
-      const it = ITEMS_DATABASE.find(i => i.id === itId);
-      if (it) listB.innerHTML += `<div class="trade-chip">${it.icon} ${it.name}</div>`;
-    });
   }
 
   const btnConfirm = document.getElementById('btn-trade-confirm');
   if (btnConfirm) {
-    btnConfirm.disabled = !(trade.partyA.ready && trade.partyB.ready);
+    btnConfirm.disabled = !market.canConfirm();
+    if (market.canConfirm()) {
+      btnConfirm.classList.add('ready-glow');
+    } else {
+      btnConfirm.classList.remove('ready-glow');
+    }
   }
 }
 
+// ----------------------------------------------------------------------------
+// LEADERBOARDS, INVENTORY & PROFILE
+// ----------------------------------------------------------------------------
 function setupLeaderboardsTab() {
   document.querySelectorAll('.lb-category-btn').forEach(btn => {
     btn.addEventListener('click', () => {
