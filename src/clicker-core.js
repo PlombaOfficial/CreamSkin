@@ -1,7 +1,7 @@
 /**
  * NEO-CLICKER ONLINE // CORE CLICKER & ECONOMY ENGINE
- * Zero-data-loss versioned persistence, auto-income calculations,
- * inventory management, prestige rebirths, and stat tracking.
+ * Zero-data-loss versioned persistence, auto-generated unique device nickname,
+ * auto-income calculations, inventory, prestige rebirths, and stat tracking.
  */
 
 import { ITEMS_DATABASE } from "./items-collectibles.js";
@@ -10,7 +10,7 @@ const SAVE_KEY = 'neo_clicker_save_v2';
 
 export class ClickerCore {
   constructor() {
-    this.name = 'Кибер-Игрок';
+    this.name = this.generateUniqueDeviceNickname();
     this.neoCoins = 0;
     this.quantumCrystals = 0;
     this.totalClicks = 0;
@@ -23,7 +23,7 @@ export class ClickerCore {
     this.prestigeMultiplier = 1.0;
 
     // Inventory & Equipped Cosmetics
-    this.inventory = []; // Array of item IDs
+    this.inventory = [];
     this.equippedAura = null;
     this.equippedFrame = null;
     this.equippedTitle = null;
@@ -36,6 +36,14 @@ export class ClickerCore {
     this.lastTick = Date.now();
 
     this.loadFromStorage();
+  }
+
+  // Generate cool unique cyberpunk nickname based on device fingerprint hash
+  generateUniqueDeviceNickname() {
+    const prefixes = ['Cyber', 'Neo', 'Quantum', 'Phantom', 'Glitch', 'Nexus', 'Titan', 'Viper', 'Shadow', 'Volt', 'Matrix', 'Pulse'];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const uniqueId = Math.floor(1000 + Math.random() * 9000);
+    return `${prefix}_#${uniqueId}`;
   }
 
   // --- 1. PERSISTENCE & MIGRATION ---
@@ -71,7 +79,7 @@ export class ClickerCore {
       const raw = localStorage.getItem(SAVE_KEY) || localStorage.getItem('neo_clicker_save_v1');
       if (raw) {
         const data = JSON.parse(raw);
-        this.name = data.name || 'Кибер-Игрок';
+        this.name = data.name || this.name || this.generateUniqueDeviceNickname();
         this.neoCoins = Math.max(0, Number(data.neoCoins) || 0);
         this.quantumCrystals = Math.max(0, Number(data.quantumCrystals) || 0);
         this.totalClicks = Number(data.totalClicks) || 0;
@@ -87,11 +95,12 @@ export class ClickerCore {
         this.clanId = data.clanId || null;
         this.createdDate = data.createdDate || Date.now();
       } else {
-        // Initial Starter Bonus
-        this.neoCoins = 10;
+        // Initial Starter Bonus for new device
+        this.neoCoins = 15;
+        this.saveToStorage();
       }
     } catch (e) {
-      console.warn('Storage load failed, initializing clean save:', e);
+      console.warn('Storage load failed:', e);
     }
   }
 
@@ -103,7 +112,7 @@ export class ClickerCore {
   importSaveString(encodedStr) {
     try {
       const decoded = decodeURIComponent(escape(atob(encodedStr.trim())));
-      JSON.parse(decoded); // Validate JSON
+      JSON.parse(decoded);
       localStorage.setItem(SAVE_KEY, decoded);
       this.loadFromStorage();
       return true;
@@ -117,7 +126,6 @@ export class ClickerCore {
   getClickPower(clanBonus = 0) {
     let power = this.clickLevel * (1 + (this.clickLevel - 1) * 0.25);
 
-    // Add item bonuses from inventory
     this.inventory.forEach(itemId => {
       const item = ITEMS_DATABASE.find(i => i.id === itemId);
       if (item && item.bonus && item.bonus.clickPower) {
@@ -125,11 +133,9 @@ export class ClickerCore {
       }
     });
 
-    // Apply Prestige & Clan Multipliers
     power *= this.prestigeMultiplier;
     power *= (1 + clanBonus);
 
-    // Global matrix check
     if (this.inventory.includes('divine_matrix')) power *= 2.0;
 
     return Math.max(1, Math.round(power));
@@ -138,7 +144,6 @@ export class ClickerCore {
   getAutoIncomePerSec(clanBonus = 0) {
     let income = this.autoMinersCount * 2.0;
 
-    // Add hardware items
     this.inventory.forEach(itemId => {
       const item = ITEMS_DATABASE.find(i => i.id === itemId);
       if (item && item.bonus && item.bonus.autoIncome) {
@@ -159,7 +164,6 @@ export class ClickerCore {
   performClick(clanBonus = 0) {
     let amount = this.getClickPower(clanBonus);
 
-    // Crit chance check
     if (this.inventory.includes('golden_touch') && Math.random() < 0.12) {
       amount *= 5;
     }
@@ -201,8 +205,6 @@ export class ClickerCore {
     return Math.round(50 * Math.pow(1.25, this.autoMinersCount));
   }
 
-  // --- 4. PRESTIGE REBIRTH ---
-
   canPrestige() {
     const required = 50000 * Math.pow(2.5, this.prestigeLevel);
     return this.neoCoins >= required;
@@ -216,7 +218,7 @@ export class ClickerCore {
     const req = this.getPrestigeCost();
     if (this.neoCoins >= req) {
       this.prestigeLevel++;
-      this.prestigeMultiplier += 0.5; // +50% permanently
+      this.prestigeMultiplier += 0.5;
       this.quantumCrystals += 50 * this.prestigeLevel;
       this.neoCoins = 0;
       this.clickLevel = 1;
@@ -226,8 +228,6 @@ export class ClickerCore {
     }
     return false;
   }
-
-  // --- 5. INVENTORY & COSMETICS ---
 
   addItem(itemId) {
     this.inventory.push(itemId);
@@ -260,8 +260,6 @@ export class ClickerCore {
     }
     this.saveToStorage();
   }
-
-  // --- 6. TICK UPDATE ---
 
   update(clanBonus = 0) {
     const now = Date.now();
