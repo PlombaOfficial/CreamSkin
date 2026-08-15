@@ -1,5 +1,5 @@
 /**
- * 3D MINECRAFT // FIREBASE INITIALIZATION & EXPORTS
+ * NEO-CLICKER ONLINE // FIREBASE INITIALIZATION & EXPORTS
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -21,7 +21,7 @@ import {
   addDoc 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
+export const FIREBASE_CONFIG = {
   apiKey: "AIzaSyB7-tesDQGn-9J4273qjZRdzd03duGIl1s",
   authDomain: "gametstigues.firebaseapp.com",
   projectId: "gametstigues",
@@ -31,7 +31,9 @@ const firebaseConfig = {
   measurementId: "G-4SZ14ZCLSS"
 };
 
-const app = initializeApp(firebaseConfig);
+export const firebaseConfig = FIREBASE_CONFIG;
+
+const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
 
 export {
