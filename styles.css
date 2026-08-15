@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MINECRAFT 2D // MASTER SANDBOX & MULTIPLAYER DESIGN SYSTEM
+   MINECRAFT 3D // 60 FPS VOXEL SANDBOX DESIGN SYSTEM
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap');
@@ -7,9 +7,6 @@
 :root {
   --font-mc: 'VT323', monospace;
   --font-pixel: 'Press Start 2P', monospace;
-  --color-slot-bg: #8b8b8b;
-  --color-slot-border: #373737;
-  --color-slot-highlight: #ffffff;
 }
 
 *, *::before, *::after {
@@ -24,17 +21,16 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #0b0f19;
+  background-color: #000000;
   color: #ffffff;
   font-family: var(--font-mc);
-  image-rendering: pixelated;
 }
 
 .hidden {
   display: none !important;
 }
 
-#game-canvas {
+#game-container {
   position: fixed;
   top: 0;
   left: 0;
@@ -44,8 +40,27 @@ html, body {
   z-index: 1;
 }
 
+#game-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* 3D Crosshair */
+.mc-crosshair {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 26px;
+  color: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+  z-index: 10;
+  text-shadow: 1px 1px #000;
+}
+
 /* --------------------------------------------------------------------------
-   LOBBY SCREEN (TABS, PROFILE, WORLD BROWSER)
+   LOBBY SCREEN
    -------------------------------------------------------------------------- */
 
 .mc-lobby-screen {
@@ -72,7 +87,7 @@ html, body {
 
 .mc-logo-title {
   font-family: var(--font-pixel);
-  font-size: 22px;
+  font-size: 24px;
   color: #ffff55;
   text-shadow: 3px 3px #3f3f00;
   letter-spacing: 2px;
@@ -116,10 +131,6 @@ html, body {
   border: 2px solid #555555;
   padding: 4px 8px;
   outline: none;
-}
-
-.mc-input:focus {
-  border-color: #ffff55;
 }
 
 .mc-skins-row {
@@ -248,8 +259,9 @@ html, body {
 }
 
 .btn-lg {
-  font-size: 24px;
-  padding: 12px 24px;
+  font-size: 22px;
+  padding: 10px 20px;
+  width: 100%;
 }
 
 .create-server-box {
@@ -336,9 +348,13 @@ html, body {
   text-shadow: 2px 2px #000;
 }
 
-.hud-room-badge:hover {
-  background: #00f0ff;
-  color: #000000;
+.hud-help-tip {
+  font-size: 18px;
+  color: #ffffaa;
+  background: rgba(0,0,0,0.6);
+  padding: 4px 10px;
+  border-radius: 4px;
+  text-shadow: 1px 1px #000;
 }
 
 .btn-mc {
@@ -350,40 +366,6 @@ html, body {
   border-color: #dbdbdb #2b2b2b #2b2b2b #dbdbdb;
   padding: 4px 10px;
   cursor: pointer;
-}
-
-/* Boss Bar */
-.hud-boss-bar {
-  position: fixed;
-  top: 50px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 480px;
-  max-width: 90%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.boss-title {
-  font-family: var(--font-pixel);
-  font-size: 11px;
-  color: #ff55ff;
-  text-shadow: 2px 2px #000;
-}
-
-.boss-track {
-  width: 100%;
-  height: 12px;
-  background: #2b0d3a;
-  border: 2px solid #ff55ff;
-}
-
-.boss-fill {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, #aa00aa, #ff55ff);
 }
 
 /* Chat */
@@ -417,17 +399,6 @@ html, body {
 .chat-sender {
   color: #ffff55;
   font-weight: bold;
-}
-
-.hud-mc-chat-box input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  border: 2px solid #ffffff;
-  color: #ffffff;
-  padding: 4px 8px;
-  font-family: var(--font-mc);
-  font-size: 18px;
-  outline: none;
 }
 
 /* Hotbar & Stats */
@@ -468,7 +439,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
 }
 
@@ -476,15 +448,6 @@ html, body {
   border-color: #ffffff;
   box-shadow: 0 0 8px #ffffff;
   transform: scale(1.08);
-}
-
-.hotbar-count {
-  position: absolute;
-  bottom: 1px;
-  right: 3px;
-  font-size: 15px;
-  font-weight: bold;
-  text-shadow: 1px 1px #000;
 }
 
 /* Toast */
@@ -511,7 +474,7 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   MODALS (INVENTORY & RESPAWN)
+   MODALS (INVENTORY & PAUSE)
    -------------------------------------------------------------------------- */
 
 .mc-modal {
@@ -565,22 +528,12 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   cursor: pointer;
 }
 
 .inv-slot.selected {
   border-color: #ffffff;
   box-shadow: 0 0 6px #fff;
-}
-
-.inv-item-count {
-  position: absolute;
-  bottom: 1px;
-  right: 2px;
-  font-size: 13px;
-  color: #ffffff;
-  text-shadow: 1px 1px #000;
 }
 
 .crafting-section {
@@ -606,7 +559,6 @@ html, body {
   padding: 4px 6px;
   display: flex;
   align-items: center;
-  gap: 8px;
   cursor: pointer;
 }
 
@@ -619,43 +571,23 @@ html, body {
   background: #d4ebd4;
 }
 
-.craft-recipe-row.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.craft-res-name {
-  font-size: 15px;
-  font-weight: bold;
-  color: #000;
-}
-
-.craft-reqs {
-  font-size: 12px;
-  color: #444;
-}
-
-/* Respawn Panel */
-.respawn-panel {
-  background: rgba(120, 10, 10, 0.9);
-  border: 4px solid #ff3333;
-  padding: 30px 40px;
-  text-align: center;
+/* Pause Panel */
+.pause-menu-panel {
+  background: #c6c6c6;
+  border: 4px solid;
+  border-color: #ffffff #555555 #555555 #ffffff;
+  padding: 30px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 0 50px #ff0000;
+  gap: 12px;
+  width: 340px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(0,0,0,0.8);
 }
 
-.death-title {
+.pause-title {
   font-family: var(--font-pixel);
-  font-size: 26px;
-  color: #ff3333;
-  text-shadow: 3px 3px #000;
-}
-
-.death-sub {
-  font-size: 20px;
-  color: #ffcccc;
+  font-size: 16px;
+  color: #222222;
+  margin-bottom: 8px;
 }

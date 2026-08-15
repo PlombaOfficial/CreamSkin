@@ -3,22 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MINECRAFT 2D // MASTER SANDBOX & MULTIPLAYER</title>
-  <meta name="description" content="2D Minecraft с мультиплеером, сохранением миров на устройстве, Незером, 0 эмодзи (пиксель-арт спрайты), зомби, крафтом и боссами.">
+  <title>MINECRAFT 3D // ULTIMATE VOXEL SANDBOX</title>
+  <meta name="description" content="Полноценный 3D Minecraft в браузере с 60 FPS, процедурными вокселями, шейдерами, мультиплеером, крафтом, мобами и сохранением миров.">
 
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-  <!-- Game Canvas -->
-  <canvas id="game-canvas"></canvas>
+  <!-- 3D Three.js Game Container -->
+  <div id="game-container"></div>
+
+  <!-- 3D Crosshair -->
+  <div class="mc-crosshair" id="mc-crosshair">+</div>
 
   <!-- 0. MAIN LOBBY SCREEN -->
   <div class="mc-lobby-screen" id="screen-mc-lobby">
     <div class="mc-menu-panel">
-      <div class="mc-logo-title">MINECRAFT 2D</div>
-      <div class="mc-logo-sub">МАСТЕР-ПЕСОЧНИЦА & СЕТЕВОЕ ВЫЖИВАНИЕ</div>
+      <div class="mc-logo-title">MINECRAFT 3D</div>
+      <div class="mc-logo-sub">ВОКСЕЛЬНОЕ ВЫЖИВАНИЕ & СЕТЕВЫЕ СЕРВЕРЫ</div>
 
       <!-- Player Profile Setup -->
       <div class="profile-setup-box">
@@ -37,13 +40,13 @@
 
       <!-- Lobby Mode Tabs -->
       <div class="lobby-tabs-header">
-        <button class="tab-btn active" id="tab-btn-single">🕹 МОИ МИРЫ</button>
+        <button class="tab-btn active" id="tab-btn-single">🕹 МОИ 3D МИРЫ</button>
         <button class="tab-btn" id="tab-btn-multi">🌐 СЕТЕВЫЕ СЕРВЕРЫ</button>
       </div>
 
       <!-- TAB 1: SINGLEPLAYER & SAVED WORLDS -->
       <div class="tab-content" id="tab-view-single">
-        <button class="btn-mc-primary" id="btn-create-single-world">➕ СОЗДАТЬ НОВЫЙ МИР</button>
+        <button class="btn-mc-primary" id="btn-create-single-world">➕ СОЗДАТЬ НОВЫЙ 3D МИР</button>
         <div class="worlds-scroll-list" id="local-worlds-list">
           <!-- Populated from LocalStorage -->
         </div>
@@ -51,22 +54,20 @@
 
       <!-- TAB 2: MULTIPLAYER SERVERS & CODE -->
       <div class="tab-content hidden" id="tab-view-multi">
-        <!-- Host New Server -->
         <div class="create-server-box">
-          <input type="text" id="mc-online-world-name" class="mc-input" placeholder="Название сервера..." value="Сервер Стива" maxlength="20">
-          <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ ОТКРЫТЫЙ СЕРВЕР</button>
+          <input type="text" id="mc-online-world-name" class="mc-input" placeholder="Название сервера..." value="3D Сервер Стива" maxlength="20">
+          <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ СЕРВЕР</button>
         </div>
 
         <hr class="mc-divider">
 
-        <!-- Join by Code -->
         <div class="join-room-row">
           <input type="text" id="mc-room-code" class="mc-input code-input" placeholder="КОД МИРА (MC...)">
           <button class="btn-mc-primary" id="btn-mc-join-online">🔗 ВОЙТИ</button>
         </div>
 
         <div class="server-list-header">
-          <span>ОТКРЫТЫЕ СЕРВЕРЫ:</span>
+          <span>ОТКРЫТЫЕ 3D СЕРВЕРЫ:</span>
           <button class="btn-mc btn-sm" id="btn-refresh-servers">🔄 ОБНОВИТЬ</button>
         </div>
 
@@ -78,33 +79,20 @@
     </div>
   </div>
 
-  <!-- 1. IN-GAME HUD -->
+  <!-- 1. IN-GAME 3D HUD -->
   <div class="mc-hud hidden" id="mc-hud">
     <!-- Top Bar -->
     <div class="hud-top-bar">
       <div class="hud-badges-group">
-        <div class="hud-title-badge">MINECRAFT 2D</div>
+        <div class="hud-title-badge">MINECRAFT 3D</div>
         <div class="hud-room-badge hidden" id="hud-mc-room-tag" title="Нажмите, чтобы скопировать код другу">КОМНАТА: MC...</div>
       </div>
-      <div class="hud-save-group">
-        <button class="btn-mc" id="btn-save-world" title="Сохранить мир на устройстве">💾 СОХРАНИТЬ</button>
-      </div>
+      <div class="hud-help-tip">Кликните по экрану для управления камерой (ESC — пауза)</div>
     </div>
 
-    <!-- Boss Health Bar -->
-    <div class="hud-boss-bar hidden" id="hud-boss-bar">
-      <div class="boss-title">⚡ ДРАКОН-ВИТЕР (БОСС) ⚡</div>
-      <div class="boss-track">
-        <div class="boss-fill" id="boss-fill"></div>
-      </div>
-    </div>
-
-    <!-- In-Game Chat Feed & Box -->
+    <!-- Chat Feed -->
     <div class="hud-mc-chat-container">
       <div class="hud-mc-chat-feed" id="hud-mc-chat-feed"></div>
-      <div class="hud-mc-chat-box hidden" id="hud-mc-chat-box">
-        <input type="text" id="hud-mc-chat-input" placeholder="Нажмите Enter для отправки..." maxlength="80">
-      </div>
     </div>
 
     <!-- Bottom Status & Hotbar -->
@@ -116,7 +104,7 @@
 
       <div class="hotbar-container">
         <div class="hotbar-slots" id="hotbar-slots">
-          <!-- 9 Hotbar Slots with Pixel Sprites -->
+          <!-- 9 Hotbar Slots -->
         </div>
       </div>
     </div>
@@ -128,29 +116,26 @@
   <!-- 2. INVENTORY & CRAFTING MODAL (PRESS 'E') -->
   <div class="mc-modal" id="modal-inventory">
     <div class="inventory-box">
-      <!-- Left: Player Inventory Slots -->
       <div>
-        <div class="inv-section-title">ИНВЕНТАРЬ ИГРОКА (36 СЛОТОВ)</div>
+        <div class="inv-section-title">ИНВЕНТАРЬ (36 СЛОТОВ)</div>
         <div class="inventory-slots-grid" id="inventory-slots-grid"></div>
         <button class="btn-mc" id="btn-close-inv" style="margin-top: 14px; width: 100%;">✕ ЗАКРЫТЬ [E]</button>
       </div>
 
-      <!-- Right: Crafting Recipes Section -->
       <div class="crafting-section">
         <div class="inv-section-title">КРАФТ (РЕЦЕПТЫ)</div>
-        <div class="crafting-recipes-list" id="crafting-recipes-list">
-          <!-- Interactive Crafting Recipes with Pixel Sprites -->
-        </div>
+        <div class="crafting-recipes-list" id="crafting-recipes-list"></div>
       </div>
     </div>
   </div>
 
-  <!-- 3. RESPAWN SCREEN MODAL -->
-  <div class="mc-modal" id="modal-respawn">
-    <div class="respawn-panel">
-      <div class="death-title">ВЫ ПОГИБЛИ!</div>
-      <div class="death-sub">Ваше приключение не заканчивается здесь...</div>
-      <button class="btn-mc-primary btn-lg" id="btn-respawn">🔄 ВОЗРОДИТЬСЯ (RESPAWN)</button>
+  <!-- 3. IN-GAME PAUSE MENU (PRESS 'ESC') -->
+  <div class="mc-modal" id="modal-pause">
+    <div class="pause-menu-panel">
+      <div class="pause-title">МЕНЮ ПАУЗЫ</div>
+      <button class="btn-mc-primary btn-lg" id="btn-resume-game">▶ ПРОДОЛЖИТЬ ИГРУ</button>
+      <button class="btn-mc btn-lg" id="btn-pause-save">💾 СОХРАНИТЬ МИР</button>
+      <button class="btn-mc-danger btn-lg" id="btn-exit-to-menu">🚪 ВЫЙТИ В ГЛАВНОЕ МЕНЮ</button>
     </div>
   </div>
 
