@@ -1,1055 +1,510 @@
 /**
- * NEO-CLICKER ONLINE // MASTER SOCIAL MMO CLICKER ENGINE
- * 1. Real Multiplayer Firebase Firestore Sync (Live Chat & Online Players).
- * 2. Intuitive Interactive Bilateral P2P Trade System.
- * 3. 10-Tier Hardware Upgrades, Marketplace 2.0, SoundEngine, and PvP Duels.
+ * CYBER-MAKER // MASTER GAME & LEVEL EDITOR CONTROLLER
+ * Seamlessly integrates:
+ * 1. Precision Physics Player & Ghost Replays.
+ * 2. Pro-Grade Level Editor with Undo/Redo & Playtesting.
+ * 3. Social Community Hub with Levels, Comments, Likes & Search.
+ * 4. Music Audio Synthesizer & Customization.
  */
 
-import { ClickerCore } from "./clicker-core.js";
-import { ClanSystem } from "./clan-system.js";
-import { SocialChatEngine } from "./social-chat.js";
-import { TradeMarketEngine } from "./trade-market.js";
-import { LeaderboardAndEventsEngine } from "./leaderboard-events.js";
-import { SoundEngine } from "./sound-engine.js";
-import { RealMultiplayerSync } from "./multiplayer-sync.js";
-import { ITEMS_DATABASE, RARITY_CONFIG } from "./items-collectibles.js";
+import { PhysicsPlayer } from "./physics-player.js";
+import { LevelEditorEngine } from "./level-editor.js";
+import { CommunityHubEngine } from "./community-hub.js";
+import { MusicAudioEngine } from "./music-audio.js";
+import { PlayerProfileEngine } from "./player-profile.js";
 
-// Global Singletons
-let core, clans, chat, market, events, audio, network;
-let activeTab = 'clicker';
-let activeMarketCategory = 'all';
-let selectedTradePartner = 'Alex_Pro';
+// Core Instances
+let player, editor, community, audio, profile;
+let canvas, ctx;
+let activeMode = 'community'; // 'play', 'editor', 'community', 'profile'
+let activeLevel = null;
 
-// PvP Duel State
-let duelTimer = null;
-let duelTimeLeft = 0;
-let duelPlayerClicks = 0;
-let duelOpponentClicks = 0;
-let duelOpponentName = '';
-let duelBet = 1000;
+// Camera & Timing
+let cameraX = 0;
+let cameraY = 0;
+let lastTime = 0;
+let screenShake = 0;
 
-function initGame() {
-  core = new ClickerCore();
-  clans = new ClanSystem();
-  market = new TradeMarketEngine();
-  audio = new SoundEngine();
+// Input Handling
+const keys = {
+  left: false,
+  right: false,
+  jump: false,
+  jumpPressed: false,
+  dashPressed: false
+};
 
-  chat = new SocialChatEngine((channel, msg, engineInstance) => {
-    const currentActiveChannel = engineInstance ? engineInstance.activeChannel : (chat ? chat.activeChannel : 'global');
-    if (channel === currentActiveChannel) {
-      renderChatFeed();
-    }
-    if (audio) audio.playChatSound();
-  });
+// Editor Mouse State
+let isMouseDown = false;
+let mouseX = 0;
+let mouseY = 0;
+let editorCameraX = 0;
+let editorCameraY = 0;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
 
-  // Real Firebase Multiplayer Network Sync
-  network = new RealMultiplayerSync(
-    (remoteMsg) => {
-      // Real player message received from Firestore
-      if (remoteMsg.sender !== core.name) {
-        chat.addChatMessage(remoteMsg.channel || 'global', remoteMsg.sender, remoteMsg.clanTag, remoteMsg.title, remoteMsg.text);
-      }
-    },
-    (remotePlayers) => {
-      // Real online players list
-      mergeRealOnlinePlayers(remotePlayers);
-    },
-    (remoteListings) => {
-      market.marketListings = remoteListings;
-      renderMarket();
-    }
-  );
+function init() {
+  canvas = document.getElementById('game-canvas');
+  ctx = canvas.getContext('2d');
 
-  events = new LeaderboardAndEventsEngine((action, data) => {
-    handleServerEvent(action, data);
-  });
+  audio = new MusicAudioEngine();
+  player = new PhysicsPlayer(audio);
+  editor = new LevelEditorEngine();
+  community = new CommunityHubEngine();
+  profile = new PlayerProfileEngine();
 
-  setupNavigationTabs();
-  setupClickerOrb();
-  setupUpgradesTab();
-  setupClansTab();
-  setupMarketTab();
-  setupTradeTab();
-  setupLeaderboardsTab();
-  setupInventoryTab();
-  setupProfileTab();
-  setupChatChannelTabs();
-  setupOnlinePlayersList();
-  setupSoundToggle();
-  setupPvPDuel();
+  // Apply customization
+  player.skinColor = profile.skinColor;
+  player.secondaryColor = profile.secondaryColor;
 
-  // Heartbeat every 12 seconds
-  setInterval(() => {
-    if (network) network.sendHeartbeat(core, clans);
-  }, 12000);
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
 
-  // 10 FPS Loop
-  setInterval(tick, 100);
-  renderAll();
+  setupInputListeners();
+  setupUIButtons();
+  setupEditorPalette();
+  setupCommunityView();
+  setupCustomizationView();
+
+  // Load first featured level
+  loadLevelForPlay(community.levels[0]);
+
+  // Start Game Loop
+  requestAnimationFrame(gameLoop);
 }
 
-function mergeRealOnlinePlayers(realPlayers) {
-  realPlayers.forEach(rp => {
-    if (!chat.onlinePlayers.some(p => p.name === rp.name)) {
-      chat.onlinePlayers.unshift({
-        name: rp.name,
-        clan: rp.clan,
-        title: rp.title,
-        level: rp.level || 1,
-        coins: rp.coins || 0,
-        aura: 'aura_cyber',
-        status: '🟢 РЕАЛЬНЫЙ ИГРОК В СЕТИ',
-        isReal: true
-      });
-    }
-  });
-  setupOnlinePlayersList();
-}
-
-function setupSoundToggle() {
-  const btn = document.getElementById('btn-toggle-sound');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    const isMuted = audio.toggleMute();
-    btn.textContent = isMuted ? '🔇 ЗВУК: ВЫКЛ' : '🔊 ЗВУК: ВКЛ';
-  });
+function resizeCanvas() {
+  const container = document.getElementById('canvas-container');
+  if (container) {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+  }
 }
 
 // ----------------------------------------------------------------------------
-// 1. CLEAN CLICKER ORB & NUMBERS WITH SOUNDS
+// 1. INPUT HANDLING
 // ----------------------------------------------------------------------------
-function setupClickerOrb() {
-  const orb = document.getElementById('clicker-main-orb');
-  if (!orb) return;
-
-  orb.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    const clanBonus = clans.getClanBonus(core.clanId).clickBonus;
-    let earned = core.performClick(clanBonus);
-
-    if (events.activeEvent && events.activeEvent.type === 'rush_hour') {
-      earned *= 5;
-      core.neoCoins += earned * 4;
+function setupInputListeners() {
+  window.addEventListener('keydown', (e) => {
+    // Start Audio Context on first interaction
+    if (!audio.isPlayingMusic && !audio.isMuted) {
+      audio.startMusic();
     }
 
-    if (events.activeEvent && events.activeEvent.type === 'world_boss') {
-      events.damageBoss(earned);
+    if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+    if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+
+    if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+      if (!keys.jump) keys.jumpPressed = true;
+      keys.jump = true;
     }
 
-    if (audio) {
-      if (core.inventory.includes('golden_touch') && Math.random() < 0.12) {
-        audio.playCritSound();
-      } else {
-        audio.playClickSound();
-      }
+    if (e.code === 'ShiftLeft' || e.code === 'KeyJ' || e.code === 'KeyK') {
+      keys.dashPressed = true;
     }
 
-    const rect = orb.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + 20;
-    spawnCleanFloatingNumber(x, y, `+${formatNumber(earned)}`);
-
-    orb.classList.add('orb-pulse');
-    setTimeout(() => orb.classList.remove('orb-pulse'), 70);
-
-    updateStatsHUD();
-  });
-}
-
-function spawnCleanFloatingNumber(x, y, text) {
-  const el = document.createElement('div');
-  el.className = 'clean-click-number';
-  el.textContent = text;
-  el.style.left = `${x + (Math.random() - 0.5) * 60}px`;
-  el.style.top = `${y}px`;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 700);
-}
-
-// ----------------------------------------------------------------------------
-// 2. TAB NAVIGATION
-// ----------------------------------------------------------------------------
-function setupNavigationTabs() {
-  document.querySelectorAll('.main-nav-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.main-nav-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.app-tab-view').forEach(v => v.classList.add('hidden'));
-
-      btn.classList.add('active');
-      activeTab = btn.dataset.tab;
-      const view = document.getElementById(`tab-view-${activeTab}`);
-      if (view) view.classList.remove('hidden');
-
-      if (activeTab === 'clicker') renderUpgrades();
-      if (activeTab === 'clans') renderClans();
-      if (activeTab === 'market') renderMarket();
-      if (activeTab === 'trades') renderTradeWindow();
-      if (activeTab === 'leaderboard') renderLeaderboard();
-      if (activeTab === 'inventory') renderInventory();
-      if (activeTab === 'profile') renderProfile();
-    });
-  });
-}
-
-// ----------------------------------------------------------------------------
-// 3. 10-TIER HARDWARE UPGRADES
-// ----------------------------------------------------------------------------
-function setupUpgradesTab() {
-  const btnUpClick = document.getElementById('btn-upgrade-click');
-  if (btnUpClick) {
-    btnUpClick.addEventListener('click', () => {
-      if (core.upgradeClick()) {
-        if (audio) audio.playCoinSound();
-        renderUpgrades();
-        updateStatsHUD();
-      }
-    });
-  }
-
-  const btnPrestige = document.getElementById('btn-do-prestige');
-  if (btnPrestige) {
-    btnPrestige.addEventListener('click', () => {
-      if (core.canPrestige()) {
-        if (confirm(`Совершить Квантовое Перерождение? Вы получите +50% постоянного дохода и ${75 * (core.prestigeLevel + 1)} Квантовых Кристаллов!`)) {
-          core.doPrestige();
-          if (audio) audio.playCritSound();
-          chat.addSystemMessage(`👑 Игрок ${core.name} совершил Квантовое Перерождение #${core.prestigeLevel}!`);
-          renderAll();
-        }
-      }
-    });
-  }
-}
-
-function renderUpgrades() {
-  const clickCostEl = document.getElementById('cost-upgrade-click');
-  if (clickCostEl) clickCostEl.textContent = `$${formatNumber(core.getClickUpgradeCost())} NC`;
-
-  const clickLvlEl = document.getElementById('lvl-upgrade-click');
-  if (clickLvlEl) clickLvlEl.textContent = `Ур. ${core.clickLevel}`;
-
-  const hardwareList = document.getElementById('hardware-tiers-list');
-  if (hardwareList) {
-    hardwareList.innerHTML = '';
-    const hardItems = ITEMS_DATABASE.filter(i => i.type === 'hardware');
-
-    hardItems.forEach(h => {
-      const count = core.hardwareTiers[h.id] || 0;
-      const cost = core.getHardwareCost(h.id);
-      const canAfford = core.neoCoins >= cost;
-
-      const card = document.createElement('div');
-      card.className = 'upgrade-card';
-      card.innerHTML = `
-        <div class="upgrade-card-icon">${h.icon}</div>
-        <div class="upgrade-card-info">
-          <div class="upgrade-name">${h.name}</div>
-          <div class="upgrade-desc">${h.desc}</div>
-          <div class="upgrade-level">Куплено: <b>${count} шт.</b> (+${formatNumber(count * (h.bonus.autoIncome || 0))} NC/сек)</div>
-        </div>
-        <button class="btn-action-upgrade buy-hw-btn" ${!canAfford ? 'disabled' : ''}>
-          <span>КУПИТЬ</span>
-          <b>$${formatNumber(cost)} NC</b>
-        </button>
-      `;
-
-      card.querySelector('.buy-hw-btn').addEventListener('click', () => {
-        if (core.buyHardwareTier(h.id)) {
-          if (audio) audio.playCoinSound();
-          renderUpgrades();
-          updateStatsHUD();
-        }
-      });
-
-      hardwareList.appendChild(card);
-    });
-  }
-
-  const prestigeBtn = document.getElementById('btn-do-prestige');
-  const prestigeCostEl = document.getElementById('cost-prestige');
-  if (prestigeBtn && prestigeCostEl) {
-    prestigeCostEl.textContent = `$${formatNumber(core.getPrestigeCost())} NC`;
-    prestigeBtn.disabled = !core.canPrestige();
-  }
-}
-
-// ----------------------------------------------------------------------------
-// 4. CLANS TAB
-// ----------------------------------------------------------------------------
-function setupClansTab() {
-  const btnCreateClan = document.getElementById('btn-open-create-clan');
-  if (btnCreateClan) {
-    btnCreateClan.addEventListener('click', () => {
-      const name = prompt('Введите название вашего Клана:');
-      if (!name) return;
-      const tag = prompt('Введите тег клана (3-5 букв, например CYBER):');
-      if (!tag) return;
-
-      if (core.neoCoins < 2000) return alert('Создание клана стоит 2,000 NC!');
-      core.neoCoins -= 2000;
-
-      const newClan = clans.createClan(name, tag, '🛡️', 'Гильдия сервера', core.name);
-      core.clanId = newClan.id;
-      core.saveToStorage();
-      if (audio) audio.playCoinSound();
-      chat.addSystemMessage(`🛡️ Создан новый клан [${newClan.tag}] "${newClan.name}"!`);
-      renderClans();
-      updateStatsHUD();
-    });
-  }
-
-  const btnDonate = document.getElementById('btn-clan-donate');
-  if (btnDonate) {
-    btnDonate.addEventListener('click', () => {
-      const clan = clans.clans.get(core.clanId);
-      if (!clan) return;
-      const amount = prompt(`Сколько внести в казну клана? (У вас: $${formatNumber(core.neoCoins)} NC):`, '1000');
-      const val = parseInt(amount, 10);
-      if (val > 0 && core.neoCoins >= val) {
-        core.neoCoins -= val;
-        clans.donateToBank(clan.id, core.name, val);
-        if (audio) audio.playCoinSound();
-        chat.addChatMessage('clan', core.name, clan.tag, core.equippedTitle, `Внёс в казну клана $${formatNumber(val)} NC! 💰`);
-        renderClans();
-        updateStatsHUD();
-      }
-    });
-  }
-
-  const btnUpgradeClickPerk = document.getElementById('btn-clan-upgrade-click');
-  if (btnUpgradeClickPerk) {
-    btnUpgradeClickPerk.addEventListener('click', () => {
-      if (clans.upgradePerk(core.clanId, 'clickBoostLevel')) {
-        if (audio) audio.playCritSound();
-        renderClans();
-      } else {
-        alert('Недостаточно средств в казне клана!');
-      }
-    });
-  }
-}
-
-function renderClans() {
-  const myClan = clans.clans.get(core.clanId);
-  const myClanPanel = document.getElementById('my-clan-info-panel');
-  const noClanPanel = document.getElementById('no-clan-panel');
-
-  if (myClan) {
-    if (myClanPanel) myClanPanel.classList.remove('hidden');
-    if (noClanPanel) noClanPanel.classList.add('hidden');
-
-    document.getElementById('clan-view-name').textContent = `[${myClan.tag}] ${myClan.name}`;
-    document.getElementById('clan-view-bank').textContent = `$${formatNumber(myClan.bank)} NC`;
-    document.getElementById('clan-view-level').textContent = `Уровень: ${myClan.level} (Трофеи: 🏆 ${myClan.trophies})`;
-    document.getElementById('clan-click-boost-val').textContent = `+${(myClan.perks.clickBoostLevel || 0) * 15}% к клику`;
-    document.getElementById('clan-income-boost-val').textContent = `+${(myClan.perks.incomeBoostLevel || 0) * 15}% к авто-доходу`;
-
-    const membersList = document.getElementById('clan-members-list');
-    if (membersList) {
-      membersList.innerHTML = '';
-      myClan.members.forEach(m => {
-        const row = document.createElement('div');
-        row.className = 'clan-member-row';
-        row.innerHTML = `<span><b>${m.name}</b> (${m.role})</span> <span>Вклад: $${formatNumber(m.donated)}</span>`;
-        membersList.appendChild(row);
-      });
-    }
-  } else {
-    if (myClanPanel) myClanPanel.classList.add('hidden');
-    if (noClanPanel) noClanPanel.classList.remove('hidden');
-  }
-
-  const allList = document.getElementById('all-clans-list');
-  if (allList) {
-    allList.innerHTML = '';
-    clans.getAllClans().forEach(c => {
-      const card = document.createElement('div');
-      card.className = 'clan-card-item';
-      card.innerHTML = `
-        <div class="clan-card-head">
-          <b>${c.emblem} [${c.tag}] ${c.name}</b>
-          <span class="badge-tag">Ур. ${c.level}</span>
-        </div>
-        <div class="clan-card-desc">${c.desc}</div>
-        <div class="clan-card-footer">
-          <span>Участников: ${c.members.length} • Казна: $${formatNumber(c.bank)}</span>
-          ${!core.clanId ? `<button class="btn-primary-sm join-clan-btn" data-id="${c.id}">ВСТУПИТЬ</button>` : ''}
-        </div>
-      `;
-      if (!core.clanId) {
-        card.querySelector('.join-clan-btn').addEventListener('click', () => {
-          clans.joinClan(c.id, core.name);
-          core.clanId = c.id;
-          core.saveToStorage();
-          chat.addSystemMessage(`🤝 Игрок ${core.name} вступил в клан [${c.tag}]!`);
-          renderClans();
-          updateStatsHUD();
-        });
-      }
-      allList.appendChild(card);
-    });
-  }
-}
-
-// ----------------------------------------------------------------------------
-// 5. MARKETPLACE 2.0 & FILTERS
-// ----------------------------------------------------------------------------
-function setupMarketTab() {
-  document.querySelectorAll('.market-cat-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.market-cat-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeMarketCategory = btn.dataset.cat;
-      renderMarket();
-    });
-  });
-
-  const btnSell = document.getElementById('btn-market-list-item');
-  if (btnSell) {
-    btnSell.addEventListener('click', () => {
-      if (core.inventory.length === 0) return alert('У вас нет предметов в инвентаре для продажи!');
-      const itemNames = core.inventory.map((id, idx) => `${idx + 1}. ${ITEMS_DATABASE.find(i => i.id === id)?.name || id}`).join('\n');
-      const pick = prompt(`Выберите номер предмета для продажи:\n${itemNames}`);
-      const num = parseInt(pick, 10);
-      if (num >= 1 && num <= core.inventory.length) {
-        const itemId = core.inventory[num - 1];
-        const priceStr = prompt('Введите цену в Нео-Коинах (NC):', '1000');
-        const price = parseInt(priceStr, 10);
-        if (price > 0) {
-          core.removeItem(itemId);
-          const listing = market.createListing(core.name, itemId, price);
-          if (network) network.syncMarketListing(listing);
-          if (audio) audio.playCoinSound();
-          chat.addSystemMessage(`🏪 ${core.name} выставил на рынок "${ITEMS_DATABASE.find(i => i.id === itemId)?.name}" за $${formatNumber(price)} NC!`);
-          renderMarket();
-          renderInventory();
-        }
-      }
-    });
-  }
-}
-
-function renderMarket() {
-  const list = document.getElementById('market-listings-grid');
-  if (!list) return;
-  list.innerHTML = '';
-
-  let filtered = market.marketListings;
-  if (activeMarketCategory !== 'all') {
-    filtered = filtered.filter(l => {
-      const it = ITEMS_DATABASE.find(i => i.id === l.itemId);
-      return it && it.type === activeMarketCategory;
-    });
-  }
-
-  if (filtered.length === 0) {
-    list.innerHTML = '<div class="empty-msg">Нет товаров в этой категории. Выставьте свой предмет на продажу!</div>';
-    return;
-  }
-
-  filtered.forEach(l => {
-    const item = ITEMS_DATABASE.find(i => i.id === l.itemId);
-    if (!item) return;
-
-    const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
-    const card = document.createElement('div');
-    card.className = 'market-item-card';
-    card.style.borderColor = rarity.color;
-    card.innerHTML = `
-      <div class="market-card-icon">${item.icon}</div>
-      <div class="market-card-name" style="color: ${rarity.color}">${item.name}</div>
-      <div class="market-card-rarity" style="color: ${rarity.color}">${rarity.name}</div>
-      <div class="market-card-desc">${item.desc}</div>
-      <div class="market-card-seller">Продавец: <b>${l.seller}</b></div>
-      <div class="market-card-buy-row">
-        <span class="market-price">$${formatNumber(l.price)} NC</span>
-        <button class="btn-primary-sm buy-listing-btn" ${core.neoCoins < l.price ? 'disabled' : ''}>КУПИТЬ</button>
-      </div>
-    `;
-
-    card.querySelector('.buy-listing-btn').addEventListener('click', () => {
-      const res = market.buyListing(l.id, core);
-      if (res.success) {
-        if (network) network.removeMarketListing(l.id);
-        if (audio) audio.playCoinSound();
-        chat.addSystemMessage(`💸 ${core.name} купил "${item.name}" у ${l.seller} за $${formatNumber(l.price)} NC!`);
-        renderMarket();
-        renderInventory();
-        updateStatsHUD();
-      } else {
-        alert(res.msg);
-      }
-    });
-
-    list.appendChild(card);
-  });
-}
-
-// ----------------------------------------------------------------------------
-// 6. MULTI-CHANNEL CHAT & REAL FIREBASE BROADCAST
-// ----------------------------------------------------------------------------
-function setupChatChannelTabs() {
-  document.querySelectorAll('.chat-channel-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.chat-channel-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      chat.activeChannel = btn.dataset.channel;
-
-      const input = document.getElementById('chat-input-text');
-      if (chat.activeChannel === 'clan') {
-        input.placeholder = core.clanId ? 'Написать в клановый чат гильдии...' : 'Вы не состоите в клане!';
-        input.disabled = !core.clanId;
-      } else if (chat.activeChannel === 'pm') {
-        input.placeholder = `Написать личное сообщение ${chat.activePMTarget}...`;
-        input.disabled = false;
-      } else {
-        input.placeholder = 'Написать в общий онлайн-чат...';
-        input.disabled = false;
-      }
-
-      renderChatFeed();
-    });
-  });
-
-  const form = document.getElementById('chat-send-form');
-  const input = document.getElementById('chat-input-text');
-  if (form && input) {
-    form.addEventListener('submit', (e) => {
+    // Toggle Playtest in Editor mode (Tab or Enter)
+    if (activeMode === 'editor' && (e.code === 'Tab' || e.code === 'Enter')) {
       e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-
-      const clan = clans.clans.get(core.clanId);
-      const clanTag = clan ? clan.tag : null;
-      const titleItem = core.equippedTitle ? ITEMS_DATABASE.find(i => i.id === core.equippedTitle) : null;
-      const titleText = titleItem ? titleItem.tagText : null;
-
-      if (chat.activeChannel === 'pm') {
-        chat.sendPrivateMessage(core.name, chat.activePMTarget, text);
-      } else {
-        chat.addChatMessage(chat.activeChannel, core.name, clanTag, titleText, text);
-        // Broadcast to real Firebase players
-        if (network) network.broadcastChatMessage(core.name, clanTag, titleText, text, chat.activeChannel);
-        // Trigger Smart Bot Reply
-        chat.handlePlayerInput(chat.activeChannel, core, text);
-      }
-      renderChatFeed();
-    });
-  }
-}
-
-function renderChatFeed() {
-  const feed = document.getElementById('global-chat-feed');
-  if (!feed || !chat) return;
-  feed.innerHTML = '';
-
-  const messages = chat.getMessages(chat.activeChannel);
-  messages.forEach(msg => {
-    const el = document.createElement('div');
-    el.className = `chat-row ${msg.isSystem ? 'system-msg' : ''}`;
-
-    if (msg.isSystem) {
-      el.innerHTML = `<span class="chat-sys-icon">⚡</span> <span class="chat-sys-text">${msg.text}</span>`;
-    } else {
-      el.innerHTML = `
-        <span class="chat-time">${msg.time}</span>
-        ${msg.clanTag ? `<span class="chat-clan-badge">[${msg.clanTag}]</span>` : ''}
-        ${msg.title ? `<span class="chat-title-badge">[${msg.title}]</span>` : ''}
-        <b class="chat-author" style="color: #00d2ff">${msg.sender}:</b>
-        <span class="chat-body">${msg.text}</span>
-      `;
-
-      el.querySelector('.chat-author').addEventListener('click', () => {
-        openPlayerInspector(msg.sender);
-      });
+      toggleEditorPlaytest();
     }
 
-    feed.appendChild(el);
-  });
-
-  feed.scrollTop = feed.scrollHeight;
-}
-
-// ----------------------------------------------------------------------------
-// 7. ACTIVE ONLINE PLAYERS LIST & PVP DUELS
-// ----------------------------------------------------------------------------
-function setupOnlinePlayersList() {
-  const list = document.getElementById('online-players-scroll');
-  if (!list || !chat) return;
-  list.innerHTML = '';
-
-  chat.onlinePlayers.forEach(p => {
-    const item = document.createElement('div');
-    item.className = `online-player-card ${p.isReal ? 'real-player-highlight' : ''}`;
-    item.innerHTML = `
-      <div class="online-p-head">
-        <span class="online-p-dot ${p.isReal ? 'real-dot' : ''}">●</span>
-        ${p.clan ? `<span class="clan-tag">[${p.clan}]</span>` : ''}
-        <b>${p.name}</b>
-        <span class="online-p-lvl">Ур. ${p.level}</span>
-      </div>
-      <div class="online-p-status">${p.status}</div>
-    `;
-
-    item.addEventListener('click', () => {
-      openPlayerInspector(p.name);
-    });
-
-    list.appendChild(item);
-  });
-}
-
-function openPlayerInspector(playerName) {
-  if (playerName === core.name) return;
-
-  const action = prompt(`Игрок: ${playerName}\n\n1. ⚔️ ВЫЗВАТЬ НА PvP ДУЭЛЬ ($1,000 NC)\n2. 💬 Написать в ЛС\n3. 🤝 Предложить Трейд\n4. 🛡️ Пригласить в Клан\n\nВведите номер действия (1-4):`, '1');
-  if (action === '1') {
-    startPvPDuel(playerName, 1000);
-  } else if (action === '2') {
-    chat.activePMTarget = playerName;
-    const pmTab = document.querySelector('[data-channel="pm"]');
-    if (pmTab) pmTab.click();
-  } else if (action === '3') {
-    selectedTradePartner = playerName;
-    const tradeTab = document.querySelector('[data-tab="trades"]');
-    if (tradeTab) tradeTab.click();
-    startTradeSession();
-  } else if (action === '4') {
-    if (!core.clanId) return alert('Вы должны состоять в клане, чтобы приглашать игроков!');
-    alert(`Приглашение в клан отправлено игроку ${playerName}!`);
-  }
-}
-
-// ----------------------------------------------------------------------------
-// PvP CLICK DUEL SYSTEM
-// ----------------------------------------------------------------------------
-function setupPvPDuel() {
-  const btnClick = document.getElementById('duel-click-btn');
-  if (btnClick) {
-    btnClick.addEventListener('pointerdown', () => {
-      if (duelTimeLeft > 0) {
-        duelPlayerClicks++;
-        if (audio) audio.playClickSound();
-        document.getElementById('duel-player-score').textContent = duelPlayerClicks;
-      }
-    });
-  }
-}
-
-function startPvPDuel(opponentName, bet = 1000) {
-  if (core.neoCoins < bet) return alert(`У вас недостаточно монет для ставки в $${bet} NC!`);
-
-  duelOpponentName = opponentName;
-  duelBet = bet;
-  duelPlayerClicks = 0;
-  duelOpponentClicks = 0;
-  duelTimeLeft = 8;
-
-  const modal = document.getElementById('modal-pvp-duel');
-  if (!modal) return;
-  modal.classList.remove('hidden');
-
-  document.getElementById('duel-opponent-name').textContent = opponentName;
-  document.getElementById('duel-player-score').textContent = '0';
-  document.getElementById('duel-opponent-score').textContent = '0';
-  document.getElementById('duel-timer-val').textContent = duelTimeLeft;
-
-  if (duelTimer) clearInterval(duelTimer);
-  duelTimer = setInterval(() => {
-    duelTimeLeft--;
-    document.getElementById('duel-timer-val').textContent = duelTimeLeft;
-
-    duelOpponentClicks += Math.floor(2 + Math.random() * 4);
-    document.getElementById('duel-opponent-score').textContent = duelOpponentClicks;
-
-    if (duelTimeLeft <= 0) {
-      clearInterval(duelTimer);
-      modal.classList.add('hidden');
-
-      if (duelPlayerClicks > duelOpponentClicks) {
-        core.neoCoins += duelBet;
-        if (audio) audio.playCritSound();
-        chat.addSystemMessage(`⚔️ ${core.name} победил ${duelOpponentName} в PvP дуэли (${duelPlayerClicks} vs ${duelOpponentClicks}) и забрал +$${duelBet * 2} NC!`);
-        alert(`🏆 ПОБЕДА! Вы сделали ${duelPlayerClicks} кликов против ${duelOpponentClicks} и выиграли $${duelBet * 2} NC!`);
-      } else {
-        core.neoCoins = Math.max(0, core.neoCoins - duelBet);
-        chat.addSystemMessage(`💀 ${duelOpponentName} победил ${core.name} в PvP дуэли (${duelOpponentClicks} vs ${duelPlayerClicks})!`);
-        alert(`💀 ПОРАЖЕНИЕ! ${duelOpponentName} обогнал вас (${duelOpponentClicks} vs ${duelPlayerClicks})!`);
-      }
-      updateStatsHUD();
+    // Undo / Redo in Editor
+    if (activeMode === 'editor') {
+      if (e.ctrlKey && e.code === 'KeyZ') { e.preventDefault(); editor.undo(); }
+      if (e.ctrlKey && e.code === 'KeyY') { e.preventDefault(); editor.redo(); }
+      if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); editor.deleteSelected(); }
     }
-  }, 1000);
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+    if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+    if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') keys.jump = false;
+  });
+
+  // Canvas Mouse Events for Editor
+  canvas.addEventListener('mousedown', (e) => {
+    if (activeMode !== 'editor') return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (e.button === 0) { // Left Click -> Place object
+      isMouseDown = true;
+      const worldX = mx + editorCameraX;
+      const worldY = my + editorCameraY;
+      editor.addObjectAt(worldX, worldY);
+    } else if (e.button === 1 || e.button === 2) { // Right or Middle click -> Pan
+      e.preventDefault();
+      isPanning = true;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+    }
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (isPanning && activeMode === 'editor') {
+      const dx = e.clientX - panStartX;
+      const dy = e.clientY - panStartY;
+      editorCameraX -= dx;
+      editorCameraY -= dy;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    isMouseDown = false;
+    isPanning = false;
+  });
+
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
 }
 
 // ----------------------------------------------------------------------------
-// 8. INTERACTIVE BILATERAL P2P TRADE SYSTEM
+// 2. NAVIGATION & UI BUTTONS
 // ----------------------------------------------------------------------------
-function setupTradeTab() {
-  const partnerSelect = document.getElementById('trade-partner-select');
-  if (partnerSelect) {
-    partnerSelect.addEventListener('change', (e) => {
-      selectedTradePartner = e.target.value;
-      startTradeSession();
-    });
-  }
-
-  // Quick Coin Buttons for Trade Offer
-  document.querySelectorAll('.trade-coin-btn').forEach(btn => {
+function setupUIButtons() {
+  document.querySelectorAll('.app-nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const add = parseInt(btn.dataset.add, 10);
-      if (add === 0) {
-        market.setCoinsOffer(0);
-      } else {
-        const cur = market.activeTrade ? market.activeTrade.partyA.coins : 0;
-        market.setCoinsOffer(cur + add);
-      }
-      renderTradeWindow();
-    });
-  });
-
-  const btnTradeReady = document.getElementById('btn-trade-ready');
-  if (btnTradeReady) {
-    btnTradeReady.addEventListener('click', () => {
-      market.toggleReady();
-      if (audio) audio.playClickSound();
-      renderTradeWindow();
-    });
-  }
-
-  const btnTradeConfirm = document.getElementById('btn-trade-confirm');
-  if (btnTradeConfirm) {
-    btnTradeConfirm.addEventListener('click', () => {
-      if (market.confirmAndExecuteTrade(core)) {
-        if (audio) audio.playCoinSound();
-        chat.addSystemMessage(`🤝 Трейд между ${core.name} и ${selectedTradePartner} успешно завершен!`);
-        alert('🎉 Сделка успешно состоялась! Предметы и валюта переведены.');
-        startTradeSession();
-        renderInventory();
-        updateStatsHUD();
-      }
-    });
-  }
-
-  startTradeSession();
-}
-
-function startTradeSession() {
-  market.startTrade(core.name, selectedTradePartner);
-  renderTradeWindow();
-}
-
-function renderTradeWindow() {
-  const trade = market.activeTrade;
-  if (!trade) return;
-
-  document.getElementById('trade-party-a-name').textContent = `${core.name} (Вы)`;
-  document.getElementById('trade-party-b-name').textContent = selectedTradePartner;
-
-  // Party A Offer Coins & Items
-  document.getElementById('trade-offer-coins-a').textContent = `$${formatNumber(trade.partyA.coins)} NC`;
-
-  const itemsSlotA = document.getElementById('trade-items-slots-a');
-  if (itemsSlotA) {
-    itemsSlotA.innerHTML = '';
-    if (trade.partyA.items.length === 0) {
-      itemsSlotA.innerHTML = '<div class="empty-trade-slot">Кликните предметы из инвентаря ниже, чтобы добавить их сюда</div>';
-    } else {
-      trade.partyA.items.forEach((itId, idx) => {
-        const it = ITEMS_DATABASE.find(i => i.id === itId);
-        if (it) {
-          const chip = document.createElement('div');
-          chip.className = 'trade-chip-item';
-          chip.innerHTML = `${it.icon} ${it.name} <span class="chip-remove">✖</span>`;
-          chip.addEventListener('click', () => {
-            market.removeItemFromTrade(idx);
-            renderTradeWindow();
-          });
-          itemsSlotA.appendChild(chip);
-        }
-      });
-    }
-  }
-
-  // Render Your Inventory Picker right inside the trade screen
-  const invPicker = document.getElementById('trade-inventory-picker-grid');
-  if (invPicker) {
-    invPicker.innerHTML = '';
-    if (core.inventory.length === 0) {
-      invPicker.innerHTML = '<div class="empty-msg">У вас нет предметов в инвентаре для добавления в трейд.</div>';
-    } else {
-      core.inventory.forEach(itId => {
-        const it = ITEMS_DATABASE.find(i => i.id === itId);
-        if (!it) return;
-        const rarity = RARITY_CONFIG[it.rarity] || RARITY_CONFIG.common;
-
-        const card = document.createElement('div');
-        card.className = 'trade-inv-card';
-        card.style.borderColor = rarity.color;
-        card.innerHTML = `${it.icon} <b>${it.name}</b> <span class="add-tag">+ В ТРЕЙД</span>`;
-        card.addEventListener('click', () => {
-          market.addItemToTrade(itId, core);
-          renderTradeWindow();
-        });
-        invPicker.appendChild(card);
-      });
-    }
-  }
-
-  // Party B Offer
-  document.getElementById('trade-offer-coins-b').textContent = `$${formatNumber(trade.partyB.coins)} NC`;
-  const itemsSlotB = document.getElementById('trade-items-slots-b');
-  if (itemsSlotB) {
-    itemsSlotB.innerHTML = '';
-    trade.partyB.items.forEach(itId => {
-      const it = ITEMS_DATABASE.find(i => i.id === itId);
-      if (it) {
-        const chip = document.createElement('div');
-        chip.className = 'trade-chip-item partner';
-        chip.innerHTML = `${it.icon} ${it.name}`;
-        itemsSlotB.appendChild(chip);
-      }
-    });
-  }
-
-  // Status Badges
-  const readyA = document.getElementById('trade-status-a');
-  if (readyA) {
-    readyA.textContent = trade.partyA.ready ? '✔ ГОТОВ' : '⏳ ВЫБОР ПРЕДЛОЖЕНИЯ...';
-    readyA.className = trade.partyA.ready ? 'badge-ready' : 'badge-wait';
-  }
-
-  const readyB = document.getElementById('trade-status-b');
-  if (readyB) {
-    readyB.textContent = trade.partyB.ready ? '✔ ГОТОВ' : '⏳ ОЦЕНИВАЕТ...';
-    readyB.className = trade.partyB.ready ? 'badge-ready' : 'badge-wait';
-  }
-
-  const btnConfirm = document.getElementById('btn-trade-confirm');
-  if (btnConfirm) {
-    btnConfirm.disabled = !market.canConfirm();
-    if (market.canConfirm()) {
-      btnConfirm.classList.add('ready-glow');
-    } else {
-      btnConfirm.classList.remove('ready-glow');
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------
-// LEADERBOARDS, INVENTORY & PROFILE
-// ----------------------------------------------------------------------------
-function setupLeaderboardsTab() {
-  document.querySelectorAll('.lb-category-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.lb-category-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.app-nav-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      renderLeaderboard(btn.dataset.cat);
+
+      const targetMode = btn.dataset.mode;
+      switchMode(targetMode);
     });
   });
-}
 
-function renderLeaderboard(cat = 'coins') {
-  const list = document.getElementById('leaderboard-rows-container');
-  if (!list) return;
-  list.innerHTML = '';
-
-  const ranks = events.getRankings(cat, core);
-  ranks.forEach((r, idx) => {
-    const row = document.createElement('div');
-    row.className = `lb-row ${r.isLocal ? 'local-player' : ''}`;
-    let valStr = `$${formatNumber(r.coins)} NC`;
-    if (cat === 'clicks') valStr = `${formatNumber(r.clicks)} кликов`;
-    if (cat === 'prestige') valStr = `Престиж Ур. ${r.prestige}`;
-
-    row.innerHTML = `
-      <div class="lb-rank">#${idx + 1}</div>
-      <div class="lb-name">
-        ${r.clan ? `<span class="clan-tag">[${r.clan}]</span>` : ''}
-        ${r.title ? `<span class="title-tag">[${r.title}]</span>` : ''}
-        <b>${r.name}</b>
-      </div>
-      <div class="lb-val">${valStr}</div>
-    `;
-    list.appendChild(row);
-  });
-}
-
-function setupInventoryTab() {}
-
-function renderInventory() {
-  const grid = document.getElementById('inventory-items-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
-
-  if (core.inventory.length === 0) {
-    grid.innerHTML = '<div class="empty-msg">Инвентарь пуст. Покупайте чипы и реликвии на рынке!</div>';
-    return;
+  // Sound Toggle
+  const btnSound = document.getElementById('btn-sound-toggle');
+  if (btnSound) {
+    btnSound.addEventListener('click', () => {
+      const isMuted = audio.toggleMute();
+      btnSound.textContent = isMuted ? '🔇 ЗВУК: ВЫКЛ' : '🔊 ЗВУК: ВКЛ';
+    });
   }
 
-  core.inventory.forEach(itemId => {
-    const item = ITEMS_DATABASE.find(i => i.id === itemId);
-    if (!item) return;
+  // Playtest Toggle Button
+  const btnTest = document.getElementById('btn-editor-playtest');
+  if (btnTest) {
+    btnTest.addEventListener('click', () => toggleEditorPlaytest());
+  }
 
-    const rarity = RARITY_CONFIG[item.rarity] || RARITY_CONFIG.common;
-    const isEquipped = (core.equippedAura === itemId || core.equippedFrame === itemId || core.equippedTitle === itemId);
+  // Editor Publish Button
+  const btnPublish = document.getElementById('btn-editor-publish');
+  if (btnPublish) {
+    btnPublish.addEventListener('click', () => {
+      if (!editor.level.isVerified) {
+        alert('⚠️ Для публикации уровня вы должны сначала полностью пройти его от 0% до 100% в режиме тестирования (кнопка ТЕСТ)!');
+        return;
+      }
+      const title = prompt('Введите название для Community:', editor.level.title);
+      if (title && title.trim()) {
+        editor.level.title = title.trim();
+        const pub = community.publishLevel(editor.level, profile.name);
+        alert(`🎉 Уровень "${pub.title}" успешно опубликован в Community!`);
+        switchMode('community');
+        renderCommunityLevels();
+      }
+    });
+  }
+}
 
+function switchMode(mode) {
+  activeMode = mode;
+
+  // Toggle View Panels
+  document.getElementById('panel-editor-tools').classList.toggle('hidden', mode !== 'editor');
+  document.getElementById('panel-community').classList.toggle('hidden', mode !== 'community');
+  document.getElementById('panel-customization').classList.toggle('hidden', mode !== 'profile');
+  document.getElementById('play-hud-overlay').classList.toggle('hidden', mode !== 'play');
+
+  if (mode === 'play') {
+    player.reset(100, 300, true);
+  } else if (mode === 'community') {
+    renderCommunityLevels();
+  }
+}
+
+function toggleEditorPlaytest() {
+  if (activeMode === 'editor') {
+    activeLevel = editor.level;
+    activeMode = 'play';
+    document.getElementById('panel-editor-tools').classList.add('hidden');
+    document.getElementById('play-hud-overlay').classList.remove('hidden');
+    player.reset(100, 300, true);
+  } else if (activeMode === 'play') {
+    activeMode = 'editor';
+    document.getElementById('panel-editor-tools').classList.remove('hidden');
+    document.getElementById('play-hud-overlay').classList.add('hidden');
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 3. EDITOR PALETTE
+// ----------------------------------------------------------------------------
+function setupEditorPalette() {
+  document.querySelectorAll('.palette-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      editor.selectedTool = btn.dataset.type;
+    });
+  });
+
+  const btnUndo = document.getElementById('btn-editor-undo');
+  if (btnUndo) btnUndo.addEventListener('click', () => editor.undo());
+
+  const btnRedo = document.getElementById('btn-editor-redo');
+  if (btnRedo) btnRedo.addEventListener('click', () => editor.redo());
+
+  const btnClear = document.getElementById('btn-editor-clear');
+  if (btnClear) {
+    btnClear.addEventListener('click', () => {
+      if (confirm('Очистить все объекты на уровне?')) {
+        editor.pushHistoryState();
+        editor.level.objects = [];
+      }
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 4. COMMUNITY LEVEL HUB
+// ----------------------------------------------------------------------------
+function setupCommunityView() {
+  document.querySelectorAll('.community-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.community-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCommunityLevels(btn.dataset.filter);
+    });
+  });
+
+  const searchInput = document.getElementById('community-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      renderCommunityLevels('featured', searchInput.value);
+    });
+  }
+}
+
+function renderCommunityLevels(filter = 'featured', query = '') {
+  const container = document.getElementById('community-levels-grid');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const list = community.getLevels(filter, query);
+  list.forEach(lvl => {
     const card = document.createElement('div');
-    card.className = `inv-card ${isEquipped ? 'equipped' : ''}`;
-    card.style.borderColor = rarity.color;
+    card.className = 'community-level-card';
     card.innerHTML = `
-      <div class="inv-card-icon">${item.icon}</div>
-      <div class="inv-card-name" style="color: ${rarity.color}">${item.name}</div>
-      <div class="inv-card-desc">${item.desc}</div>
-      ${['aura', 'frame', 'title'].includes(item.type) ? `<button class="btn-primary-sm equip-btn">${isEquipped ? 'СНЯТЬ' : 'НАДЕТЬ'}</button>` : ''}
+      <div class="lvl-card-head">
+        <div class="lvl-title">${lvl.title}</div>
+        <span class="diff-badge ${lvl.difficulty.toLowerCase()}">${lvl.difficulty}</span>
+      </div>
+      <div class="lvl-author">Автор: <b>${lvl.author}</b></div>
+      <div class="lvl-stats-row">
+        <span>❤️ ${lvl.likes}</span>
+        <span>👥 ${lvl.plays} игр</span>
+        <span>🏆 ${lvl.passRate}% pass</span>
+      </div>
+      <div class="lvl-actions-row">
+        <button class="btn-play-level">▶ ИГРАТЬ</button>
+        <button class="btn-like-level">❤️ LIKE</button>
+      </div>
     `;
 
-    if (card.querySelector('.equip-btn')) {
-      card.querySelector('.equip-btn').addEventListener('click', () => {
-        core.equipCosmetic(itemId);
-        renderInventory();
-        renderProfile();
-      });
-    }
+    card.querySelector('.btn-play-level').addEventListener('click', () => {
+      loadLevelForPlay(lvl);
+      document.querySelector('[data-mode="play"]').click();
+    });
 
-    grid.appendChild(card);
+    card.querySelector('.btn-like-level').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const count = community.likeLevel(lvl.id);
+      renderCommunityLevels(filter, query);
+    });
+
+    container.appendChild(card);
   });
 }
 
-function setupProfileTab() {
-  const btnName = document.getElementById('btn-change-name');
-  if (btnName) {
-    btnName.addEventListener('click', () => {
-      const n = prompt('Введите новый никнейм:', core.name);
+function loadLevelForPlay(lvl) {
+  activeLevel = lvl;
+  document.getElementById('play-hud-title').textContent = lvl.title;
+  document.getElementById('play-hud-author').textContent = `Автор: ${lvl.author}`;
+  player.reset(100, 300, true);
+}
+
+// ----------------------------------------------------------------------------
+// 5. CUSTOMIZATION & PROFILE VIEW
+// ----------------------------------------------------------------------------
+function setupCustomizationView() {
+  document.querySelectorAll('.color-pick-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const col = btn.dataset.color;
+      profile.skinColor = col;
+      player.skinColor = col;
+      profile.saveProfile();
+      renderProfileStats();
+    });
+  });
+
+  const btnChangeName = document.getElementById('btn-profile-change-name');
+  if (btnChangeName) {
+    btnChangeName.addEventListener('click', () => {
+      const n = prompt('Введите ваш никнейм:', profile.name);
       if (n && n.trim()) {
-        core.name = n.trim();
-        core.saveToStorage();
-        renderProfile();
-        updateStatsHUD();
-      }
-    });
-  }
-
-  const btnExport = document.getElementById('btn-export-save');
-  if (btnExport) {
-    btnExport.addEventListener('click', () => {
-      const str = core.exportSaveString();
-      prompt('Ваш код сохранения (скопируйте и сохраните в надежное место):', str);
-    });
-  }
-
-  const btnImport = document.getElementById('btn-import-save');
-  if (btnImport) {
-    btnImport.addEventListener('click', () => {
-      const str = prompt('Вставьте ваш код сохранения:');
-      if (str && core.importSaveString(str)) {
-        alert('Данные успешно восстановлены!');
-        renderAll();
-      } else {
-        alert('Неверный код сохранения!');
+        profile.name = n.trim();
+        profile.saveProfile();
+        renderProfileStats();
       }
     });
   }
 }
 
-function renderProfile() {
-  document.getElementById('prof-name').textContent = core.name;
-  document.getElementById('prof-total-earned').textContent = `$${formatNumber(core.totalEarned)} NC`;
-  document.getElementById('prof-total-clicks').textContent = formatNumber(core.totalClicks);
-  document.getElementById('prof-prestige').textContent = `Уровень ${core.prestigeLevel} (x${core.prestigeMultiplier} Multiplier)`;
-  document.getElementById('prof-crystals').textContent = `${core.quantumCrystals} QC`;
+function renderProfileStats() {
+  document.getElementById('prof-stat-name').textContent = profile.name;
+  document.getElementById('prof-stat-stars').textContent = `⭐ ${profile.stars}`;
+  document.getElementById('prof-stat-demons').textContent = `💀 ${profile.demonsBeaten}`;
+  document.getElementById('prof-stat-completed').textContent = profile.levelsCompleted;
+  document.getElementById('prof-stat-attempts').textContent = profile.totalAttempts;
+}
 
-  const avatar = document.getElementById('prof-avatar-orb');
-  if (avatar) {
-    avatar.style.boxShadow = 'none';
-    if (core.equippedAura) {
-      const aura = ITEMS_DATABASE.find(i => i.id === core.equippedAura);
-      if (aura && aura.cssGlow) avatar.style.boxShadow = aura.cssGlow;
+// ----------------------------------------------------------------------------
+// 6. MASTER GAME LOOP (60-120 FPS)
+// ----------------------------------------------------------------------------
+function gameLoop(time) {
+  const delta = Math.min((time - lastTime) / 1000, 0.1);
+  lastTime = time;
+
+  if (activeMode === 'play' && activeLevel) {
+    // 1. Update Physics
+    const inputState = {
+      moveX: (keys.right ? 1 : 0) - (keys.left ? 1 : 0),
+      jumpPressed: keys.jumpPressed,
+      jumpHold: keys.jump,
+      dashPressed: keys.dashPressed
+    };
+
+    player.update(delta, inputState, activeLevel, activeLevel.length || 3000);
+
+    // If player completed level
+    if (player.hasWon) {
+      if (editor.level && activeLevel.id === editor.level.id) {
+        editor.level.isVerified = true;
+        const btnPub = document.getElementById('btn-editor-publish');
+        if (btnPub) btnPub.classList.add('verified-glow');
+      }
+      community.recordAttempt(activeLevel.id, true);
+      profile.recordLevelWin(activeLevel.difficulty);
     }
+
+    // Smooth Camera Follow
+    cameraX += (player.x - canvas.width * 0.35 - cameraX) * 12.0 * delta;
+    cameraY += (player.y - canvas.height * 0.5 - cameraY) * 8.0 * delta;
+
+    // Update Play HUD
+    document.getElementById('play-hud-percent').textContent = `${player.currentPercent}%`;
+    document.getElementById('play-hud-attempts').textContent = `Попытка ${player.attempts}`;
+    document.getElementById('play-progress-bar-fill').style.width = `${player.currentPercent}%`;
+
+    // 2. Render Play View
+    ctx.fillStyle = activeLevel.bgColor || '#080c14';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Parallax Background Grid
+    drawBackgroundStars(ctx, cameraX);
+
+    // Draw Level Objects
+    drawLevelObjects(ctx, activeLevel, cameraX, cameraY);
+
+    // Draw Player
+    player.draw(ctx, cameraX, cameraY);
+
+  } else if (activeMode === 'editor') {
+    // Render Editor View
+    editor.draw(ctx, editorCameraX, editorCameraY, canvas.width, canvas.height);
+  }
+
+  // Reset One-shot Input Flags
+  keys.jumpPressed = false;
+  keys.dashPressed = false;
+
+  requestAnimationFrame(gameLoop);
+}
+
+function drawBackgroundStars(ctx, camX) {
+  ctx.fillStyle = '#101a2e';
+  for (let i = 0; i < 40; i++) {
+    const x = ((i * 120 - camX * 0.2) % canvas.width + canvas.width) % canvas.width;
+    const y = (i * 37) % canvas.height;
+    ctx.fillRect(x, y, 2, 2);
   }
 }
 
-// ----------------------------------------------------------------------------
-// 9. LIVE SERVER EVENTS
-// ----------------------------------------------------------------------------
-function handleServerEvent(type, data) {
-  const banner = document.getElementById('server-event-banner');
-  if (!banner) return;
+function drawLevelObjects(ctx, lvl, camX, camY) {
+  lvl.objects.forEach(obj => {
+    const rx = obj.x - camX;
+    const ry = obj.y - camY;
 
-  if (type === 'start' && data.type === 'rush_hour') {
-    banner.textContent = data.title;
-    banner.classList.add('visible', 'rush-active');
-    if (audio) audio.playCritSound();
-  } else if (type === 'end') {
-    banner.classList.remove('visible', 'rush-active');
-  } else if (type === 'meteor') {
-    spawnMeteorDrop(data.reward);
-  } else if (type === 'boss_spawn') {
-    banner.textContent = `${data.title} (Кликайте для атаки!)`;
-    banner.classList.add('visible', 'boss-active');
-    if (audio) audio.playCritSound();
-  } else if (type === 'boss_defeat') {
-    core.neoCoins += data.reward;
-    if (audio) audio.playCoinSound();
-    banner.textContent = `🎉 МИРОВОЙ БОСС ПОВЕРЖЕН! ВСЕМ ВЫДАНА НАГРАДА +$${formatNumber(data.reward)} NC!`;
-    setTimeout(() => banner.classList.remove('visible', 'boss-active'), 5000);
-  }
-}
+    if (rx + obj.w < 0 || rx > canvas.width || ry + obj.h < 0 || ry > canvas.height) return;
 
-function spawnMeteorDrop(reward) {
-  const met = document.createElement('div');
-  met.className = 'golden-meteor-drop';
-  met.textContent = '☄️';
-  met.style.left = `${10 + Math.random() * 80}vw`;
-  met.style.top = `${15 + Math.random() * 65}vh`;
-  document.body.appendChild(met);
-
-  met.addEventListener('click', () => {
-    core.neoCoins += reward;
-    if (audio) audio.playCoinSound();
-    chat.addSystemMessage(`☄️ ${core.name} поймал Золотой Метеор и получил $${formatNumber(reward)} NC!`);
-    met.remove();
-    updateStatsHUD();
+    ctx.save();
+    if (obj.type === 'solid') {
+      ctx.fillStyle = obj.color || '#162b4d';
+      ctx.fillRect(rx, ry, obj.w, obj.h);
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rx, ry, obj.w, obj.h);
+    } else if (obj.type === 'hazard') {
+      ctx.fillStyle = obj.color || '#ff0055';
+      ctx.beginPath();
+      ctx.moveTo(rx, ry + obj.h);
+      ctx.lineTo(rx + obj.w / 2, ry);
+      ctx.lineTo(rx + obj.w, ry + obj.h);
+      ctx.closePath();
+      ctx.fill();
+    } else if (obj.type === 'saw') {
+      ctx.fillStyle = '#ff3366';
+      ctx.beginPath();
+      ctx.arc(rx + obj.w / 2, ry + obj.h / 2, obj.w / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (obj.type === 'jump_ring') {
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(rx + obj.w / 2, ry + obj.h / 2, obj.w / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    } else if (obj.type === 'portal_gravity') {
+      ctx.fillStyle = obj.val === -1 ? 'rgba(0, 240, 255, 0.3)' : 'rgba(255, 0, 119, 0.3)';
+      ctx.fillRect(rx, ry, obj.w, obj.h);
+      ctx.strokeStyle = obj.val === -1 ? '#00f0ff' : '#ff0077';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rx, ry, obj.w, obj.h);
+    } else if (obj.type === 'speed_boost') {
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.4)';
+      ctx.fillRect(rx, ry, obj.w, obj.h);
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rx, ry, obj.w, obj.h);
+    } else if (obj.type === 'finish') {
+      ctx.fillStyle = 'rgba(0, 255, 136, 0.4)';
+      ctx.fillRect(rx, ry, obj.w, obj.h);
+      ctx.strokeStyle = '#00ff88';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(rx, ry, obj.w, obj.h);
+    }
+    ctx.restore();
   });
-
-  setTimeout(() => met.remove(), 7000);
 }
 
-// ----------------------------------------------------------------------------
-// 10. MASTER TICK & UI UPDATE
-// ----------------------------------------------------------------------------
-function tick() {
-  const clanBonus = clans.getClanBonus(core.clanId).incomeBonus;
-  core.update(clanBonus);
-  updateStatsHUD();
-}
-
-function updateStatsHUD() {
-  const clanBonus = clans.getClanBonus(core.clanId);
-
-  document.getElementById('hud-balance-nc').textContent = `$${formatNumber(core.neoCoins)}`;
-  document.getElementById('hud-balance-qc').textContent = `${core.quantumCrystals} QC`;
-  document.getElementById('hud-click-power').textContent = `+${formatNumber(core.getClickPower(clanBonus.clickBonus))} / клик`;
-  document.getElementById('hud-auto-income').textContent = `+$${formatNumber(core.getAutoIncomePerSec(clanBonus.incomeBonus))} / сек`;
-}
-
-function renderAll() {
-  updateStatsHUD();
-  renderUpgrades();
-  renderClans();
-  renderMarket();
-  renderLeaderboard();
-  renderInventory();
-  renderProfile();
-  renderChatFeed();
-}
-
-function formatNumber(num) {
-  if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-  if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-  return Math.round(num).toLocaleString();
-}
-
-window.addEventListener('DOMContentLoaded', initGame);
+window.addEventListener('DOMContentLoaded', init);
