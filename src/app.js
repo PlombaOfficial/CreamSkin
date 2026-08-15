@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Elevator Progression
-  window.onElevatorReached = (nextLvl) => {
+  window.onElevatorReached = (nextLvl, shouldBroadcast = true) => {
     if (nextLvl >= 3) {
       window.showGameNotification('ВЫ ВЫБРАЛИСЬ ИЗ ЗАКУЛИСЬЯ! ПОБЕДА!');
       return;
@@ -172,6 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
     player.position.set(6, 1.6, 6);
     levelTitleDisplay.textContent = levelNames[nextLvl];
     window.showGameNotification(`ЛИФТ ПРИБЫЛ: ${levelNames[nextLvl]}`);
+    if (shouldBroadcast && network.isHost) {
+      network.syncElevatorLevel(nextLvl);
+    }
   };
 
   // 6. In-Game Chat Handling
