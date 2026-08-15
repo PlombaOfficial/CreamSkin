@@ -11,8 +11,8 @@ export class SocialChatEngine {
     this.onNewMessage = onNewMessageCallback;
     this.globalMessages = [];
     this.clanMessages = [];
-    this.privateMessages = new Map(); // targetName -> []
-    this.activeChannel = 'global'; // 'global' | 'clan' | 'pm'
+    this.privateMessages = new Map();
+    this.activeChannel = 'global';
     this.activePMTarget = 'Alex_Pro';
 
     this.onlinePlayers = [
@@ -42,7 +42,7 @@ export class SocialChatEngine {
   addChatMessage(channel, sender, clanTag, title, text, auraGlow = null) {
     const msg = {
       id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-      channel, // 'global' | 'clan' | 'pm'
+      channel,
       sender,
       clanTag,
       title,
@@ -59,7 +59,7 @@ export class SocialChatEngine {
       if (this.clanMessages.length > 80) this.clanMessages.shift();
     }
 
-    if (this.onNewMessage) this.onNewMessage(channel, msg);
+    if (this.onNewMessage) this.onNewMessage(channel, msg, this);
     return msg;
   }
 
@@ -73,7 +73,7 @@ export class SocialChatEngine {
       isSystem: true
     };
     this.globalMessages.push(msg);
-    if (this.onNewMessage) this.onNewMessage('global', msg);
+    if (this.onNewMessage) this.onNewMessage('global', msg, this);
   }
 
   sendPrivateMessage(sender, recipient, text) {
@@ -91,7 +91,7 @@ export class SocialChatEngine {
     }
     this.privateMessages.get(recipient).push(msg);
 
-    if (this.onNewMessage) this.onNewMessage('pm', msg);
+    if (this.onNewMessage) this.onNewMessage('pm', msg, this);
     return msg;
   }
 

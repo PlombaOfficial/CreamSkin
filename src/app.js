@@ -26,8 +26,9 @@ function initGame() {
   clans = new ClanSystem();
   market = new TradeMarketEngine();
 
-  chat = new SocialChatEngine((channel, msg) => {
-    if (channel === chat.activeChannel) {
+  chat = new SocialChatEngine((channel, msg, engineInstance) => {
+    const currentActiveChannel = engineInstance ? engineInstance.activeChannel : (chat ? chat.activeChannel : 'global');
+    if (channel === currentActiveChannel) {
       renderChatFeed();
     }
   });
@@ -155,7 +156,6 @@ function renderUpgrades() {
   const clickLvlEl = document.getElementById('lvl-upgrade-click');
   if (clickLvlEl) clickLvlEl.textContent = `Ур. ${core.clickLevel}`;
 
-  // Render 10 Hardware Tiers Dynamically
   const hardwareList = document.getElementById('hardware-tiers-list');
   if (hardwareList) {
     hardwareList.innerHTML = '';
@@ -457,7 +457,7 @@ function setupChatChannelTabs() {
 
 function renderChatFeed() {
   const feed = document.getElementById('global-chat-feed');
-  if (!feed) return;
+  if (!feed || !chat) return;
   feed.innerHTML = '';
 
   const messages = chat.getMessages(chat.activeChannel, core.clanId);
@@ -492,7 +492,7 @@ function renderChatFeed() {
 // ----------------------------------------------------------------------------
 function setupOnlinePlayersList() {
   const list = document.getElementById('online-players-scroll');
-  if (!list) return;
+  if (!list || !chat) return;
   list.innerHTML = '';
 
   chat.onlinePlayers.forEach(p => {
