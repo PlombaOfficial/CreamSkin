@@ -1,0 +1,279 @@
+/**
+ * NEO-CLICKER ONLINE // CORE CLICKER & ECONOMY ENGINE
+ * Zero-data-loss versioned persistence, auto-income calculations,
+ * inventory management, prestige rebirths, and stat tracking.
+ */
+
+import { ITEMS_DATABASE } from "./items-collectibles.js";
+
+const SAVE_KEY = 'neo_clicker_save_v2';
+
+export class ClickerCore {
+  constructor() {
+    this.name = 'Кибер-Игрок';
+    this.neoCoins = 0;
+    this.quantumCrystals = 0;
+    this.totalClicks = 0;
+    this.totalEarned = 0;
+
+    // Upgrades
+    this.clickLevel = 1;
+    this.autoMinersCount = 0;
+    this.prestigeLevel = 0;
+    this.prestigeMultiplier = 1.0;
+
+    // Inventory & Equipped Cosmetics
+    this.inventory = []; // Array of item IDs
+    this.equippedAura = null;
+    this.equippedFrame = null;
+    this.equippedTitle = null;
+
+    // Clan membership
+    this.clanId = null;
+
+    // Stats
+    this.createdDate = Date.now();
+    this.lastTick = Date.now();
+
+    this.loadFromStorage();
+  }
+
+  // --- 1. PERSISTENCE & MIGRATION ---
+
+  saveToStorage() {
+    try {
+      const data = {
+        version: 2,
+        name: this.name,
+        neoCoins: this.neoCoins,
+        quantumCrystals: this.quantumCrystals,
+        totalClicks: this.totalClicks,
+        totalEarned: this.totalEarned,
+        clickLevel: this.clickLevel,
+        autoMinersCount: this.autoMinersCount,
+        prestigeLevel: this.prestigeLevel,
+        prestigeMultiplier: this.prestigeMultiplier,
+        inventory: this.inventory,
+        equippedAura: this.equippedAura,
+        equippedFrame: this.equippedFrame,
+        equippedTitle: this.equippedTitle,
+        clanId: this.clanId,
+        createdDate: this.createdDate
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Storage save failed:', e);
+    }
+  }
+
+  loadFromStorage() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY) || localStorage.getItem('neo_clicker_save_v1');
+      if (raw) {
+        const data = JSON.parse(raw);
+        this.name = data.name || 'Кибер-Игрок';
+        this.neoCoins = Math.max(0, Number(data.neoCoins) || 0);
+        this.quantumCrystals = Math.max(0, Number(data.quantumCrystals) || 0);
+        this.totalClicks = Number(data.totalClicks) || 0;
+        this.totalEarned = Number(data.totalEarned) || this.neoCoins;
+        this.clickLevel = Math.max(1, Number(data.clickLevel) || 1);
+        this.autoMinersCount = Number(data.autoMinersCount) || 0;
+        this.prestigeLevel = Number(data.prestigeLevel) || 0;
+        this.prestigeMultiplier = Math.max(1.0, Number(data.prestigeMultiplier) || 1.0);
+        this.inventory = Array.isArray(data.inventory) ? data.inventory : [];
+        this.equippedAura = data.equippedAura || null;
+        this.equippedFrame = data.equippedFrame || null;
+        this.equippedTitle = data.equippedTitle || null;
+        this.clanId = data.clanId || null;
+        this.createdDate = data.createdDate || Date.now();
+      } else {
+        // Initial Starter Bonus
+        this.neoCoins = 10;
+      }
+    } catch (e) {
+      console.warn('Storage load failed, initializing clean save:', e);
+    }
+  }
+
+  exportSaveString() {
+    this.saveToStorage();
+    return btoa(unescape(encodeURIComponent(localStorage.getItem(SAVE_KEY))));
+  }
+
+  importSaveString(encodedStr) {
+    try {
+      const decoded = decodeURIComponent(escape(atob(encodedStr.trim())));
+      JSON.parse(decoded); // Validate JSON
+      localStorage.setItem(SAVE_KEY, decoded);
+      this.loadFromStorage();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // --- 2. STATS & INCOME CALCULATIONS ---
+
+  getClickPower(clanBonus = 0) {
+    let power = this.clickLevel * (1 + (this.clickLevel - 1) * 0.25);
+
+    // Add item bonuses from inventory
+    this.inventory.forEach(itemId => {
+      const item = ITEMS_DATABASE.find(i => i.id === itemId);
+      if (item && item.bonus && item.bonus.clickPower) {
+        power += item.bonus.clickPower;
+      }
+    });
+
+    // Apply Prestige & Clan Multipliers
+    power *= this.prestigeMultiplier;
+    power *= (1 + clanBonus);
+
+    // Global matrix check
+    if (this.inventory.includes('divine_matrix')) power *= 2.0;
+
+    return Math.max(1, Math.round(power));
+  }
+
+  getAutoIncomePerSec(clanBonus = 0) {
+    let income = this.autoMinersCount * 2.0;
+
+    // Add hardware items
+    this.inventory.forEach(itemId => {
+      const item = ITEMS_DATABASE.find(i => i.id === itemId);
+      if (item && item.bonus && item.bonus.autoIncome) {
+        income += item.bonus.autoIncome;
+      }
+    });
+
+    income *= this.prestigeMultiplier;
+    income *= (1 + clanBonus);
+
+    if (this.inventory.includes('divine_matrix')) income *= 2.0;
+
+    return Math.round(income * 10) / 10;
+  }
+
+  // --- 3. ACTIONS ---
+
+  performClick(clanBonus = 0) {
+    let amount = this.getClickPower(clanBonus);
+
+    // Crit chance check
+    if (this.inventory.includes('golden_touch') && Math.random() < 0.12) {
+      amount *= 5;
+    }
+
+    this.neoCoins += amount;
+    this.totalEarned += amount;
+    this.totalClicks++;
+    this.saveToStorage();
+    return amount;
+  }
+
+  upgradeClick() {
+    const cost = Math.round(15 * Math.pow(1.35, this.clickLevel - 1));
+    if (this.neoCoins >= cost) {
+      this.neoCoins -= cost;
+      this.clickLevel++;
+      this.saveToStorage();
+      return true;
+    }
+    return false;
+  }
+
+  getClickUpgradeCost() {
+    return Math.round(15 * Math.pow(1.35, this.clickLevel - 1));
+  }
+
+  buyAutoMiner() {
+    const cost = Math.round(50 * Math.pow(1.25, this.autoMinersCount));
+    if (this.neoCoins >= cost) {
+      this.neoCoins -= cost;
+      this.autoMinersCount++;
+      this.saveToStorage();
+      return true;
+    }
+    return false;
+  }
+
+  getAutoMinerCost() {
+    return Math.round(50 * Math.pow(1.25, this.autoMinersCount));
+  }
+
+  // --- 4. PRESTIGE REBIRTH ---
+
+  canPrestige() {
+    const required = 50000 * Math.pow(2.5, this.prestigeLevel);
+    return this.neoCoins >= required;
+  }
+
+  getPrestigeCost() {
+    return Math.round(50000 * Math.pow(2.5, this.prestigeLevel));
+  }
+
+  doPrestige() {
+    const req = this.getPrestigeCost();
+    if (this.neoCoins >= req) {
+      this.prestigeLevel++;
+      this.prestigeMultiplier += 0.5; // +50% permanently
+      this.quantumCrystals += 50 * this.prestigeLevel;
+      this.neoCoins = 0;
+      this.clickLevel = 1;
+      this.autoMinersCount = 0;
+      this.saveToStorage();
+      return true;
+    }
+    return false;
+  }
+
+  // --- 5. INVENTORY & COSMETICS ---
+
+  addItem(itemId) {
+    this.inventory.push(itemId);
+    this.saveToStorage();
+  }
+
+  removeItem(itemId) {
+    const idx = this.inventory.indexOf(itemId);
+    if (idx !== -1) {
+      this.inventory.splice(idx, 1);
+      if (this.equippedAura === itemId) this.equippedAura = null;
+      if (this.equippedFrame === itemId) this.equippedFrame = null;
+      if (this.equippedTitle === itemId) this.equippedTitle = null;
+      this.saveToStorage();
+      return true;
+    }
+    return false;
+  }
+
+  equipCosmetic(itemId) {
+    const item = ITEMS_DATABASE.find(i => i.id === itemId);
+    if (!item) return;
+
+    if (item.type === 'aura') {
+      this.equippedAura = (this.equippedAura === itemId) ? null : itemId;
+    } else if (item.type === 'frame') {
+      this.equippedFrame = (this.equippedFrame === itemId) ? null : itemId;
+    } else if (item.type === 'title') {
+      this.equippedTitle = (this.equippedTitle === itemId) ? null : itemId;
+    }
+    this.saveToStorage();
+  }
+
+  // --- 6. TICK UPDATE ---
+
+  update(clanBonus = 0) {
+    const now = Date.now();
+    const delta = (now - this.lastTick) / 1000;
+    this.lastTick = now;
+
+    if (delta > 0 && delta < 60) {
+      const income = this.getAutoIncomePerSec(clanBonus) * delta;
+      if (income > 0) {
+        this.neoCoins += income;
+        this.totalEarned += income;
+      }
+    }
+  }
+}

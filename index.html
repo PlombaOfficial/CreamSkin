@@ -1,126 +1,295 @@
-<!DOCTYPE html>
+321312123<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>3D CITY ONLINE // GTA SANDBOX MULTIPLAYER</title>
-  <meta name="description" content="3D мультиплеерная песочница в мегаполисе: угон спорткаров, поездки втроем с друзьями, погони полиции со звездами, перестрелки и открытый мир.">
+  <title>NEO-CLICKER ONLINE // Социальная Онлайн-Кликер MMO</title>
+  <meta name="description" content="Масштабный социальный онлайн-кликер: кланы с бонусами и казной, живой чат, P2P трейды, рынок игроков, редкие реликвии и серверные ивенты.">
 
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-  <!-- 3D Three.js Game Container -->
-  <div id="game-container"></div>
+  <!-- Top Server Event Banner -->
+  <div class="server-event-banner" id="server-event-banner"></div>
 
-  <!-- Crosshair -->
-  <div class="mc-crosshair" id="mc-crosshair">⊹</div>
+  <!-- Main Game Shell -->
+  <div class="app-layout">
 
-  <!-- 0. MAIN LOBBY SCREEN -->
-  <div class="mc-lobby-screen" id="screen-mc-lobby">
-    <div class="mc-menu-panel">
-      <div class="mc-logo-title">3D CITY ONLINE</div>
-      <div class="mc-logo-sub">GTA SANDBOX • УГОН ТАЧЕК • ПОЛИЦИЯ • МУЛЬТИПЛЕЕР</div>
-
-      <!-- Player Profile Setup -->
-      <div class="profile-setup-box">
-        <div class="form-group-inline">
-          <label>НИКНЕЙМ:</label>
-          <input type="text" id="mc-player-name" class="mc-input" value="Стив" maxlength="16">
-        </div>
-        <div class="mc-skins-row">
-          <div class="mc-skin-dot active" data-color="#00aaaa" style="background: #00aaaa;" title="Бирюзовый"></div>
-          <div class="mc-skin-dot" data-color="#55aa55" style="background: #55aa55;" title="Зеленый"></div>
-          <div class="mc-skin-dot" data-color="#aa0000" style="background: #aa0000;" title="Красный"></div>
-          <div class="mc-skin-dot" data-color="#8800aa" style="background: #8800aa;" title="Фиолетовый"></div>
-          <div class="mc-skin-dot" data-color="#222222" style="background: #222222;" title="Черный"></div>
-        </div>
+    <!-- Top Header: Currency Balances & Stats -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-logo">⚡ NEO-CLICKER</div>
+        <div class="brand-tag">ONLINE MMO</div>
       </div>
 
-      <!-- Lobby Mode Tabs -->
-      <div class="lobby-tabs-header">
-        <button class="tab-btn active" id="tab-btn-multi">🌐 СЕТЕВОЙ ГОРОД</button>
-        <button class="tab-btn" id="tab-btn-single">🕹 ОДИНОЧНАЯ ИГРА</button>
+      <div class="header-stats-row">
+        <div class="stat-pill balance-pill">
+          <span class="pill-label">БАЛАНС:</span>
+          <span class="pill-val nc-val" id="hud-balance-nc">$0</span>
+        </div>
+        <div class="stat-pill crystal-pill">
+          <span class="pill-label">КРИСТАЛЛЫ:</span>
+          <span class="pill-val qc-val" id="hud-balance-qc">0 QC</span>
+        </div>
+        <div class="stat-pill rate-pill">
+          <span class="pill-label">КЛИК:</span>
+          <span class="pill-val" id="hud-click-power">+1 / клик</span>
+        </div>
+        <div class="stat-pill rate-pill">
+          <span class="pill-label">ДОХОД:</span>
+          <span class="pill-val" id="hud-auto-income">+$0 / сек</span>
+        </div>
       </div>
+    </header>
 
-      <!-- TAB 1: MULTIPLAYER -->
-      <div class="tab-content" id="tab-view-multi">
-        <div class="create-server-box">
-          <input type="text" id="mc-online-world-name" class="mc-input" placeholder="Название сервера..." value="Сервер Мегаполис" maxlength="20">
-          <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ СЕРВЕР</button>
+    <!-- Main Content Area (Tabs + Social Sidebar) -->
+    <div class="main-body-container">
+
+      <!-- Navigation Tabs Bar -->
+      <nav class="main-nav-bar">
+        <button class="main-nav-btn active" data-tab="clicker">⚡ КЛИКЕР</button>
+        <button class="main-nav-btn" data-tab="clans">🛡️ КЛАНЫ</button>
+        <button class="main-nav-btn" data-tab="market">🏪 РЫНОК</button>
+        <button class="main-nav-btn" data-tab="trades">🤝 ТРЕЙДЫ</button>
+        <button class="main-nav-btn" data-tab="leaderboard">🏆 РЕЙТИНГИ</button>
+        <button class="main-nav-btn" data-tab="inventory">🎒 ИНВЕНТАРЬ</button>
+        <button class="main-nav-btn" data-tab="profile">👤 ПРОФИЛЬ</button>
+      </nav>
+
+      <!-- TAB CONTENTS -->
+      <main class="tab-viewport">
+
+        <!-- 1. TAB: CLICKER & UPGRADES -->
+        <section class="app-tab-view" id="tab-view-clicker">
+          <div class="clicker-view-layout">
+            <!-- Left: Giant Interactive Clicker Orb -->
+            <div class="clicker-orb-section">
+              <div class="clicker-orb-wrap">
+                <div class="clicker-main-orb" id="clicker-main-orb">
+                  <div class="orb-core-symbol">⚡</div>
+                  <div class="orb-glow-ring"></div>
+                </div>
+              </div>
+              <div class="clicker-tip">Кликайте по Квантовому Ядру для генерации капитала!</div>
+            </div>
+
+            <!-- Right: Quick Hardware Upgrades -->
+            <div class="clicker-upgrades-section">
+              <div class="section-title">⚡ БАЗОВЫЕ МОДЕРНИЗАЦИИ</div>
+
+              <div class="upgrade-card">
+                <div class="upgrade-card-info">
+                  <div class="upgrade-name">Нейро-Импульс Клика</div>
+                  <div class="upgrade-desc">Увеличивает силу каждого нажатия.</div>
+                  <div class="upgrade-level" id="lvl-upgrade-click">Ур. 1</div>
+                </div>
+                <button class="btn-action-upgrade" id="btn-upgrade-click">
+                  <span>ПРОКАЧАТЬ</span>
+                  <b id="cost-upgrade-click">$15 NC</b>
+                </button>
+              </div>
+
+              <div class="upgrade-card">
+                <div class="upgrade-card-info">
+                  <div class="upgrade-name">Авто-Майнер "Квант-1"</div>
+                  <div class="upgrade-desc">Генерирует пассивный доход в секунду.</div>
+                  <div class="upgrade-level" id="count-miners">0 шт.</div>
+                </div>
+                <button class="btn-action-upgrade" id="btn-buy-miner">
+                  <span>КУПИТЬ</span>
+                  <b id="cost-buy-miner">$50 NC</b>
+                </button>
+              </div>
+
+              <!-- Prestige Card -->
+              <div class="upgrade-card prestige-card">
+                <div class="upgrade-card-info">
+                  <div class="upgrade-name">🔮 Квантовое Перерождение (Престиж)</div>
+                  <div class="upgrade-desc">Сбрасывает баланс в обмен на +50% вечного бонуса ко всей прибыли и Квантовые Кристаллы!</div>
+                </div>
+                <button class="btn-action-upgrade btn-prestige" id="btn-do-prestige" disabled>
+                  <span>ПЕРЕРОЖДЕНИЕ</span>
+                  <b id="cost-prestige">$50,000 NC</b>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. TAB: CLANS -->
+        <section class="app-tab-view hidden" id="tab-view-clans">
+          <div class="clans-view-layout">
+            <!-- No Clan View -->
+            <div class="no-clan-panel hidden" id="no-clan-panel">
+              <div class="no-clan-card">
+                <div class="no-clan-icon">🛡️</div>
+                <h3>Вы не состоите в клане</h3>
+                <p>Вступайте в кланы других игроков для получения общих бонусов или создайте свой собственный альянс!</p>
+                <button class="btn-primary-lg" id="btn-open-create-clan">⚡ СОЗДАТЬ СВОЙ КЛАН ($2,000 NC)</button>
+              </div>
+            </div>
+
+            <!-- My Clan HQ -->
+            <div class="my-clan-info-panel" id="my-clan-info-panel">
+              <div class="clan-header-card">
+                <div class="clan-main-info">
+                  <h2 id="clan-view-name">[CYBER] Cyber Syndicate</h2>
+                  <div class="clan-level-tag" id="clan-view-level">Уровень 4 (Трофеи: 🏆 1250)</div>
+                </div>
+                <div class="clan-treasury-box">
+                  <span class="label">КАЗНА КЛАНА:</span>
+                  <span class="val" id="clan-view-bank">$45,000 NC</span>
+                  <button class="btn-primary-sm" id="btn-clan-donate">💰 ВНЕСТИ ВКЛАД</button>
+                </div>
+              </div>
+
+              <!-- Clan Perks Buffs -->
+              <div class="clan-perks-grid">
+                <div class="perk-card">
+                  <div class="perk-icon">⚡</div>
+                  <div class="perk-name">Усиление Клика Гильдии</div>
+                  <div class="perk-val" id="clan-click-boost-val">+45% к клику</div>
+                  <button class="btn-primary-sm" id="btn-clan-upgrade-click">ПРОКАЧАТЬ ($10k)</button>
+                </div>
+                <div class="perk-card">
+                  <div class="perk-icon">🏭</div>
+                  <div class="perk-name">Синдикат Авто-Майнинга</div>
+                  <div class="perk-val" id="clan-income-boost-val">+30% к доходу</div>
+                </div>
+              </div>
+
+              <!-- Clan Members List -->
+              <div class="section-title">👥 СОСТАВ КЛАНА</div>
+              <div class="clan-members-list" id="clan-members-list"></div>
+            </div>
+
+            <!-- Public Clans Catalog -->
+            <div class="section-title">🌐 ВСЕ КЛАНЫ СЕРВЕРА</div>
+            <div class="all-clans-list" id="all-clans-list"></div>
+          </div>
+        </section>
+
+        <!-- 3. TAB: MARKETPLACE -->
+        <section class="app-tab-view hidden" id="tab-view-market">
+          <div class="market-view-header">
+            <div class="section-title">🏪 ОТКРЫТЫЙ РЫНОК ИГРОКОВ (P2P)</div>
+            <button class="btn-primary-sm" id="btn-market-list-item">➕ ВЫСТАВИТЬ ПРЕДМЕТ НА ПРОДАЖУ</button>
+          </div>
+          <div class="market-listings-grid" id="market-listings-grid"></div>
+        </section>
+
+        <!-- 4. TAB: TRADES -->
+        <section class="app-tab-view hidden" id="tab-view-trades">
+          <div class="trade-view-layout">
+            <div class="trade-header-bar">
+              <span class="label">ПАРТНЕР ПО ОБМЕНУ:</span>
+              <select class="trade-partner-select" id="trade-partner-select">
+                <option value="Alex_Pro">Alex_Pro [CYBER]</option>
+                <option value="FlameMaster">FlameMaster [FIRE]</option>
+                <option value="SunGoddess">SunGoddess [FIRE]</option>
+                <option value="ByteHunter">ByteHunter [WOLF]</option>
+              </select>
+            </div>
+
+            <div class="trade-boxes-split">
+              <!-- Party A (You) -->
+              <div class="trade-side-card">
+                <div class="trade-side-title" id="trade-party-a-name">Вы</div>
+                <div class="badge-wait" id="trade-status-a">⏳ ВЫБОР...</div>
+                <div class="trade-items-box" id="trade-items-a">
+                  <div class="trade-hint-msg">Ваше предложение готово к сделке.</div>
+                </div>
+                <button class="btn-primary-sm" id="btn-trade-ready">ГОТОВ К СДЕЛКЕ</button>
+              </div>
+
+              <!-- Party B (Partner) -->
+              <div class="trade-side-card">
+                <div class="trade-side-title" id="trade-party-b-name">Партнер</div>
+                <div class="badge-ready" id="trade-status-b">✔ ГОТОВ</div>
+                <div class="trade-items-box" id="trade-items-b"></div>
+              </div>
+            </div>
+
+            <button class="btn-primary-lg" id="btn-trade-confirm" disabled>🤝 ПОДТВЕРДИТЬ И ЗАВЕРШИТЬ СДЕЛКУ</button>
+          </div>
+        </section>
+
+        <!-- 5. TAB: LEADERBOARDS -->
+        <section class="app-tab-view hidden" id="tab-view-leaderboard">
+          <div class="lb-header-tabs">
+            <button class="lb-category-btn active" data-cat="coins">💰 ПО БАЛАНСУ</button>
+            <button class="lb-category-btn" data-cat="clicks">🖱️ ПО КЛИКАМ</button>
+            <button class="lb-category-btn" data-cat="prestige">🔮 ПО ПРЕСТИЖУ</button>
+          </div>
+          <div class="leaderboard-rows-container" id="leaderboard-rows-container"></div>
+        </section>
+
+        <!-- 6. TAB: INVENTORY -->
+        <section class="app-tab-view hidden" id="tab-view-inventory">
+          <div class="section-title">🎒 ИНВЕНТАРЬ, РЕЛИКВИИ И АУРЫ</div>
+          <div class="inventory-items-grid" id="inventory-items-grid"></div>
+        </section>
+
+        <!-- 7. TAB: PROFILE & SAVE/LOAD -->
+        <section class="app-tab-view hidden" id="tab-view-profile">
+          <div class="profile-view-layout">
+            <div class="profile-main-card">
+              <div class="prof-avatar-orb" id="prof-avatar-orb">👤</div>
+              <h2 id="prof-name">Кибер-Игрок</h2>
+              <button class="btn-primary-sm" id="btn-change-name">✏️ СМЕНИТЬ НИКНЕЙМ</button>
+            </div>
+
+            <div class="profile-stats-grid">
+              <div class="stat-card">
+                <span class="label">ВСЕГО ЗАРАБОТАНО:</span>
+                <span class="val" id="prof-total-earned">$0 NC</span>
+              </div>
+              <div class="stat-card">
+                <span class="label">ВСЕГО КЛИКОВ:</span>
+                <span class="val" id="prof-total-clicks">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="label">УРОВЕНЬ ПРЕСТИЖА:</span>
+                <span class="val" id="prof-prestige">0</span>
+              </div>
+              <div class="stat-card">
+                <span class="label">КВАНТОВЫЕ КРИСТАЛЛЫ:</span>
+                <span class="val" id="prof-crystals">0 QC</span>
+              </div>
+            </div>
+
+            <div class="save-backup-box">
+              <div class="section-title">💾 СОХРАННОСТЬ ДАННЫХ (БЕКАП)</div>
+              <p>Ваш прогресс сохраняется на ПК. Также вы можете скопировать код сохранения:</p>
+              <div class="backup-btns-row">
+                <button class="btn-primary-sm" id="btn-export-save">📤 ЭКСПОРТ СОХРАНЕНИЯ</button>
+                <button class="btn-primary-sm" id="btn-import-save">📥 ИМПОРТ СОХРАНЕНИЯ</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- RIGHT: LIVE SOCIAL CHAT SIDEBAR -->
+      <aside class="social-chat-sidebar">
+        <div class="chat-sidebar-header">
+          <span class="chat-title">💬 ГЛОБАЛЬНЫЙ ЧАТ</span>
+          <span class="live-dot" title="Онлайн">● LIVE</span>
         </div>
 
-        <hr class="mc-divider">
+        <div class="global-chat-feed" id="global-chat-feed"></div>
 
-        <div class="join-room-row">
-          <input type="text" id="mc-room-code" class="mc-input code-input" placeholder="ВВЕДИТЕ КОД (GTA...)">
-          <button class="btn-mc-primary" id="btn-mc-join-online">🔗 ВОЙТИ</button>
-        </div>
-
-        <div class="server-list-header">
-          <span>ОТКРЫТЫЕ ГОРОДА:</span>
-          <button class="btn-mc btn-sm" id="btn-refresh-servers">🔄 ОБНОВИТЬ</button>
-        </div>
-
-        <div class="worlds-scroll-list" id="public-servers-list"></div>
-      </div>
-
-      <!-- TAB 2: SINGLEPLAYER -->
-      <div class="tab-content hidden" id="tab-view-single">
-        <button class="btn-mc-primary" id="btn-create-single-world">➕ ИГРАТЬ В ОДИНОЧКУ</button>
-      </div>
+        <form class="chat-send-form" id="chat-send-form">
+          <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Написать в чат (клик по нику для @тега)..." maxlength="120">
+          <button type="submit" class="btn-chat-send">➤</button>
+        </form>
+      </aside>
 
     </div>
   </div>
 
-  <!-- 1. GTA STYLE IN-GAME HUD -->
-  <div class="mc-hud hidden" id="mc-hud">
-    <!-- Top Left Room Code & Tip -->
-    <div class="hud-top-bar">
-      <div class="hud-badges-group">
-        <div class="hud-title-badge">3D CITY</div>
-        <div class="hud-room-badge hidden" id="hud-mc-room-tag">СЕРВЕР: GTA...</div>
-      </div>
-      <div class="hud-help-tip">[F / E] — Сесть / Выйти из машины | [1-4] — Оружие | [ЛКМ] — Стрелять / Газ</div>
-    </div>
-
-    <!-- Top Right: Wanted Stars, Money, HP & Armor -->
-    <div class="gta-top-right">
-      <div class="wanted-stars" id="hud-wanted-stars">☆☆☆☆☆</div>
-      <div class="gta-money" id="hud-money">$2,500</div>
-      <div class="status-bars-gta">
-        <div class="bar-wrap hp-wrap"><div class="bar-fill hp-fill" id="hud-hp-bar"></div></div>
-        <div class="bar-wrap ap-wrap"><div class="bar-fill ap-fill" id="hud-ap-bar"></div></div>
-      </div>
-    </div>
-
-    <!-- Chat Feed -->
-    <div class="hud-mc-chat-container">
-      <div class="hud-mc-chat-feed" id="hud-mc-chat-feed"></div>
-    </div>
-
-    <!-- Bottom Right: Speedometer & Weapon -->
-    <div class="gta-bottom-right">
-      <div class="hud-speedometer hidden" id="hud-speedometer">0 КМ/Ч</div>
-      <div class="hud-weapon-badge" id="hud-active-weapon">🔫 Пистолет 9mm</div>
-    </div>
-  </div>
-
-  <!-- Notification Banner -->
-  <div class="hud-notification" id="hud-notification"></div>
-
-  <!-- 2. IN-GAME PAUSE MENU (PRESS 'ESC') -->
-  <div class="mc-modal" id="modal-pause">
-    <div class="pause-menu-panel">
-      <div class="pause-title">МЕНЮ ПАУЗЫ</div>
-      <button class="btn-mc-primary btn-lg" id="btn-resume-game">▶ ПРОДОЛЖИТЬ ИГРУ</button>
-      <button class="btn-mc-danger btn-lg" id="btn-exit-to-menu">🚪 ВЫЙТИ В ГЛАВНОЕ МЕНЮ</button>
-    </div>
-  </div>
-
-  <!-- SCRIPTS -->
   <script type="module" src="src/app.js"></script>
-
 </body>
 </html>
