@@ -1,7 +1,5 @@
 /**
  * 3D MINECRAFT // OPTIMIZED VOXEL WORLD & CULLED FACE MESH BUILDER
- * 60+ FPS on any device: Culls hidden internal voxel faces, generates single
- * BufferGeometry for chunk, and handles real-time 3D raycasting and block modifications.
  */
 
 import { BLOCKS } from "./items-recipes.js";
@@ -15,8 +13,6 @@ export class VoxelWorld {
     this.dimension = dimension;
 
     this.voxels = new Uint8Array(sizeX * sizeY * sizeZ);
-    this.mesh = null;
-
     this.generateTerrain();
   }
 
@@ -37,26 +33,30 @@ export class VoxelWorld {
     this.voxels[idx] = blockId;
   }
 
+  getHighestSolidY(x, z) {
+    for (let y = this.sizeY - 1; y >= 0; y--) {
+      const b = this.getVoxel(x, y, z);
+      if (b !== BLOCKS.AIR && b !== BLOCKS.WATER && b !== BLOCKS.TORCH && b !== BLOCKS.OAK_LEAVES) {
+        return y;
+      }
+    }
+    return 10;
+  }
+
   pseudoRandom(offset = 0) {
     const s = Math.sin(this.seed + offset) * 10000;
     return s - Math.floor(s);
   }
 
-  // 1. PROCEDURAL 3D TERRAIN
   generateTerrain() {
-    if (this.dimension === 'nether') {
-      this.generateNetherTerrain();
-      return;
-    }
-
     const surfaceBase = 12;
 
-    // Heightmap
+    // Smooth pleasant hills
     for (let x = 0; x < this.sizeX; x++) {
       for (let z = 0; z < this.sizeZ; z++) {
-        const n1 = Math.sin((x + this.seed) * 0.08) * Math.cos((z + this.seed) * 0.08) * 5;
-        const n2 = Math.sin((x + z) * 0.18) * 2;
-        const height = Math.floor(surfaceBase + n1 + n2);
+        const n1 = Math.sin((x + this.seed) * 0.07) * Math.cos((z + this.seed) * 0.07) * 4.0;
+        const n2 = Math.sin((x * 0.15) + (z * 0.15)) * 1.5;
+        const height = Math.min(this.sizeY - 6, Math.max(6, Math.floor(surfaceBase + n1 + n2)));
 
         for (let y = 0; y < this.sizeY; y++) {
           if (y === 0) {
@@ -74,39 +74,22 @@ export class VoxelWorld {
       }
     }
 
-    // Ore Veins in 3D
-    this.generateOreCluster(BLOCKS.COAL_ORE, 6, 2, 16, 24);
-    this.generateOreCluster(BLOCKS.IRON_ORE, 4, 2, 12, 18);
-    this.generateOreCluster(BLOCKS.GOLD_ORE, 3, 2, 8, 10);
-    this.generateOreCluster(BLOCKS.DIAMOND_ORE, 2, 1, 6, 6);
+    // Ore Clusters
+    this.generateOreCluster(BLOCKS.COAL_ORE, 6, 2, 14, 20);
+    this.generateOreCluster(BLOCKS.IRON_ORE, 4, 2, 10, 14);
+    this.generateOreCluster(BLOCKS.GOLD_ORE, 3, 2, 7, 8);
+    this.generateOreCluster(BLOCKS.DIAMOND_ORE, 2, 1, 5, 5);
 
-    // Trees on Surface
-    for (let x = 4; x < this.sizeX - 4; x += 5) {
-      for (let z = 4; z < this.sizeZ - 4; z += 5) {
-        if (this.pseudoRandom(x * 31 + z * 17) > 0.45) {
-          // Find surface grass
-          for (let y = this.sizeY - 1; y >= 2; y--) {
-            if (this.getVoxel(x, y, z) === BLOCKS.GRASS) {
-              this.growTree(x, y + 1, z);
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
+    // Trees (spread peacefully around)
+    for (let x = 6; x < this.sizeX - 6; x += 7) {
+      for (let z = 6; z < this.sizeZ - 6; z += 7) {
+        // Keep spawn (32, 32) clear
+        if (Math.hypot(x - 32, z - 32) < 5) continue;
 
-  generateNetherTerrain() {
-    for (let x = 0; x < this.sizeX; x++) {
-      for (let z = 0; z < this.sizeZ; z++) {
-        for (let y = 0; y < this.sizeY; y++) {
-          if (y === 0 || y === this.sizeY - 1) {
-            this.setVoxel(x, y, z, BLOCKS.BEDROCK);
-          } else if (y < 6) {
-            this.setVoxel(x, y, z, BLOCKS.LAVA);
-          } else {
-            const n = Math.sin(x * 0.15) * Math.cos(y * 0.2) * Math.sin(z * 0.15);
-            this.setVoxel(x, y, z, n > 0.1 ? BLOCKS.AIR : BLOCKS.NETHERRACK);
+        if (this.pseudoRandom(x * 37 + z * 19) > 0.4) {
+          const topY = this.getHighestSolidY(x, z);
+          if (this.getVoxel(x, topY, z) === BLOCKS.GRASS) {
+            this.growTree(x, topY + 1, z);
           }
         }
       }
@@ -131,7 +114,7 @@ export class VoxelWorld {
   }
 
   growTree(x, y, z) {
-    const trunkHeight = 4 + Math.floor(Math.random() * 2);
+    const trunkHeight = 4;
     for (let ty = 0; ty < trunkHeight; ty++) {
       this.setVoxel(x, y + ty, z, BLOCKS.OAK_LOG);
     }
@@ -140,7 +123,7 @@ export class VoxelWorld {
     for (let lx = -2; lx <= 2; lx++) {
       for (let lz = -2; lz <= 2; lz++) {
         for (let ly = -2; ly <= 1; ly++) {
-          if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && Math.random() > 0.3) continue;
+          if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && Math.random() > 0.25) continue;
           if (this.getVoxel(x + lx, topY + ly, z + lz) === BLOCKS.AIR) {
             this.setVoxel(x + lx, topY + ly, z + lz, BLOCKS.OAK_LEAVES);
           }
@@ -149,7 +132,7 @@ export class VoxelWorld {
     }
   }
 
-  // 2. FACE CULLING FAST MESH BUILDER
+  // Culled Face Mesh Geometry
   buildGeometry(atlas) {
     const positions = [];
     const normals = [];
@@ -229,7 +212,6 @@ export class VoxelWorld {
 
     const [u0, v0, u1, v1] = atlas.getUVs(faceKey);
 
-    // Quad Vertices
     let v = [];
     if (ny === 1) { // TOP
       v = [

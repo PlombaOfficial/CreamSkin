@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MINECRAFT 3D // СЕТЕВОЙ МИР</title>
-  <meta name="description" content="3D Minecraft с созданием сетевого мира, входом по коду, 60 FPS, мобами, крафтом и строительством.">
+  <title>3D CITY ONLINE // GTA SANDBOX MULTIPLAYER</title>
+  <meta name="description" content="3D мультиплеерная песочница в мегаполисе: угон спорткаров, поездки втроем с друзьями, погони полиции со звездами, перестрелки и открытый мир.">
 
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -14,14 +14,14 @@
   <!-- 3D Three.js Game Container -->
   <div id="game-container"></div>
 
-  <!-- 3D Crosshair -->
-  <div class="mc-crosshair" id="mc-crosshair">+</div>
+  <!-- Crosshair -->
+  <div class="mc-crosshair" id="mc-crosshair">⊹</div>
 
   <!-- 0. MAIN LOBBY SCREEN -->
   <div class="mc-lobby-screen" id="screen-mc-lobby">
     <div class="mc-menu-panel">
-      <div class="mc-logo-title">MINECRAFT 3D</div>
-      <div class="mc-logo-sub">СЕТЕВОЕ ВЫЖИВАНИЕ ДЛЯ ДРУЗЕЙ</div>
+      <div class="mc-logo-title">3D CITY ONLINE</div>
+      <div class="mc-logo-sub">GTA SANDBOX • УГОН ТАЧЕК • ПОЛИЦИЯ • МУЛЬТИПЛЕЕР</div>
 
       <!-- Player Profile Setup -->
       <div class="profile-setup-box">
@@ -30,36 +30,36 @@
           <input type="text" id="mc-player-name" class="mc-input" value="Стив" maxlength="16">
         </div>
         <div class="mc-skins-row">
-          <div class="mc-skin-dot active" data-color="#00aaaa" style="background: #00aaaa;" title="Стив"></div>
-          <div class="mc-skin-dot" data-color="#55aa55" style="background: #55aa55;" title="Алекс"></div>
-          <div class="mc-skin-dot" data-color="#aa0000" style="background: #aa0000;" title="Рыцарь"></div>
-          <div class="mc-skin-dot" data-color="#8800aa" style="background: #8800aa;" title="Маг"></div>
-          <div class="mc-skin-dot" data-color="#222222" style="background: #222222;" title="Тень"></div>
+          <div class="mc-skin-dot active" data-color="#00aaaa" style="background: #00aaaa;" title="Бирюзовый"></div>
+          <div class="mc-skin-dot" data-color="#55aa55" style="background: #55aa55;" title="Зеленый"></div>
+          <div class="mc-skin-dot" data-color="#aa0000" style="background: #aa0000;" title="Красный"></div>
+          <div class="mc-skin-dot" data-color="#8800aa" style="background: #8800aa;" title="Фиолетовый"></div>
+          <div class="mc-skin-dot" data-color="#222222" style="background: #222222;" title="Черный"></div>
         </div>
       </div>
 
       <!-- Lobby Mode Tabs -->
       <div class="lobby-tabs-header">
-        <button class="tab-btn active" id="tab-btn-multi">🌐 СЕТЕВАЯ ИГРА</button>
-        <button class="tab-btn" id="tab-btn-single">🕹 ОДИНОЧНЫЙ МИР</button>
+        <button class="tab-btn active" id="tab-btn-multi">🌐 СЕТЕВОЙ ГОРОД</button>
+        <button class="tab-btn" id="tab-btn-single">🕹 ОДИНОЧНАЯ ИГРА</button>
       </div>
 
       <!-- TAB 1: MULTIPLAYER -->
       <div class="tab-content" id="tab-view-multi">
         <div class="create-server-box">
-          <input type="text" id="mc-online-world-name" class="mc-input" placeholder="Название мира..." value="3D Мир Стива" maxlength="20">
-          <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ СЕТЕВОЙ МИР</button>
+          <input type="text" id="mc-online-world-name" class="mc-input" placeholder="Название сервера..." value="Сервер Мегаполис" maxlength="20">
+          <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ СЕРВЕР</button>
         </div>
 
         <hr class="mc-divider">
 
         <div class="join-room-row">
-          <input type="text" id="mc-room-code" class="mc-input code-input" placeholder="ВВЕДИТЕ КОД (MC...)">
+          <input type="text" id="mc-room-code" class="mc-input code-input" placeholder="ВВЕДИТЕ КОД (GTA...)">
           <button class="btn-mc-primary" id="btn-mc-join-online">🔗 ВОЙТИ</button>
         </div>
 
         <div class="server-list-header">
-          <span>ОТКРЫТЫЕ МИРЫ:</span>
+          <span>ОТКРЫТЫЕ ГОРОДА:</span>
           <button class="btn-mc btn-sm" id="btn-refresh-servers">🔄 ОБНОВИТЬ</button>
         </div>
 
@@ -68,22 +68,31 @@
 
       <!-- TAB 2: SINGLEPLAYER -->
       <div class="tab-content hidden" id="tab-view-single">
-        <button class="btn-mc-primary" id="btn-create-single-world">➕ СОЗДАТЬ ОДИНОЧНЫЙ 3D МИР</button>
-        <div class="worlds-scroll-list" id="local-worlds-list"></div>
+        <button class="btn-mc-primary" id="btn-create-single-world">➕ ИГРАТЬ В ОДИНОЧКУ</button>
       </div>
 
     </div>
   </div>
 
-  <!-- 1. IN-GAME 3D HUD -->
+  <!-- 1. GTA STYLE IN-GAME HUD -->
   <div class="mc-hud hidden" id="mc-hud">
-    <!-- Top Bar -->
+    <!-- Top Left Room Code & Tip -->
     <div class="hud-top-bar">
       <div class="hud-badges-group">
-        <div class="hud-title-badge">MINECRAFT 3D</div>
-        <div class="hud-room-badge hidden" id="hud-mc-room-tag" title="Нажмите, чтобы скопировать код другу">КОМНАТА: MC...</div>
+        <div class="hud-title-badge">3D CITY</div>
+        <div class="hud-room-badge hidden" id="hud-mc-room-tag">СЕРВЕР: GTA...</div>
       </div>
-      <div class="hud-help-tip">Кликните по экрану для обзора (ESC — меню паузы)</div>
+      <div class="hud-help-tip">[F / E] — Сесть / Выйти из машины | [1-4] — Оружие | [ЛКМ] — Стрелять / Газ</div>
+    </div>
+
+    <!-- Top Right: Wanted Stars, Money, HP & Armor -->
+    <div class="gta-top-right">
+      <div class="wanted-stars" id="hud-wanted-stars">☆☆☆☆☆</div>
+      <div class="gta-money" id="hud-money">$2,500</div>
+      <div class="status-bars-gta">
+        <div class="bar-wrap hp-wrap"><div class="bar-fill hp-fill" id="hud-hp-bar"></div></div>
+        <div class="bar-wrap ap-wrap"><div class="bar-fill ap-fill" id="hud-ap-bar"></div></div>
+      </div>
     </div>
 
     <!-- Chat Feed -->
@@ -91,44 +100,21 @@
       <div class="hud-mc-chat-feed" id="hud-mc-chat-feed"></div>
     </div>
 
-    <!-- Bottom Status & Hotbar -->
-    <div class="hud-bottom-center">
-      <div class="status-bars-row">
-        <div id="hud-hearts">❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️</div>
-        <div id="hud-hunger">🍗🍗🍗🍗🍗🍗🍗🍗🍗🍗</div>
-      </div>
-
-      <div class="hotbar-container">
-        <div class="hotbar-slots" id="hotbar-slots"></div>
-      </div>
+    <!-- Bottom Right: Speedometer & Weapon -->
+    <div class="gta-bottom-right">
+      <div class="hud-speedometer hidden" id="hud-speedometer">0 КМ/Ч</div>
+      <div class="hud-weapon-badge" id="hud-active-weapon">🔫 Пистолет 9mm</div>
     </div>
   </div>
 
   <!-- Notification Banner -->
   <div class="hud-notification" id="hud-notification"></div>
 
-  <!-- 2. INVENTORY & CRAFTING MODAL (PRESS 'E') -->
-  <div class="mc-modal" id="modal-inventory">
-    <div class="inventory-box">
-      <div>
-        <div class="inv-section-title">ИНВЕНТАРЬ (36 СЛОТОВ)</div>
-        <div class="inventory-slots-grid" id="inventory-slots-grid"></div>
-        <button class="btn-mc" id="btn-close-inv" style="margin-top: 14px; width: 100%;">✕ ЗАКРЫТЬ [E]</button>
-      </div>
-
-      <div class="crafting-section">
-        <div class="inv-section-title">КРАФТ (РЕЦЕПТЫ)</div>
-        <div class="crafting-recipes-list" id="crafting-recipes-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. IN-GAME PAUSE MENU (PRESS 'ESC') -->
+  <!-- 2. IN-GAME PAUSE MENU (PRESS 'ESC') -->
   <div class="mc-modal" id="modal-pause">
     <div class="pause-menu-panel">
       <div class="pause-title">МЕНЮ ПАУЗЫ</div>
       <button class="btn-mc-primary btn-lg" id="btn-resume-game">▶ ПРОДОЛЖИТЬ ИГРУ</button>
-      <button class="btn-mc btn-lg" id="btn-pause-save">💾 СОХРАНИТЬ МИР</button>
       <button class="btn-mc-danger btn-lg" id="btn-exit-to-menu">🚪 ВЫЙТИ В ГЛАВНОЕ МЕНЮ</button>
     </div>
   </div>

@@ -1,5 +1,5 @@
 /**
- * 3D MINECRAFT // 3D VOXEL MOBS, PROJECTILES & DROPPED ITEMS (THREE.JS)
+ * 3D MINECRAFT // CALM 3D MOBS & DROPPED ITEMS
  */
 
 import { BLOCKS, ITEMS } from "./items-recipes.js";
@@ -14,15 +14,13 @@ export class Mob3D {
 
     // Stats
     if (type === 'zombie') {
-      this.health = 20; this.speed = 2.4; this.damage = 3.5;
+      this.health = 20; this.speed = 1.8; this.damage = 2.5;
     } else if (type === 'skeleton') {
-      this.health = 18; this.speed = 2.0; this.shootCooldown = 2.5;
+      this.health = 18; this.speed = 1.5; this.shootCooldown = 3.0;
     } else if (type === 'creeper') {
-      this.health = 16; this.speed = 2.8; this.fuseTimer = 0;
+      this.health = 16; this.speed = 1.9; this.fuseTimer = 0;
     } else if (type === 'spider') {
-      this.health = 16; this.speed = 3.8; this.damage = 3.0;
-    } else if (type === 'boss') {
-      this.health = 250; this.maxHealth = 250; this.speed = 3.2; this.attackCooldown = 2.0;
+      this.health = 16; this.speed = 2.8; this.damage = 2.0;
     }
 
     this.mesh = this.createMesh();
@@ -38,33 +36,19 @@ export class Mob3D {
       const legMat = new THREE.MeshLambertMaterial({ color: 0x2b3990 });
 
       const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), headMat);
-      head.position.y = 1.5;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.3), bodyMat);
-      body.position.y = 0.9;
-      const legs = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), legMat);
-      legs.position.y = 0.35;
-
-      group.add(head, body, legs);
-    } else if (this.type === 'skeleton') {
-      const boneMat = new THREE.MeshLambertMaterial({ color: 0xd9d9d9 });
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), boneMat);
-      head.position.y = 1.5;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.25), boneMat);
-      body.position.y = 0.9;
-      const legs = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.25), boneMat);
-      legs.position.y = 0.35;
+      head.position.y = 1.45;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 0.3), bodyMat);
+      body.position.y = 0.85;
+      const legs = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 0.25), legMat);
+      legs.position.y = 0.3;
       group.add(head, body, legs);
     } else if (this.type === 'creeper') {
-      const creepMat = new THREE.MeshLambertMaterial({ color: 0x00aa00 });
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), creepMat);
+      this.creepMat = new THREE.MeshLambertMaterial({ color: 0x00aa00 });
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), this.creepMat);
       head.position.y = 1.3;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.3), creepMat);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.75, 0.3), this.creepMat);
       body.position.y = 0.6;
       group.add(head, body);
-    } else if (this.type === 'boss') {
-      const bossMat = new THREE.MeshLambertMaterial({ color: 0x140d1e });
-      const head = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), bossMat);
-      group.add(head);
     }
 
     return group;
@@ -77,29 +61,36 @@ export class Mob3D {
     const dz = player.pos.z - this.pos.z;
     const dist = Math.hypot(dx, dz);
 
-    if (dist < 20 && dist > 0.5) {
+    // Only aggro if player is reasonably close
+    if (dist < 18 && dist > 0.8) {
       this.vel.x = (dx / dist) * this.speed;
       this.vel.z = (dz / dist) * this.speed;
       this.mesh.rotation.y = Math.atan2(dx, dz);
 
-      // Jump over blocks
+      // Auto step / jump over 1-block terrain
       const frontX = Math.floor(this.pos.x + (dx / dist) * 0.6);
       const frontZ = Math.floor(this.pos.z + (dz / dist) * 0.6);
       if (world.getVoxel(frontX, Math.floor(this.pos.y), frontZ) !== BLOCKS.AIR) {
-        if (this.vel.y === 0) this.vel.y = 6.5;
+        if (this.vel.y === 0) this.vel.y = 6.0;
       }
 
       // Attack
-      if (dist < 1.4 && (this.type === 'zombie' || this.type === 'spider')) {
+      if (dist < 1.3 && this.type === 'zombie') {
         player.takeDamage(this.damage, audio);
       }
 
-      // Creeper Explode
+      // Creeper Fuse (graceful 2.5 second warning)
       if (this.type === 'creeper') {
-        if (dist < 2.5) {
+        if (dist < 2.2) {
           if (this.fuseTimer === 0 && audio) audio.playCreeperFuse();
           this.fuseTimer += delta;
-          if (this.fuseTimer >= 1.3) this.explode(world, player, audio);
+          if (this.creepMat) {
+            this.creepMat.color.setHex(Math.floor(this.fuseTimer * 8) % 2 === 0 ? 0xffffff : 0x00aa00);
+          }
+          if (this.fuseTimer >= 2.2) this.explode(world, player, audio);
+        } else {
+          this.fuseTimer = Math.max(0, this.fuseTimer - delta);
+          if (this.creepMat) this.creepMat.color.setHex(0x00aa00);
         }
       }
     } else {
@@ -107,21 +98,16 @@ export class Mob3D {
       this.vel.z = 0;
     }
 
-    if (this.type !== 'boss') {
-      this.vel.y = Math.max(this.vel.y - 20 * delta, -15);
-      this.pos.x += this.vel.x * delta;
-      this.pos.z += this.vel.z * delta;
-      this.pos.y += this.vel.y * delta;
+    // Physics
+    this.vel.y = Math.max(this.vel.y - 20 * delta, -15);
+    this.pos.x += this.vel.x * delta;
+    this.pos.z += this.vel.z * delta;
+    this.pos.y += this.vel.y * delta;
 
-      const groundY = Math.floor(this.pos.y);
-      if (world.getVoxel(Math.floor(this.pos.x), groundY, Math.floor(this.pos.z)) !== BLOCKS.AIR) {
-        this.pos.y = groundY + 1;
-        this.vel.y = 0;
-      }
-    } else {
-      this.pos.x += this.vel.x * delta;
-      this.pos.z += this.vel.z * delta;
-      this.pos.y = 18 + Math.sin(Date.now() * 0.002) * 4;
+    const groundY = world.getHighestSolidY(Math.floor(this.pos.x), Math.floor(this.pos.z));
+    if (this.pos.y <= groundY + 1.0) {
+      this.pos.y = groundY + 1.0;
+      this.vel.y = 0;
     }
 
     this.mesh.position.copy(this.pos);
@@ -132,14 +118,14 @@ export class Mob3D {
     this.scene.remove(this.mesh);
     if (audio) audio.playExplosion();
 
-    const rad = 3;
+    const rad = 2.5;
     const cx = Math.floor(this.pos.x);
     const cy = Math.floor(this.pos.y);
     const cz = Math.floor(this.pos.z);
 
-    for (let x = cx - rad; x <= cx + rad; x++) {
-      for (let y = cy - rad; y <= cy + rad; y++) {
-        for (let z = cz - rad; z <= cz + rad; z++) {
+    for (let x = cx - 2; x <= cx + 2; x++) {
+      for (let y = cy - 2; y <= cy + 2; y++) {
+        for (let z = cz - 2; z <= cz + 2; z++) {
           if (Math.hypot(x - cx, y - cy, z - cz) <= rad) {
             const b = world.getVoxel(x, y, z);
             if (b !== BLOCKS.BEDROCK && b !== BLOCKS.OBSIDIAN) {
@@ -151,22 +137,7 @@ export class Mob3D {
     }
 
     const dist = player.pos.distanceTo(this.pos);
-    if (dist < 6.0) player.takeDamage((1.0 - dist / 6.0) * 16, audio);
-  }
-
-  takeDamage(amount, droppedItems, audio) {
-    this.health -= amount;
-    if (audio) audio.playHit();
-    if (this.health <= 0) {
-      this.isDead = true;
-      this.scene.remove(this.mesh);
-      if (this.type === 'zombie') {
-        droppedItems.push(new DroppedItem3D(ITEMS.ROTTEN_FLESH, this.pos.x, this.pos.y + 0.5, this.pos.z, this.scene));
-      } else if (this.type === 'boss') {
-        droppedItems.push(new DroppedItem3D(ITEMS.NETHERITE_INGOT, this.pos.x, this.pos.y + 0.5, this.pos.z, this.scene, 4));
-        droppedItems.push(new DroppedItem3D(ITEMS.DIAMOND, this.pos.x, this.pos.y + 0.5, this.pos.z, this.scene, 8));
-      }
-    }
+    if (dist < 4.5) player.takeDamage((1.0 - dist / 4.5) * 12, audio);
   }
 }
 
@@ -190,7 +161,7 @@ export class DroppedItem3D {
     if (this.isDead) return;
     this.rotTimer += delta * 3;
     this.mesh.rotation.y = this.rotTimer;
-    this.mesh.position.y = this.pos.y + Math.sin(this.rotTimer * 2) * 0.1;
+    this.mesh.position.y = this.pos.y + Math.sin(this.rotTimer * 2) * 0.08;
 
     const dist = player.pos.distanceTo(this.pos);
     if (dist < 1.6) {

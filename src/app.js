@@ -1,559 +1,424 @@
 /**
- * 3D MINECRAFT // COMPLETE 3D MASTER GAME ENGINE (THREE.JS)
- * 60 FPS Optimized Voxel Meshing, Cozy Shaders & Atmospheric Lighting,
- * 3D Raycasting Block Mining/Placing, 3D Mobs, Remote 3D Players, and Pause Menu.
+ * 3D CITY SANDBOX // MASTER MULTIPLAYER GAME ENGINE (GTA STYLE)
+ * High-Quality 3D Models, Drivable Sportcars & 4-Seater SUVs, Police Chases,
+ * Weapons, and Real-Time Multiplayer.
  */
 
-import { BLOCKS, ITEMS, ITEM_DATA, CRAFTING_RECIPES } from "./items-recipes.js";
-import { MinecraftAudioEngine } from "./audio-engine.js";
-import { VoxelTextureAtlas } from "./textures.js";
-import { VoxelWorld } from "./voxel-world.js";
-import { Player3D } from "./player-3d.js";
-import { Mob3D, DroppedItem3D } from "./mobs-3d.js";
+import { CityModelFactory } from "./city-models.js";
+import { VehicleManager } from "./vehicle-physics.js";
+import { PoliceSystem } from "./police-system.js";
+import { CityPlayer } from "./player-city.js";
+import { CityAudioEngine, WEAPONS } from "./weapons-combat.js";
 import { MinecraftMultiplayerManager } from "./multiplayer-manager.js";
 import { SaveManager } from "./storage-save.js";
 
-document.addEventListener('DOMContentLoaded', () => {
-  const container = document.getElementById('game-container');
+// Global Singletons
+let scene, camera, renderer, container;
+let audio, vehicleManager, policeSystem, network, saveManager;
+let player = null;
+let isGameRunning = false;
+let selectedColorHex = 0x00aaaa;
 
-  // 1. Initialize Three.js Scene, Camera, Renderer
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#80b5ff');
-  scene.fog = new THREE.FogExp2('#80b5ff', 0.018);
+const remotePlayerMeshes = new Map();
+const keys = {};
 
-  const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 200);
-  
-  const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  container.appendChild(renderer.domElement);
+function setupLobbyUI() {
+  saveManager = new SaveManager();
+  network = new MinecraftMultiplayerManager();
+  audio = new CityAudioEngine();
 
-  function resize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-  window.addEventListener('resize', resize);
-
-  // 2. Cozy Lighting
-  const ambientLight = new THREE.AmbientLight(0xffeedd, 0.65);
-  scene.add(ambientLight);
-
-  const sunLight = new THREE.DirectionalLight(0xffffff, 0.85);
-  sunLight.position.set(40, 80, 40);
-  scene.add(sunLight);
-
-  // 3. Core Game Objects
-  const audio = new MinecraftAudioEngine();
-  const atlas = new VoxelTextureAtlas();
-  const network = new MinecraftMultiplayerManager();
-  const saveManager = new SaveManager();
-
-  let world = null;
-  let player = null;
-  let worldMesh = null;
-  let isGameRunning = false;
-  let activeSeed = 12345;
-  let activeWorldId = null;
-  let activeWorldName = '3D Мир';
-  let gameTime = 100;
-
-  const mobs = [];
-  const droppedItems = [];
-  const remotePlayerMeshes = new Map();
-
-  // Voxel Material
-  const voxelMaterial = new THREE.MeshLambertMaterial({
-    map: atlas.threeTexture,
-    transparent: false,
-    side: THREE.FrontSide
-  });
-
-  // Target Block 3D Wireframe Box
-  const wireGeo = new THREE.BoxGeometry(1.005, 1.005, 1.005);
-  const wireMat = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
-  const wireBox = new THREE.Mesh(wireGeo, wireMat);
-  wireBox.visible = false;
-  scene.add(wireBox);
-
-  // Keyboard
-  const keys = {};
-  window.addEventListener('keydown', (e) => {
-    if (document.activeElement.tagName === 'INPUT') return;
-    audio.init();
-    keys[e.code] = true;
-
-    if (e.key >= '1' && e.key <= '9') {
-      if (player) player.selectedHotbarSlot = parseInt(e.key) - 1;
-      updateHotbarUI();
-    }
-    if (e.code === 'KeyE') toggleInventoryModal();
-    if (e.code === 'Escape') togglePauseMenu();
-  });
-
-  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
-
-  // --------------------------------------------------------------------------
-  // LOBBY & PROFILE
-  // --------------------------------------------------------------------------
-  const profile = saveManager.loadProfile();
+  const profile = saveManager.loadProfile() || { name: 'Стив', color: '#00aaaa' };
   const inputPlayerName = document.getElementById('mc-player-name');
-  inputPlayerName.value = profile.name;
-  let selectedColor = profile.color;
+  if (inputPlayerName) inputPlayerName.value = profile.name;
 
+  const colorMap = {
+    '#00aaaa': 0x00aaaa,
+    '#55aa55': 0x55aa55,
+    '#aa0000': 0xaa0000,
+    '#8800aa': 0x8800aa,
+    '#222222': 0x222222
+  };
+  selectedColorHex = colorMap[profile.color] || 0x00aaaa;
+
+  // 1. Skin Dots Selection
   document.querySelectorAll('.mc-skin-dot').forEach(dot => {
-    if (dot.dataset.color === selectedColor) dot.classList.add('active');
-    dot.addEventListener('click', () => {
+    if (dot.dataset.color === profile.color) dot.classList.add('active');
+    else dot.classList.remove('active');
+
+    dot.addEventListener('click', (e) => {
+      e.preventDefault();
       document.querySelectorAll('.mc-skin-dot').forEach(d => d.classList.remove('active'));
       dot.classList.add('active');
-      selectedColor = dot.dataset.color;
-      saveManager.saveProfile(inputPlayerName.value.trim() || 'Стив', selectedColor);
+      selectedColorHex = colorMap[dot.dataset.color] || 0x00aaaa;
+      saveManager.saveProfile((inputPlayerName ? inputPlayerName.value.trim() : 'Стив') || 'Стив', dot.dataset.color);
     });
   });
 
+  // 2. Tabs
   const tabSingle = document.getElementById('tab-btn-single');
   const tabMulti = document.getElementById('tab-btn-multi');
   const viewSingle = document.getElementById('tab-view-single');
   const viewMulti = document.getElementById('tab-view-multi');
 
-  tabSingle.addEventListener('click', () => {
-    tabSingle.classList.add('active');
-    tabMulti.classList.remove('active');
-    viewSingle.classList.remove('hidden');
-    viewMulti.classList.add('hidden');
-    renderLocalWorldsList();
-  });
+  if (tabSingle && tabMulti && viewSingle && viewMulti) {
+    tabSingle.addEventListener('click', (e) => {
+      e.preventDefault();
+      tabSingle.classList.add('active');
+      tabMulti.classList.remove('active');
+      viewSingle.classList.remove('hidden');
+      viewMulti.classList.add('hidden');
+    });
 
-  tabMulti.addEventListener('click', () => {
-    tabMulti.classList.add('active');
-    tabSingle.classList.remove('active');
-    viewMulti.classList.remove('hidden');
-    viewSingle.classList.add('hidden');
-    refreshPublicServers();
-  });
-
-  document.getElementById('btn-create-single-world').addEventListener('click', () => {
-    const name = prompt('Введите название мира:', `3D Мир ${saveManager.listWorlds().length + 1}`) || '3D Мир';
-    const seed = Math.floor(Math.random() * 999999);
-    activeWorldId = 'world_' + Date.now();
-    activeWorldName = name;
-    start3DWorld(seed, null);
-  });
-
-  function renderLocalWorldsList() {
-    const list = document.getElementById('local-worlds-list');
-    list.innerHTML = '';
-    const worlds = saveManager.listWorlds();
-
-    if (worlds.length === 0) {
-      list.innerHTML = '<div class="empty-list-msg">Нет миров на устройстве. Создайте новый!</div>';
-      return;
-    }
-
-    worlds.forEach(w => {
-      const row = document.createElement('div');
-      row.className = 'saved-world-card';
-      row.innerHTML = `
-        <div class="world-card-info">
-          <div class="world-card-title">${w.name}</div>
-          <div class="world-card-sub">3D Voxel World • ${new Date(w.lastPlayed).toLocaleDateString()}</div>
-        </div>
-        <div class="world-card-actions">
-          <button class="btn-mc-primary btn-sm play-btn">▶ ИГРАТЬ</button>
-          <button class="btn-mc-danger btn-sm del-btn">🗑</button>
-        </div>
-      `;
-
-      row.querySelector('.play-btn').addEventListener('click', () => {
-        activeWorldId = w.id;
-        activeWorldName = w.name;
-        start3DWorld(w.seed, null);
-      });
-
-      row.querySelector('.del-btn').addEventListener('click', () => {
-        if (confirm(`Удалить мир "${w.name}"?`)) {
-          saveManager.deleteWorld(w.id);
-          renderLocalWorldsList();
-        }
-      });
-
-      list.appendChild(row);
+    tabMulti.addEventListener('click', (e) => {
+      e.preventDefault();
+      tabMulti.classList.add('active');
+      tabSingle.classList.remove('active');
+      viewMulti.classList.remove('hidden');
+      viewSingle.classList.add('hidden');
+      refreshPublicServers();
     });
   }
 
-  // Multiplayer
-  document.getElementById('btn-mc-create-online').addEventListener('click', async () => {
-    const pName = inputPlayerName.value.trim() || 'Стив';
-    const worldName = document.getElementById('mc-online-world-name').value.trim() || '3D Сервер';
-    const btn = document.getElementById('btn-mc-create-online');
-    btn.disabled = true;
-    btn.textContent = 'Создание...';
+  // 3. Create City World (Host)
+  const btnCreateOnline = document.getElementById('btn-mc-create-online');
+  if (btnCreateOnline) {
+    btnCreateOnline.addEventListener('click', (e) => {
+      e.preventDefault();
+      const pName = (inputPlayerName ? inputPlayerName.value.trim() : 'Стив') || 'Стив';
+      const nameInput = document.getElementById('mc-online-world-name');
+      const worldName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : '3D Мегаполис';
+      const roomId = 'GTA' + Math.floor(1000 + Math.random() * 9000);
 
-    try {
-      const { roomId, seed } = await network.createWorld(pName, selectedColor, worldName, true);
-      start3DWorld(seed, roomId);
-    } catch (e) {
-      alert('Ошибка базы: ' + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '⚡ СОЗДАТЬ ОТКРЫТЫЙ СЕРВЕР';
-    }
-  });
-
-  document.getElementById('btn-mc-join-online').addEventListener('click', async () => {
-    const pName = inputPlayerName.value.trim() || 'Стив';
-    const code = document.getElementById('mc-room-code').value.trim();
-    if (!code) return alert('Введите код!');
-    try {
-      const { roomId, seed } = await network.joinWorld(code, pName, selectedColor);
-      start3DWorld(seed, roomId);
-    } catch (e) {
-      alert(e.message || 'Сервер не найден');
-    }
-  });
-
-  async function refreshPublicServers() {
-    const list = document.getElementById('public-servers-list');
-    list.innerHTML = '<div class="empty-list-msg">Поиск серверов...</div>';
-    const worlds = await network.getPublicWorlds();
-    list.innerHTML = '';
-
-    if (worlds.length === 0) {
-      list.innerHTML = '<div class="empty-list-msg">Нет открытых серверов. Создайте свой!</div>';
-      return;
-    }
-
-    worlds.forEach(w => {
-      const row = document.createElement('div');
-      row.className = 'saved-world-card';
-      row.innerHTML = `
-        <div class="world-card-info">
-          <div class="world-card-title">${w.name} [${w.roomId}]</div>
-          <div class="world-card-sub">Хост: ${w.hostName} • Игроков: ${w.playerCount}</div>
-        </div>
-        <button class="btn-mc-primary btn-sm join-btn">🚀 ВОЙТИ</button>
-      `;
-
-      row.querySelector('.join-btn').addEventListener('click', async () => {
-        try {
-          const { roomId, seed } = await network.joinWorld(w.roomId, inputPlayerName.value.trim() || 'Стив', selectedColor);
-          start3DWorld(seed, roomId);
-        } catch (e) {
-          alert(e.message || 'Ошибка входа');
-        }
-      });
-
-      list.appendChild(row);
+      startCityWorld(roomId);
+      network.createWorld(pName, '#00aaaa', worldName, true).catch(() => {});
     });
   }
 
-  document.getElementById('btn-refresh-servers').addEventListener('click', refreshPublicServers);
+  // 4. Join by Code (Friend)
+  const btnJoinOnline = document.getElementById('btn-mc-join-online');
+  if (btnJoinOnline) {
+    btnJoinOnline.addEventListener('click', (e) => {
+      e.preventDefault();
+      const pName = (inputPlayerName ? inputPlayerName.value.trim() : 'Стив') || 'Стив';
+      const codeInput = document.getElementById('mc-room-code');
+      const code = codeInput ? codeInput.value.trim().toUpperCase() : '';
+      if (!code) return alert('Введите код комнаты (например, GTA4829)!');
 
-  // --- START 3D WORLD ---
-  function start3DWorld(seed, roomCode) {
+      startCityWorld(code);
+      network.joinWorld(code, pName, '#00aaaa').catch(() => {});
+    });
+  }
+
+  // 5. Singleplayer
+  const btnCreateSingle = document.getElementById('btn-create-single-world');
+  if (btnCreateSingle) {
+    btnCreateSingle.addEventListener('click', (e) => {
+      e.preventDefault();
+      startCityWorld(null);
+    });
+  }
+
+  const btnRefresh = document.getElementById('btn-refresh-servers');
+  if (btnRefresh) btnRefresh.addEventListener('click', refreshPublicServers);
+}
+
+async function refreshPublicServers() {
+  const list = document.getElementById('public-servers-list');
+  if (!list || !network) return;
+  list.innerHTML = '<div class="empty-list-msg">Поиск серверов...</div>';
+  const worlds = await network.getPublicWorlds();
+  list.innerHTML = '';
+
+  if (worlds.length === 0) {
+    list.innerHTML = '<div class="empty-list-msg">Сейчас нет открытых серверов. Создайте свой выше!</div>';
+    return;
+  }
+
+  worlds.forEach(w => {
+    const row = document.createElement('div');
+    row.className = 'saved-world-card';
+    row.innerHTML = `
+      <div class="world-card-info">
+        <div class="world-card-title">${w.name} [${w.roomId}]</div>
+        <div class="world-card-sub">Хост: ${w.hostName} • Игроков: ${w.playerCount}</div>
+      </div>
+      <button class="btn-mc-primary btn-sm join-btn">🚀 ВОЙТИ</button>
+    `;
+
+    row.querySelector('.join-btn').addEventListener('click', () => {
+      const inputPlayerName = document.getElementById('mc-player-name');
+      const pName = (inputPlayerName ? inputPlayerName.value.trim() : 'Стив') || 'Стив';
+      startCityWorld(w.roomId);
+      network.joinWorld(w.roomId, pName, '#00aaaa').catch(() => {});
+    });
+
+    list.appendChild(row);
+  });
+}
+
+// ----------------------------------------------------------------------------
+// START 3D CITY WORLD
+// ----------------------------------------------------------------------------
+function startCityWorld(roomCode) {
+  audio.init();
+
+  const screenLobby = document.getElementById('screen-mc-lobby');
+  if (screenLobby) screenLobby.classList.add('hidden');
+  const hud = document.getElementById('mc-hud');
+  if (hud) hud.classList.remove('hidden');
+
+  container = document.getElementById('game-container');
+  if (!container) return;
+
+  if (!renderer) {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color('#78a7ff');
+    scene.fog = new THREE.FogExp2('#78a7ff', 0.008);
+
+    camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 400);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.shadowMap.enabled = true;
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Sun & Atmosphere
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const sun = new THREE.DirectionalLight(0xfff5e6, 0.9);
+    sun.position.set(100, 150, 80);
+    scene.add(sun);
+
+    // Build Open City Grid
+    CityModelFactory.buildCity(scene);
+
+    // Initialize Vehicle Manager
+    vehicleManager = new VehicleManager(scene);
+
+    // Spawn Park of Drivable Cars (NO CUBES!)
+    spawnInitialVehicles();
+
+    // Initialize Police System
+    policeSystem = new PoliceSystem(scene, vehicleManager);
+
+    setupCityInputs();
+  }
+
+  // Create Local Player
+  const inputPlayerName = document.getElementById('mc-player-name');
+  player = new CityPlayer(scene, camera, renderer.domElement, 0, 0, 0, selectedColorHex);
+  player.name = (inputPlayerName ? inputPlayerName.value.trim() : 'Стив') || 'Стив';
+  player.requestLock();
+
+  if (roomCode) {
+    const roomTag = document.getElementById('hud-mc-room-tag');
+    if (roomTag) {
+      roomTag.textContent = `СЕРВЕР: ${roomCode}`;
+      roomTag.classList.remove('hidden');
+    }
+
+    network.listenToWorld(
+      roomCode,
+      null,
+      (remotePlayers) => updateRemotePlayers(remotePlayers),
+      (chat) => addChatMessage(chat.sender, chat.text),
+      () => {
+        alert('Сервер закрыт. Возврат в меню.');
+        location.reload();
+      }
+    );
+    showBannerNotification(`3D Мегаполис запущен! Код: ${roomCode}`);
+  } else {
+    const roomTag = document.getElementById('hud-mc-room-tag');
+    if (roomTag) roomTag.classList.add('hidden');
+    showBannerNotification('3D Мегаполис запущен!');
+  }
+
+  isGameRunning = true;
+  updateWeaponHUD();
+  loop();
+}
+
+function spawnInitialVehicles() {
+  // 1. Red Supercar
+  const sport1 = CityModelFactory.createSportCar(0xe61c24);
+  vehicleManager.addVehicle('car_sport_1', sport1, -6, 0, 10, 0);
+
+  // 2. Neon Cyan Supercar
+  const sport2 = CityModelFactory.createSportCar(0x00f0ff);
+  vehicleManager.addVehicle('car_sport_2', sport2, 6, 0, 10, 0);
+
+  // 3. 4-Seater Squad SUV (Ride together with 3 friends!)
+  const suv1 = CityModelFactory.createSUV(0x2b4f77);
+  vehicleManager.addVehicle('car_suv_1', suv1, 0, 0, 24, Math.PI);
+
+  // 4. Police Interceptor
+  const cop1 = CityModelFactory.createPoliceCar();
+  vehicleManager.addVehicle('car_police_1', cop1, -14, 0, 24, Math.PI / 2);
+}
+
+// ----------------------------------------------------------------------------
+// INPUTS & COMBAT
+// ----------------------------------------------------------------------------
+function setupCityInputs() {
+  window.addEventListener('keydown', (e) => {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
     audio.init();
-    document.getElementById('screen-mc-lobby').classList.add('hidden');
-    document.getElementById('mc-hud').classList.remove('hidden');
+    keys[e.code] = true;
 
-    activeSeed = seed;
-    world = new VoxelWorld(64, 32, 64, seed);
-
-    rebuildWorldMesh();
-
-    // Spawn Player
-    player = new Player3D(camera, renderer.domElement, 32, 24, 32);
-    player.name = inputPlayerName.value.trim() || 'Стив';
-    player.color = selectedColor;
-
-    // Spawn starter mobs
-    mobs.push(new Mob3D('zombie', 38, 20, 36, scene));
-    mobs.push(new Mob3D('creeper', 26, 20, 28, scene));
-
-    // Multiplayer Listener
-    if (roomCode) {
-      document.getElementById('hud-mc-room-tag').textContent = `КОМНАТА: ${roomCode}`;
-      document.getElementById('hud-mc-room-tag').classList.remove('hidden');
-
-      network.listenToWorld(
-        roomCode,
-        (bx, by, blockId) => {
-          // Sync 3D block
-          const [vx, vy, vz] = [bx % 64, by % 32, Math.floor(bx / 64)];
-          world.setVoxel(vx, vy, vz, blockId);
-          rebuildWorldMesh();
-        },
-        (remotePlayers) => updateRemote3DPlayers(remotePlayers),
-        (chat) => addChatMessage(chat.sender, chat.text),
-        () => {
-          alert('Хост вышел из мира. Возврат в меню.');
-          location.reload();
-        }
-      );
-      showBannerNotification(`3D Сетевой мир запущен! Код: ${roomCode}`);
-    } else {
-      document.getElementById('hud-mc-room-tag').classList.add('hidden');
-      showBannerNotification('3D Одиночный мир запущен!');
+    // F / E Key: Enter / Exit Car
+    if (e.code === 'KeyF' || e.code === 'KeyE') {
+      if (player && vehicleManager) {
+        vehicleManager.tryEnterVehicle(player, audio);
+      }
     }
 
-    isGameRunning = true;
-    updateHotbarUI();
-  }
-
-  function rebuildWorldMesh() {
-    if (worldMesh) scene.remove(worldMesh);
-    const geo = world.buildGeometry(atlas);
-    worldMesh = new THREE.Mesh(geo, voxelMaterial);
-    scene.add(worldMesh);
-  }
-
-  // --- 3D RAYCASTING (MINING & PLACING BLOCKS) ---
-  const raycaster = new THREE.Raycaster();
-  raycaster.far = 5.5;
-
-  function updateRaycast() {
-    if (!isGameRunning || !player || !player.isLocked) {
-      wireBox.visible = false;
-      return null;
+    // Weapons 1..4
+    if (e.key >= '1' && e.key <= '4') {
+      if (player) {
+        player.activeWeaponIdx = parseInt(e.key) - 1;
+        updateWeaponHUD();
+      }
     }
 
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const intersects = raycaster.intersectObject(worldMesh);
+    if (e.code === 'Escape') togglePauseMenu();
+  });
 
-    if (intersects.length > 0) {
-      const hit = intersects[0];
-      // Target Voxel coords
-      const targetPos = hit.point.clone().sub(hit.face.normal.clone().multiplyScalar(0.1));
-      const tx = Math.floor(targetPos.x);
-      const ty = Math.floor(targetPos.y);
-      const tz = Math.floor(targetPos.z);
+  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
-      // Place Voxel coords
-      const placePos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.1));
-      const px = Math.floor(placePos.x);
-      const py = Math.floor(placePos.y);
-      const pz = Math.floor(placePos.z);
-
-      wireBox.position.set(tx + 0.5, ty + 0.5, tz + 0.5);
-      wireBox.visible = true;
-
-      return { tx, ty, tz, px, py, pz, normal: hit.face.normal };
-    } else {
-      wireBox.visible = false;
-      return null;
-    }
-  }
-
-  // Mouse Actions in 3D
+  // Mouse Shooting
   renderer.domElement.addEventListener('mousedown', (e) => {
     if (!isGameRunning || !player || !player.isLocked) return;
-    const hit = updateRaycast();
-
     if (e.button === 0) {
-      // Left Click: Mine Block
-      player.swingProgress = 1.0;
-      audio.playSwing();
-
-      if (hit) {
-        const b = world.getVoxel(hit.tx, hit.ty, hit.tz);
-        if (b !== BLOCKS.AIR && b !== BLOCKS.BEDROCK) {
-          world.setVoxel(hit.tx, hit.ty, hit.tz, BLOCKS.AIR);
-          rebuildWorldMesh();
-          audio.playDig('stone');
-          droppedItems.push(new DroppedItem3D(b, hit.tx + 0.5, hit.ty + 0.5, hit.tz + 0.5, scene));
-          network.broadcastBlock(hit.tx + hit.tz * 64, hit.ty, BLOCKS.AIR);
-        }
-      }
-    } 
-    else if (e.button === 2) {
-      // Right Click: Place Block / Eat / Craft
-      player.swingProgress = 1.0;
-      const held = player.getHeldItem();
-
-      if (hit && held && ITEM_DATA[held.id] && ITEM_DATA[held.id].isBlock) {
-        // Prevent placing inside player
-        const isInsidePlayer = (
-          hit.px === Math.floor(player.pos.x) &&
-          (hit.py === Math.floor(player.pos.y) || hit.py === Math.floor(player.pos.y + 1)) &&
-          hit.pz === Math.floor(player.pos.z)
-        );
-
-        if (!isInsidePlayer) {
-          world.setVoxel(hit.px, hit.py, hit.pz, held.id);
-          rebuildWorldMesh();
-          audio.playBlockPlace();
-          network.broadcastBlock(hit.px + hit.pz * 64, hit.py, held.id);
-          held.count--;
-          if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
-          updateHotbarUI();
-        }
-      }
+      player.shoot(scene, audio, policeSystem, remotePlayerMeshes, network);
     }
   });
 
-  // --- REMOTE 3D PLAYERS ---
-  function updateRemote3DPlayers(remotePlayers) {
-    remotePlayers.forEach((rp, id) => {
-      let mesh = remotePlayerMeshes.get(id);
-      if (!mesh) {
-        mesh = new THREE.Group();
-        const mat = new THREE.MeshLambertMaterial({ color: rp.color || 0x00aaaa });
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.4), mat);
-        body.position.y = 0.9;
-        mesh.add(body);
-        scene.add(mesh);
-        remotePlayerMeshes.set(id, mesh);
-      }
-      mesh.position.set(rp.x, rp.y, rp.z || 32);
-    });
-  }
+  // Pause Menu Buttons
+  const btnResume = document.getElementById('btn-resume-game');
+  if (btnResume) btnResume.addEventListener('click', () => togglePauseMenu(false));
+  const btnExitMenu = document.getElementById('btn-exit-to-menu');
+  if (btnExitMenu) btnExitMenu.addEventListener('click', () => location.reload());
+}
 
-  // --- PAUSE MENU ---
-  const pauseModal = document.getElementById('modal-pause');
-  function togglePauseMenu(force = null) {
-    const isVis = force !== null ? force : !pauseModal.classList.contains('active');
-    if (isVis) {
-      document.exitPointerLock();
-      pauseModal.classList.add('active');
-    } else {
-      pauseModal.classList.remove('active');
-      renderer.domElement.requestPointerLock();
+function updateRemotePlayers(remotePlayers) {
+  remotePlayers.forEach((rp, id) => {
+    let mesh = remotePlayerMeshes.get(id);
+    if (!mesh) {
+      mesh = CityModelFactory.createCharacter(rp.color ? parseInt(rp.color.replace('#', '0x')) : 0x00aaaa);
+      scene.add(mesh);
+      remotePlayerMeshes.set(id, mesh);
     }
-  }
-
-  document.getElementById('btn-resume-game').addEventListener('click', () => togglePauseMenu(false));
-  document.getElementById('btn-pause-save').addEventListener('click', () => {
-    saveManager.saveWorld(activeWorldId || 'world_default', activeWorldName, activeSeed, world, player, gameTime, 'overworld');
-    showBannerNotification('Мир успешно сохранен!');
+    mesh.position.set(rp.x, rp.y || 0, rp.z || 0);
+    mesh.rotation.y = rp.facing || 0;
   });
-  document.getElementById('btn-exit-to-menu').addEventListener('click', () => location.reload());
+}
 
-  // --- INVENTORY & CRAFTING ---
-  const inventoryModal = document.getElementById('modal-inventory');
-  function toggleInventoryModal() {
-    const isVis = !inventoryModal.classList.contains('active');
-    if (isVis) {
-      document.exitPointerLock();
-      renderInventoryGrid();
-      renderCraftingList();
-      inventoryModal.classList.add('active');
+// Pause Menu
+const pauseModal = document.getElementById('modal-pause');
+function togglePauseMenu(force = null) {
+  if (!pauseModal) return;
+  const isVis = force !== null ? force : !pauseModal.classList.contains('active');
+  if (isVis) {
+    document.exitPointerLock();
+    pauseModal.classList.add('active');
+  } else {
+    pauseModal.classList.remove('active');
+    if (player) player.requestLock();
+  }
+}
+
+function updateWeaponHUD() {
+  if (!player) return;
+  const wep = player.getActiveWeapon();
+  const wepEl = document.getElementById('hud-active-weapon');
+  if (wepEl) wepEl.textContent = `🔫 ${wep.name}`;
+}
+
+function updateStatusHUD() {
+  if (!player) return;
+  const hp = document.getElementById('hud-hp-bar');
+  if (hp) hp.style.width = `${Math.max(0, player.health)}%`;
+  const ap = document.getElementById('hud-ap-bar');
+  if (ap) ap.style.width = `${Math.max(0, player.armor)}%`;
+  const money = document.getElementById('hud-money');
+  if (money) money.textContent = `$${player.money}`;
+
+  // Speedometer
+  const speedo = document.getElementById('hud-speedometer');
+  if (speedo && vehicleManager) {
+    if (vehicleManager.activeVehicle) {
+      speedo.classList.remove('hidden');
+      const kmh = Math.round(Math.abs(vehicleManager.activeVehicle.speed) * 3.6);
+      speedo.textContent = `${kmh} КМ/Ч`;
     } else {
-      inventoryModal.classList.remove('active');
-      renderer.domElement.requestPointerLock();
+      speedo.classList.add('hidden');
     }
   }
+}
 
-  function renderInventoryGrid() {
-    const grid = document.getElementById('inventory-slots-grid');
-    grid.innerHTML = '';
-    for (let i = 0; i < 36; i++) {
-      const slot = document.createElement('div');
-      slot.className = `inv-slot ${i === player.selectedHotbarSlot ? 'selected' : ''}`;
-      const item = player.inventory[i];
-      if (item) {
-        const itemInfo = ITEM_DATA[item.id] || { name: 'Предмет' };
-        slot.textContent = item.count > 1 ? item.count : '';
-        slot.title = itemInfo.name;
-      }
-      grid.appendChild(slot);
-    }
-  }
+function showBannerNotification(msg) {
+  const b = document.getElementById('hud-notification');
+  if (!b) return;
+  b.textContent = msg;
+  b.classList.add('visible');
+  setTimeout(() => b.classList.remove('visible'), 3000);
+}
 
-  function renderCraftingList() {
-    const list = document.getElementById('crafting-recipes-list');
-    list.innerHTML = '';
-    CRAFTING_RECIPES.forEach(r => {
-      const info = ITEM_DATA[r.result] || { name: 'Предмет' };
-      const row = document.createElement('div');
-      row.className = 'craft-recipe-row available';
-      row.innerHTML = `<div class="craft-res-name">${info.name} x${r.count}</div>`;
-      row.addEventListener('click', () => {
-        // Quick craft
-        player.inventory[0] = { id: r.result, count: r.count };
-        updateHotbarUI();
-        audio.playPop();
-      });
-      list.appendChild(row);
-    });
-  }
+function addChatMessage(sender, text) {
+  const feed = document.getElementById('hud-mc-chat-feed');
+  if (!feed) return;
+  const msg = document.createElement('div');
+  msg.className = 'chat-msg';
+  msg.innerHTML = `<span class="chat-sender">&lt;${sender}&gt;</span> ${text}`;
+  feed.appendChild(msg);
+  setTimeout(() => msg.remove(), 10000);
+}
 
-  document.getElementById('btn-close-inv').addEventListener('click', () => toggleInventoryModal());
+// ----------------------------------------------------------------------------
+// 60 FPS MAIN LOOP
+// ----------------------------------------------------------------------------
+const clock = new THREE.Clock();
 
-  // --- HUD UPDATES ---
-  function updateHotbarUI() {
-    if (!player) return;
-    const bar = document.getElementById('hotbar-slots');
-    bar.innerHTML = '';
-    for (let i = 0; i < 9; i++) {
-      const slot = document.createElement('div');
-      slot.className = `hotbar-slot ${i === player.selectedHotbarSlot ? 'active' : ''}`;
-      const item = player.inventory[i];
-      if (item) {
-        const info = ITEM_DATA[item.id] || { name: 'Предмет' };
-        slot.textContent = item.count > 1 ? item.count : '';
-        slot.title = info.name;
-      }
-      slot.addEventListener('click', () => {
-        player.selectedHotbarSlot = i;
-        updateHotbarUI();
-      });
-      bar.appendChild(slot);
-    }
-  }
+function loop() {
+  if (!isGameRunning) return;
+  requestAnimationFrame(loop);
+  const delta = Math.min(clock.getDelta(), 0.08);
 
-  function updateStatusHUD() {
-    if (!player) return;
-    document.getElementById('hud-hearts').innerHTML = '❤️'.repeat(Math.ceil(player.health / 2));
-    document.getElementById('hud-hunger').innerHTML = '🍗'.repeat(Math.ceil(player.hunger / 2));
-  }
+  if (player) {
+    // 1. Update Player Movement
+    player.update(delta, keys);
 
-  function showBannerNotification(msg) {
-    const b = document.getElementById('hud-notification');
-    b.textContent = msg;
-    b.classList.add('visible');
-    setTimeout(() => b.classList.remove('visible'), 3000);
-  }
-
-  function addChatMessage(sender, text) {
-    const feed = document.getElementById('hud-mc-chat-feed');
-    const msg = document.createElement('div');
-    msg.className = 'chat-msg';
-    msg.innerHTML = `<span class="chat-sender">&lt;${sender}&gt;</span> ${text}`;
-    feed.appendChild(msg);
-    setTimeout(() => msg.remove(), 10000);
-  }
-
-  // --- 60 FPS 3D GAME LOOP ---
-  const clock = new THREE.Clock();
-
-  function loop() {
-    requestAnimationFrame(loop);
-    const delta = Math.min(clock.getDelta(), 0.08);
-
-    if (isGameRunning && world && player) {
-      gameTime += delta;
-
-      // 1. Update Player Physics
-      player.update(delta, world, keys, audio);
-
-      // 2. 3D Raycasting
-      updateRaycast();
-
-      // 3. Update 3D Mobs
-      mobs.forEach(mob => mob.update(delta, player, world, [], droppedItems, audio));
-
-      // 4. Update Dropped Items
-      droppedItems.forEach(item => item.update(delta, player, audio));
-
-      // 5. Broadcast Position
-      network.broadcastPlayer(player.pos.x, player.pos.y, player.yaw, player.getHeldItem() ? player.getHeldItem().id : 0, !player.isDead);
-
-      updateStatusHUD();
+    // 2. Update Vehicles & Passengers
+    if (vehicleManager) {
+      vehicleManager.update(delta, keys, camera, player, audio);
     }
 
+    // 3. Update Police AI Chases & Stars
+    if (policeSystem) {
+      policeSystem.update(delta, player, audio);
+    }
+
+    // 4. Broadcast Player Position & Vehicle State
+    if (network) {
+      network.broadcastPlayer(player.pos.x, player.pos.y, player.yaw, player.activeWeaponIdx, !player.isDead);
+    }
+
+    updateStatusHUD();
+  }
+
+  if (renderer && scene && camera) {
     renderer.render(scene, camera);
   }
+}
 
-  renderLocalWorldsList();
-  loop();
-});
+setupLobbyUI();

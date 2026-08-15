@@ -1,6 +1,5 @@
 /**
- * THE BACKROOMS MULTIPLAYER // FIREBASE FIRESTORE INITIALIZATION
- * Uses Firebase Modular Web SDK v10 (Official Google CDN).
+ * 3D MINECRAFT // FIREBASE INITIALIZATION & EXPORTS
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -10,18 +9,18 @@ import {
   doc, 
   setDoc, 
   getDoc, 
-  getDocs,
+  getDocs, 
   onSnapshot, 
   deleteDoc, 
   updateDoc, 
-  serverTimestamp,
-  query,
-  orderBy,
-  limit,
-  addDoc
+  serverTimestamp, 
+  query, 
+  where,
+  orderBy, 
+  limit, 
+  addDoc 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// User's New Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB7-tesDQGn-9J4273qjZRdzd03duGIl1s",
   authDomain: "gametstigues.firebaseapp.com",
@@ -32,7 +31,6 @@ const firebaseConfig = {
   measurementId: "G-4SZ14ZCLSS"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -49,6 +47,7 @@ export {
   updateDoc,
   serverTimestamp,
   query,
+  where,
   orderBy,
   limit,
   addDoc

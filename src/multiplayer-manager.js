@@ -1,7 +1,5 @@
 /**
- * 2D MINECRAFT // BULLETPROOF MULTIPLAYER & PUBLIC SERVER BROWSER
- * Deduplicated chat, public lobby directory, host session heartbeats,
- * block sync, and player coordinate streaming.
+ * 3D MINECRAFT // MULTIPLAYER MANAGER
  */
 
 import { 
@@ -10,10 +8,10 @@ import {
   setDoc, 
   getDoc, 
   updateDoc, 
-  collection,
-  query,
-  where,
-  getDocs,
+  collection, 
+  query, 
+  where, 
+  getDocs, 
   onSnapshot, 
   serverTimestamp 
 } from "./firebase-config.js";
@@ -42,31 +40,34 @@ export class MinecraftMultiplayerManager {
     return (code || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   }
 
-  // 1. CREATE PUBLIC MULTIPLAYER WORLD (HOST)
-  async createWorld(playerName, playerColor, worldName = 'Мир Выживания', isPublic = true) {
+  async createWorld(playerName, playerColor, worldName = '3D Мир', isPublic = true) {
     this.playerName = playerName || this.playerName;
     this.playerColor = playerColor || this.playerColor;
     this.isHost = true;
     this.roomId = this.generateRoomCode();
     this.worldSeed = Math.floor(Math.random() * 999999);
 
-    const roomRef = doc(db, 'minecraft_rooms', this.roomId);
-    await setDoc(roomRef, {
-      status: 'PLAYING',
-      hostId: this.playerId,
-      hostName: this.playerName,
-      worldName: worldName,
-      worldSeed: this.worldSeed,
-      isPublic: isPublic,
-      players: [
-        { id: this.playerId, name: this.playerName, color: this.playerColor, isHost: true }
-      ],
-      createdAt: serverTimestamp(),
-      lastHeartbeat: Date.now()
-    });
-
-    // Start Host Heartbeat
-    this.startHostHeartbeat();
+    if (db) {
+      try {
+        const roomRef = doc(db, 'minecraft_rooms', this.roomId);
+        await setDoc(roomRef, {
+          status: 'PLAYING',
+          hostId: this.playerId,
+          hostName: this.playerName,
+          worldName: worldName,
+          worldSeed: this.worldSeed,
+          isPublic: isPublic,
+          players: [
+            { id: this.playerId, name: this.playerName, color: this.playerColor, isHost: true }
+          ],
+          createdAt: serverTimestamp(),
+          lastHeartbeat: Date.now()
+        });
+        this.startHostHeartbeat();
+      } catch (e) {
+        console.warn('Firestore create world failed:', e);
+      }
+    }
 
     return { roomId: this.roomId, seed: this.worldSeed };
   }
@@ -74,62 +75,46 @@ export class MinecraftMultiplayerManager {
   startHostHeartbeat() {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     this.heartbeatInterval = setInterval(() => {
-      if (!this.roomId || !this.isHost) return;
+      if (!this.roomId || !this.isHost || !db) return;
       const roomRef = doc(db, 'minecraft_rooms', this.roomId);
-      updateDoc(roomRef, {
-        lastHeartbeat: Date.now()
-      }).catch(() => {});
+      updateDoc(roomRef, { lastHeartbeat: Date.now() }).catch(() => {});
     }, 4000);
-
-    window.addEventListener('beforeunload', () => {
-      if (this.isHost && this.roomId) {
-        const roomRef = doc(db, 'minecraft_rooms', this.roomId);
-        updateDoc(roomRef, { status: 'CLOSED', isPublic: false }).catch(() => {});
-      }
-    });
   }
 
-  // 2. JOIN WORLD (BY CODE OR FROM BROWSER)
   async joinWorld(roomCode, playerName, playerColor) {
     this.playerName = playerName || this.playerName;
     this.playerColor = playerColor || this.playerColor;
     this.isHost = false;
     this.roomId = this.formatCode(roomCode);
 
-    const roomRef = doc(db, 'minecraft_rooms', this.roomId);
-    const snap = await getDoc(roomRef);
+    if (db) {
+      try {
+        const roomRef = doc(db, 'minecraft_rooms', this.roomId);
+        const snap = await getDoc(roomRef);
 
-    if (!snap.exists()) {
-      throw new Error(`Мир ${this.roomId} не найден!`);
-    }
-
-    const data = snap.data();
-    if (data.status === 'CLOSED') {
-      throw new Error('Этот мир был закрыт хостом.');
-    }
-
-    this.worldSeed = data.worldSeed || 12345;
-    const existingPlayers = data.players || [];
-
-    const alreadyIn = existingPlayers.find(p => p.id === this.playerId);
-    if (!alreadyIn) {
-      existingPlayers.push({
-        id: this.playerId,
-        name: this.playerName,
-        color: this.playerColor,
-        isHost: false
-      });
-      await updateDoc(roomRef, { players: existingPlayers });
+        if (snap && snap.exists()) {
+          const data = snap.data();
+          this.worldSeed = data.worldSeed || 12345;
+          const existingPlayers = data.players || [];
+          const alreadyIn = existingPlayers.find(p => p.id === this.playerId);
+          if (!alreadyIn) {
+            existingPlayers.push({ id: this.playerId, name: this.playerName, color: this.playerColor, isHost: false });
+            updateDoc(roomRef, { players: existingPlayers }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.warn('Join world failed:', e);
+      }
     }
 
     return { roomId: this.roomId, seed: this.worldSeed };
   }
 
-  // 3. BROWSE PUBLIC SERVERS
   async getPublicWorlds() {
+    if (!db) return [];
     try {
       const q = query(
-        collection(db, 'minecraft_rooms'), 
+        collection(db, 'minecraft_rooms'),
         where('isPublic', '==', true),
         where('status', '==', 'PLAYING')
       );
@@ -139,11 +124,10 @@ export class MinecraftMultiplayerManager {
 
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
-        // Check heartbeat freshness (within 20s)
-        if (data.lastHeartbeat && (now - data.lastHeartbeat < 20000)) {
+        if (data.lastHeartbeat && (now - data.lastHeartbeat < 25000)) {
           worlds.push({
             roomId: docSnap.id,
-            name: data.worldName || 'Мир Выживания',
+            name: data.worldName || '3D Мир',
             hostName: data.hostName || 'Хост',
             playerCount: data.players ? data.players.length : 1
           });
@@ -151,79 +135,57 @@ export class MinecraftMultiplayerManager {
       });
       return worlds;
     } catch (e) {
-      console.warn('Get public worlds failed:', e);
       return [];
     }
   }
 
-  // 4. LISTEN TO REALTIME WORLD
   listenToWorld(roomId, onBlockChange, onPlayersChange, onChatMessage, onHostLeft) {
-    if (this.unsubRoom) this.unsubRoom();
+    if (!db) return;
     this.roomId = roomId;
     const roomRef = doc(db, 'minecraft_rooms', roomId);
 
     this.unsubRoom = onSnapshot(roomRef, (docSnap) => {
-      if (!docSnap.exists()) {
-        if (onHostLeft) onHostLeft();
-        return;
-      }
+      if (!docSnap || !docSnap.exists()) return;
       const data = docSnap.data();
+      if (data.status === 'CLOSED' && onHostLeft) onHostLeft();
 
-      if (data.status === 'CLOSED') {
-        if (onHostLeft) onHostLeft();
-        return;
-      }
-
-      // Blocks
       Object.keys(data).forEach(key => {
         if (key.startsWith('blk_')) {
           const [bx, by] = key.replace('blk_', '').split('_').map(Number);
-          const blockId = data[key];
-          if (onBlockChange) onBlockChange(bx, by, blockId);
+          if (onBlockChange) onBlockChange(bx, by, data[key]);
+        } else if (key.startsWith('pos_')) {
+          const pId = key.replace('pos_', '');
+          if (pId !== this.playerId) this.remotePlayers.set(pId, data[key]);
         }
       });
 
-      // Players
-      Object.keys(data).forEach(key => {
-        if (key.startsWith('pos_')) {
-          const pId = key.replace('pos_', '');
-          if (pId !== this.playerId) {
-            this.remotePlayers.set(pId, data[key]);
-          }
-        }
-      });
       if (onPlayersChange) onPlayersChange(this.remotePlayers);
 
-      // Chat (Deduplicated with Unique ID)
       if (data.lastChat && data.lastChat.id) {
         if (!this.processedChatIds.has(data.lastChat.id)) {
           this.processedChatIds.add(data.lastChat.id);
           if (onChatMessage) onChatMessage(data.lastChat);
         }
       }
-    }, (err) => {
-      console.error('Multiplayer listen error:', err);
-    });
+    }, () => {});
   }
 
-  // 5. BROADCASTS
   broadcastBlock(x, y, blockId) {
-    if (!this.roomId) return;
+    if (!this.roomId || !db) return;
     const roomRef = doc(db, 'minecraft_rooms', this.roomId);
     const key = `blk_${Math.round(x)}_${Math.round(y)}`;
     updateDoc(roomRef, { [key]: blockId }).catch(() => {});
   }
 
   broadcastPlayer(x, y, facing, heldId, isAlive) {
-    if (!this.roomId) return;
+    if (!this.roomId || !db) return;
     const now = performance.now();
     if (now - this.lastBroadcast < 80) return;
     this.lastBroadcast = now;
 
     const roomRef = doc(db, 'minecraft_rooms', this.roomId);
-    const key = `pos_${this.playerId}`;
     updateDoc(roomRef, {
-      [key]: {
+      [`pos_${this.playerId}`]: {
         id: this.playerId,
         name: this.playerName,
         color: this.playerColor,
@@ -237,18 +199,13 @@ export class MinecraftMultiplayerManager {
   }
 
   sendChat(text) {
-    if (!this.roomId || !text) return;
+    if (!this.roomId || !text || !db) return;
     const roomRef = doc(db, 'minecraft_rooms', this.roomId);
     const chatId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     this.processedChatIds.add(chatId);
 
     updateDoc(roomRef, {
-      lastChat: {
-        id: chatId,
-        sender: this.playerName,
-        text: text,
-        timestamp: Date.now()
-      }
+      lastChat: { id: chatId, sender: this.playerName, text: text, timestamp: Date.now() }
     }).catch(() => {});
   }
 }
