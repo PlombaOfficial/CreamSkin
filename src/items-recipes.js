@@ -1,7 +1,5 @@
 /**
- * 2D MINECRAFT // COMPLETE ITEM, BLOCK & RECIPE REGISTRY
- * Defines 60+ blocks and items, tool tiers, hardness, food stats,
- * crafting recipes (2x2 inventory & 3x3 table), and furnace smelting.
+ * 2D MINECRAFT // COMPLETE ITEM, BLOCK & RECIPE REGISTRY (WITH NETHER & PORTALS)
  */
 
 export const BLOCKS = {
@@ -39,7 +37,12 @@ export const BLOCKS = {
   
   // Liquids
   WATER: 27,
-  LAVA: 28
+  LAVA: 28,
+
+  // Nether Dimension
+  NETHERRACK: 29,
+  GLOWSTONE: 30,
+  NETHER_PORTAL: 31
 };
 
 export const ITEMS = {
@@ -71,27 +74,20 @@ export const ITEMS = {
   WOOD_SWORD: 301,
   WOOD_PICKAXE: 302,
   WOOD_AXE: 303,
-  WOOD_SHOVEL: 304,
   
   // Stone Tools
   STONE_SWORD: 311,
   STONE_PICKAXE: 312,
   STONE_AXE: 313,
-  STONE_SHOVEL: 314,
   
   // Iron Tools & Armor
   IRON_SWORD: 321,
   IRON_PICKAXE: 322,
   IRON_AXE: 323,
-  IRON_SHOVEL: 324,
   IRON_HELMET: 325,
   IRON_CHESTPLATE: 326,
   IRON_LEGGINGS: 327,
   IRON_BOOTS: 328,
-  SHIELD: 329,
-  BUCKET: 330,
-  WATER_BUCKET: 331,
-  LAVA_BUCKET: 332,
   BOW: 333,
   ARROW: 334,
   
@@ -99,7 +95,6 @@ export const ITEMS = {
   DIAMOND_SWORD: 341,
   DIAMOND_PICKAXE: 342,
   DIAMOND_AXE: 343,
-  DIAMOND_SHOVEL: 344,
   DIAMOND_HELMET: 345,
   DIAMOND_CHESTPLATE: 346,
   DIAMOND_LEGGINGS: 347,
@@ -110,8 +105,10 @@ export const ITEMS = {
   NETHERITE_PICKAXE: 352,
   NETHERITE_ARMOR: 353,
   
-  // Boss Summoner
-  EYE_OF_ENDER: 401
+  // Boss & Dimension
+  EYE_OF_ENDER: 401,
+  FLINT_AND_STEEL: 402,
+  NETHER_STAR: 403
 };
 
 export const ITEM_DATA = {
@@ -124,7 +121,7 @@ export const ITEM_DATA = {
   [BLOCKS.OAK_PLANKS]: { name: 'Дубовые доски', isBlock: true, hardness: 1.0, drop: BLOCKS.OAK_PLANKS, color: '#a0784a' },
   [BLOCKS.SAND]: { name: 'Песок', isBlock: true, hardness: 0.5, drop: BLOCKS.SAND, color: '#d9cb91' },
   [BLOCKS.GRAVEL]: { name: 'Гравий', isBlock: true, hardness: 0.6, drop: BLOCKS.GRAVEL, color: '#7a7674' },
-  [BLOCKS.BEDROCK]: { name: 'Бедрок (Коренная порода)', isBlock: true, hardness: Infinity, color: '#111111' },
+  [BLOCKS.BEDROCK]: { name: 'Бедрок', isBlock: true, hardness: Infinity, color: '#111111' },
 
   // Ores
   [BLOCKS.COAL_ORE]: { name: 'Угольная руда', isBlock: true, hardness: 2.0, drop: ITEMS.COAL, reqTier: 0, color: '#2b2b2b' },
@@ -135,82 +132,104 @@ export const ITEM_DATA = {
   [BLOCKS.OBSIDIAN]: { name: 'Обсидиан', isBlock: true, hardness: 8.0, drop: BLOCKS.OBSIDIAN, reqTier: 3, color: '#1a1029' },
   [BLOCKS.ANCIENT_DEBRIS]: { name: 'Древние обломки (Незерит)', isBlock: true, hardness: 9.0, drop: ITEMS.NETHERITE_SCRAP, reqTier: 3, color: '#59443b' },
 
+  // Nether Blocks
+  [BLOCKS.NETHERRACK]: { name: 'Незерак (Адский камень)', isBlock: true, hardness: 0.8, drop: BLOCKS.NETHERRACK, color: '#661616' },
+  [BLOCKS.GLOWSTONE]: { name: 'Светокамень (Глоустоун)', isBlock: true, hardness: 0.6, drop: BLOCKS.GLOWSTONE, isLight: true, color: '#f0a73a' },
+  [BLOCKS.NETHER_PORTAL]: { name: 'Портал в Незер (Ад)', isBlock: true, hardness: 0.1, isPortal: true, color: '#b846ff' },
+
   // Stations
   [BLOCKS.CRAFTING_TABLE]: { name: 'Верстак (3x3)', isBlock: true, hardness: 1.2, drop: BLOCKS.CRAFTING_TABLE, color: '#b08453' },
   [BLOCKS.FURNACE]: { name: 'Печь', isBlock: true, hardness: 2.0, drop: BLOCKS.FURNACE, color: '#4a4a4a' },
-  [BLOCKS.CHEST]: { name: 'Сундук (Хранилище)', isBlock: true, hardness: 1.2, drop: BLOCKS.CHEST, color: '#9e6d38' },
-  [BLOCKS.TORCH]: { name: 'Факел (Освещение)', isBlock: true, hardness: 0.1, drop: BLOCKS.TORCH, isLight: true, color: '#ffb300' },
+  [BLOCKS.CHEST]: { name: 'Сундук', isBlock: true, hardness: 1.2, drop: BLOCKS.CHEST, color: '#9e6d38' },
+  [BLOCKS.TORCH]: { name: 'Факел', isBlock: true, hardness: 0.1, drop: BLOCKS.TORCH, isLight: true, color: '#ffb300' },
   [BLOCKS.LADDER]: { name: 'Лестница', isBlock: true, hardness: 0.3, drop: BLOCKS.LADDER, color: '#9e7344' },
   [BLOCKS.DOOR_WOOD]: { name: 'Дверь', isBlock: true, hardness: 1.0, drop: BLOCKS.DOOR_WOOD, color: '#875d33' },
   [BLOCKS.GLASS]: { name: 'Стекло', isBlock: true, hardness: 0.3, color: '#c2e3f2' },
   [BLOCKS.TNT]: { name: 'Динамит (TNT)', isBlock: true, hardness: 0.1, drop: BLOCKS.TNT, color: '#d92b2b' },
 
   // Resources
-  [ITEMS.STICK]: { name: 'Палка', icon: '🥢' },
-  [ITEMS.COAL]: { name: 'Уголь', icon: '🪨' },
-  [ITEMS.RAW_IRON]: { name: 'Сырое железо', icon: '🥔' },
-  [ITEMS.IRON_INGOT]: { name: 'Железный слиток', icon: '🪙' },
-  [ITEMS.RAW_GOLD]: { name: 'Сырое золото', icon: '✨' },
-  [ITEMS.GOLD_INGOT]: { name: 'Золотой слиток', icon: '🥇' },
-  [ITEMS.DIAMOND]: { name: 'Алмаз', icon: '💎' },
-  [ITEMS.NETHERITE_SCRAP]: { name: 'Незеритовый скрап', icon: '🍫' },
-  [ITEMS.NETHERITE_INGOT]: { name: 'Незеритовый слиток', icon: '⬛' },
-  [ITEMS.GUNPOWDER]: { name: 'Порох', icon: '🧂' },
-  [ITEMS.BONE]: { name: 'Кость', icon: '🦴' },
-  [ITEMS.STRING]: { name: 'Нить', icon: '🧵' },
+  [ITEMS.STICK]: { name: 'Палка' },
+  [ITEMS.COAL]: { name: 'Уголь' },
+  [ITEMS.RAW_IRON]: { name: 'Сырое железо' },
+  [ITEMS.IRON_INGOT]: { name: 'Железный слиток' },
+  [ITEMS.RAW_GOLD]: { name: 'Сырое золото' },
+  [ITEMS.GOLD_INGOT]: { name: 'Золотой слиток' },
+  [ITEMS.DIAMOND]: { name: 'Алмаз' },
+  [ITEMS.NETHERITE_SCRAP]: { name: 'Незеритовый скрап' },
+  [ITEMS.NETHERITE_INGOT]: { name: 'Незеритовый слиток' },
+  [ITEMS.GUNPOWDER]: { name: 'Порох' },
+  [ITEMS.BONE]: { name: 'Кость' },
+  [ITEMS.STRING]: { name: 'Нить' },
+  [ITEMS.ROTTEN_FLESH]: { name: 'Гнилая плоть' },
 
   // Food
-  [ITEMS.APPLE]: { name: 'Яблоко', food: 4, health: 2, icon: '🍎' },
-  [ITEMS.RAW_BEEF]: { name: 'Сырое мясо', food: 3, icon: '🥩' },
-  [ITEMS.COOKED_STEAK]: { name: 'Жареный стейк', food: 8, health: 6, icon: '🍖' },
-  [ITEMS.BREAD]: { name: 'Хлеб', food: 5, health: 3, icon: '🍞' },
-  [ITEMS.GOLDEN_APPLE]: { name: 'Золотое яблоко (Реген)', food: 10, health: 20, icon: '🍏' },
+  [ITEMS.APPLE]: { name: 'Яблоко', food: 4, health: 2 },
+  [ITEMS.RAW_BEEF]: { name: 'Сырое мясо', food: 3 },
+  [ITEMS.COOKED_STEAK]: { name: 'Жареный стейк', food: 8, health: 6 },
+  [ITEMS.BREAD]: { name: 'Хлеб', food: 5, health: 3 },
+  [ITEMS.GOLDEN_APPLE]: { name: 'Золотое яблоко (Реген)', food: 10, health: 20 },
 
   // Weapons & Tools
   [ITEMS.WOOD_SWORD]: { name: 'Деревянный меч', type: 'weapon', damage: 4, speed: 1.0, durability: 60 },
   [ITEMS.WOOD_PICKAXE]: { name: 'Деревянная кирка', type: 'pickaxe', tier: 0, speed: 1.5, durability: 60 },
+  [ITEMS.WOOD_AXE]: { name: 'Деревянный топор', type: 'axe', speed: 1.5, durability: 60 },
   [ITEMS.STONE_SWORD]: { name: 'Каменный меч', type: 'weapon', damage: 5.5, speed: 1.1, durability: 132 },
   [ITEMS.STONE_PICKAXE]: { name: 'Каменная кирка', type: 'pickaxe', tier: 1, speed: 2.2, durability: 132 },
+  [ITEMS.STONE_AXE]: { name: 'Каменный топор', type: 'axe', speed: 2.2, durability: 132 },
   [ITEMS.IRON_SWORD]: { name: 'Железный меч', type: 'weapon', damage: 7.0, speed: 1.3, durability: 250 },
   [ITEMS.IRON_PICKAXE]: { name: 'Железная кирка', type: 'pickaxe', tier: 2, speed: 3.5, durability: 250 },
+  [ITEMS.IRON_AXE]: { name: 'Железный топор', type: 'axe', speed: 3.5, durability: 250 },
+  [ITEMS.IRON_HELMET]: { name: 'Железный шлем', type: 'armor', armor: 2, durability: 165 },
   [ITEMS.IRON_CHESTPLATE]: { name: 'Железный нагрудник', type: 'armor', armor: 6, durability: 240 },
+  [ITEMS.IRON_LEGGINGS]: { name: 'Железные поножи', type: 'armor', armor: 5, durability: 225 },
+  [ITEMS.IRON_BOOTS]: { name: 'Железные ботинки', type: 'armor', armor: 2, durability: 195 },
   [ITEMS.BOW]: { name: 'Лук', type: 'ranged', damage: 8, durability: 384 },
-  [ITEMS.ARROW]: { name: 'Стрела', icon: '🏹' },
+  [ITEMS.ARROW]: { name: 'Стрела' },
   [ITEMS.DIAMOND_SWORD]: { name: 'Алмазный меч', type: 'weapon', damage: 10.0, speed: 1.5, durability: 1561 },
   [ITEMS.DIAMOND_PICKAXE]: { name: 'Алмазная кирка', type: 'pickaxe', tier: 3, speed: 5.5, durability: 1561 },
-  [ITEMS.DIAMOND_CHESTPLATE]: { name: 'Алмазный нагрудник', type: 'armor', armor: 10, durability: 1500 },
+  [ITEMS.DIAMOND_AXE]: { name: 'Алмазный топор', type: 'axe', speed: 5.5, durability: 1561 },
+  [ITEMS.DIAMOND_HELMET]: { name: 'Алмазный шлем', type: 'armor', armor: 3, durability: 363 },
+  [ITEMS.DIAMOND_CHESTPLATE]: { name: 'Алмазный нагрудник', type: 'armor', armor: 8, durability: 528 },
+  [ITEMS.DIAMOND_LEGGINGS]: { name: 'Алмазные поножи', type: 'armor', armor: 6, durability: 495 },
+  [ITEMS.DIAMOND_BOOTS]: { name: 'Алмазные ботинки', type: 'armor', armor: 3, durability: 429 },
   [ITEMS.NETHERITE_SWORD]: { name: 'Незеритовый меч Бога', type: 'weapon', damage: 16.0, speed: 1.8, durability: 3000 },
   [ITEMS.NETHERITE_PICKAXE]: { name: 'Незеритовая кирка Бога', type: 'pickaxe', tier: 4, speed: 8.5, durability: 3000 },
+  [ITEMS.NETHERITE_ARMOR]: { name: 'Незеритовая броня Бога', type: 'armor', armor: 14, durability: 3000 },
   
-  // Boss
-  [ITEMS.EYE_OF_ENDER]: { name: 'Око Края (Призыв Босса)', icon: '👁️' }
+  // Boss & Portal
+  [ITEMS.EYE_OF_ENDER]: { name: 'Око Края (Призыв Босса)' },
+  [ITEMS.FLINT_AND_STEEL]: { name: 'Огниво (Зажечь Портал в Ад)' },
+  [ITEMS.NETHER_STAR]: { name: 'Звезда Незера (Трофей Босса)' }
 };
 
 export const CRAFTING_RECIPES = [
-  // Basic 2x2
+  // 2x2
   { result: BLOCKS.OAK_PLANKS, count: 4, inputs: [BLOCKS.OAK_LOG] },
   { result: ITEMS.STICK, count: 4, inputs: [BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS] },
   { result: BLOCKS.TORCH, count: 4, inputs: [ITEMS.COAL, ITEMS.STICK] },
   { result: BLOCKS.CRAFTING_TABLE, count: 1, inputs: [BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS] },
 
-  // Tools 3x3
+  // Tools
   { result: ITEMS.WOOD_PICKAXE, count: 1, reqTable: true, inputs: [BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, ITEMS.STICK, ITEMS.STICK] },
   { result: ITEMS.WOOD_SWORD, count: 1, reqTable: true, inputs: [BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, ITEMS.STICK] },
+  { result: ITEMS.WOOD_AXE, count: 1, reqTable: true, inputs: [BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, ITEMS.STICK, ITEMS.STICK] },
   { result: ITEMS.STONE_PICKAXE, count: 1, reqTable: true, inputs: [BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, ITEMS.STICK, ITEMS.STICK] },
   { result: ITEMS.STONE_SWORD, count: 1, reqTable: true, inputs: [BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, ITEMS.STICK] },
   { result: BLOCKS.FURNACE, count: 1, reqTable: true, inputs: [BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE, BLOCKS.COBBLESTONE] },
   { result: BLOCKS.CHEST, count: 1, reqTable: true, inputs: [BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS] },
-  { result: BLOCKS.DOOR_WOOD, count: 1, reqTable: true, inputs: [BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS] },
   { result: BLOCKS.LADDER, count: 3, reqTable: true, inputs: [ITEMS.STICK, ITEMS.STICK, ITEMS.STICK, ITEMS.STICK, ITEMS.STICK] },
 
   // Iron Tier
   { result: ITEMS.IRON_PICKAXE, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.STICK, ITEMS.STICK] },
   { result: ITEMS.IRON_SWORD, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.STICK] },
+  { result: ITEMS.IRON_HELMET, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT] },
   { result: ITEMS.IRON_CHESTPLATE, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT] },
-  { result: ITEMS.SHIELD, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS, BLOCKS.OAK_PLANKS] },
+  { result: ITEMS.IRON_LEGGINGS, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT] },
+  { result: ITEMS.IRON_BOOTS, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT, ITEMS.IRON_INGOT] },
   { result: ITEMS.BOW, count: 1, reqTable: true, inputs: [ITEMS.STICK, ITEMS.STICK, ITEMS.STICK, ITEMS.STRING, ITEMS.STRING, ITEMS.STRING] },
   { result: ITEMS.ARROW, count: 4, reqTable: true, inputs: [ITEMS.STICK, ITEMS.BONE] },
   { result: BLOCKS.TNT, count: 1, reqTable: true, inputs: [ITEMS.GUNPOWDER, ITEMS.GUNPOWDER, ITEMS.GUNPOWDER, ITEMS.GUNPOWDER, BLOCKS.SAND, BLOCKS.SAND, BLOCKS.SAND, BLOCKS.SAND] },
+  { result: ITEMS.FLINT_AND_STEEL, count: 1, reqTable: true, inputs: [ITEMS.IRON_INGOT, BLOCKS.GRAVEL] },
 
   // Diamond & Netherite Tier
   { result: ITEMS.DIAMOND_PICKAXE, count: 1, reqTable: true, inputs: [ITEMS.DIAMOND, ITEMS.DIAMOND, ITEMS.DIAMOND, ITEMS.STICK, ITEMS.STICK] },
@@ -219,16 +238,9 @@ export const CRAFTING_RECIPES = [
   { result: ITEMS.NETHERITE_INGOT, count: 1, reqTable: true, inputs: [ITEMS.NETHERITE_SCRAP, ITEMS.NETHERITE_SCRAP, ITEMS.GOLD_INGOT, ITEMS.GOLD_INGOT] },
   { result: ITEMS.NETHERITE_SWORD, count: 1, reqTable: true, inputs: [ITEMS.DIAMOND_SWORD, ITEMS.NETHERITE_INGOT] },
   { result: ITEMS.NETHERITE_PICKAXE, count: 1, reqTable: true, inputs: [ITEMS.DIAMOND_PICKAXE, ITEMS.NETHERITE_INGOT] },
+  { result: ITEMS.NETHERITE_ARMOR, count: 1, reqTable: true, inputs: [ITEMS.DIAMOND_CHESTPLATE, ITEMS.NETHERITE_INGOT] },
   
-  // Boss Summoner
+  // Nether Portal Frame & Boss
+  { result: BLOCKS.NETHER_PORTAL, count: 1, reqTable: true, inputs: [BLOCKS.OBSIDIAN, BLOCKS.OBSIDIAN, BLOCKS.OBSIDIAN, BLOCKS.OBSIDIAN, ITEMS.FLINT_AND_STEEL] },
   { result: ITEMS.EYE_OF_ENDER, count: 1, reqTable: true, inputs: [ITEMS.DIAMOND, ITEMS.GOLD_INGOT, ITEMS.BONE] }
-];
-
-export const SMELTING_RECIPES = [
-  { input: ITEMS.RAW_IRON, result: ITEMS.IRON_INGOT, time: 6.0 },
-  { input: ITEMS.RAW_COPPER, result: ITEMS.COPPER_INGOT, time: 5.0 },
-  { input: ITEMS.RAW_GOLD, result: ITEMS.GOLD_INGOT, time: 7.0 },
-  { input: BLOCKS.SAND, result: BLOCKS.GLASS, time: 4.0 },
-  { input: BLOCKS.COBBLESTONE, result: BLOCKS.STONE, time: 4.0 },
-  { input: ITEMS.RAW_BEEF, result: ITEMS.COOKED_STEAK, time: 5.0 }
 ];

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MINECRAFT 2D // СЕТЕВОЕ ВЫЖИВАНИЕ</title>
-  <meta name="description" content="2D Minecraft с мультиплеером по коду комнаты, процедурным миром, крафтом, рудами, зомби и боссом.">
+  <title>MINECRAFT 2D // MASTER SANDBOX & MULTIPLAYER</title>
+  <meta name="description" content="2D Minecraft с мультиплеером, сохранением миров на устройстве, Незером, 0 эмодзи (пиксель-арт спрайты), зомби, крафтом и боссами.">
 
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -14,42 +14,67 @@
   <!-- Game Canvas -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- 0. MAIN MULTIPLAYER LOBBY SCREEN -->
+  <!-- 0. MAIN LOBBY SCREEN -->
   <div class="mc-lobby-screen" id="screen-mc-lobby">
     <div class="mc-menu-panel">
       <div class="mc-logo-title">MINECRAFT 2D</div>
-      <div class="mc-logo-sub">СЕТЕВОЕ ВЫЖИВАНИЕ С ДРУГОМ</div>
+      <div class="mc-logo-sub">МАСТЕР-ПЕСОЧНИЦА & СЕТЕВОЕ ВЫЖИВАНИЕ</div>
 
-      <div class="mc-lobby-form">
-        <!-- Nickname & Skin -->
-        <div class="form-group">
-          <label>ВАШ НИКНЕЙМ:</label>
+      <!-- Player Profile Setup -->
+      <div class="profile-setup-box">
+        <div class="form-group-inline">
+          <label>НИКНЕЙМ:</label>
           <input type="text" id="mc-player-name" class="mc-input" value="Стив" maxlength="16">
         </div>
+        <div class="mc-skins-row">
+          <div class="mc-skin-dot active" data-color="#00aaaa" style="background: #00aaaa;" title="Стив"></div>
+          <div class="mc-skin-dot" data-color="#55aa55" style="background: #55aa55;" title="Алекс"></div>
+          <div class="mc-skin-dot" data-color="#aa0000" style="background: #aa0000;" title="Рыцарь"></div>
+          <div class="mc-skin-dot" data-color="#8800aa" style="background: #8800aa;" title="Маг"></div>
+          <div class="mc-skin-dot" data-color="#222222" style="background: #222222;" title="Тень"></div>
+        </div>
+      </div>
 
-        <div class="form-group">
-          <label>ЦВЕТ СКИНА (РУБАШКА):</label>
-          <div class="mc-skins-row">
-            <div class="mc-skin-dot active" data-color="#00aaaa" style="background: #00aaaa;" title="Стив"></div>
-            <div class="mc-skin-dot" data-color="#55aa55" style="background: #55aa55;" title="Алекс"></div>
-            <div class="mc-skin-dot" data-color="#aa0000" style="background: #aa0000;" title="Рыцарь"></div>
-            <div class="mc-skin-dot" data-color="#8800aa" style="background: #8800aa;" title="Маг"></div>
-            <div class="mc-skin-dot" data-color="#222222" style="background: #222222;" title="Тень"></div>
-          </div>
+      <!-- Lobby Mode Tabs -->
+      <div class="lobby-tabs-header">
+        <button class="tab-btn active" id="tab-btn-single">🕹 МОИ МИРЫ</button>
+        <button class="tab-btn" id="tab-btn-multi">🌐 СЕТЕВЫЕ СЕРВЕРЫ</button>
+      </div>
+
+      <!-- TAB 1: SINGLEPLAYER & SAVED WORLDS -->
+      <div class="tab-content" id="tab-view-single">
+        <button class="btn-mc-primary" id="btn-create-single-world">➕ СОЗДАТЬ НОВЫЙ МИР</button>
+        <div class="worlds-scroll-list" id="local-worlds-list">
+          <!-- Populated from LocalStorage -->
+        </div>
+      </div>
+
+      <!-- TAB 2: MULTIPLAYER SERVERS & CODE -->
+      <div class="tab-content hidden" id="tab-view-multi">
+        <!-- Host New Server -->
+        <div class="create-server-box">
+          <input type="text" id="mc-online-world-name" class="mc-input" placeholder="Название сервера..." value="Сервер Стива" maxlength="20">
+          <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ ОТКРЫТЫЙ СЕРВЕР</button>
         </div>
 
         <hr class="mc-divider">
 
-        <!-- Buttons -->
-        <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ СЕТЕВОЙ МИР</button>
-
+        <!-- Join by Code -->
         <div class="join-room-row">
           <input type="text" id="mc-room-code" class="mc-input code-input" placeholder="КОД МИРА (MC...)">
           <button class="btn-mc-primary" id="btn-mc-join-online">🔗 ВОЙТИ</button>
         </div>
 
-        <button class="btn-mc-secondary" id="btn-mc-single">🕹 ОДИНОЧНЫЙ МИР (ОФФЛАЙН)</button>
+        <div class="server-list-header">
+          <span>ОТКРЫТЫЕ СЕРВЕРЫ:</span>
+          <button class="btn-mc btn-sm" id="btn-refresh-servers">🔄 ОБНОВИТЬ</button>
+        </div>
+
+        <div class="worlds-scroll-list" id="public-servers-list">
+          <!-- Public Firestore Servers -->
+        </div>
       </div>
+
     </div>
   </div>
 
@@ -62,8 +87,7 @@
         <div class="hud-room-badge hidden" id="hud-mc-room-tag" title="Нажмите, чтобы скопировать код другу">КОМНАТА: MC...</div>
       </div>
       <div class="hud-save-group">
-        <button class="btn-mc" id="btn-save-world" title="Сохранить мир в браузере">💾 СОХРАНИТЬ</button>
-        <button class="btn-mc" id="btn-export-world" title="Скачать файл мира">📥 СКАЧАТЬ МИР</button>
+        <button class="btn-mc" id="btn-save-world" title="Сохранить мир на устройстве">💾 СОХРАНИТЬ</button>
       </div>
     </div>
 
@@ -92,7 +116,7 @@
 
       <div class="hotbar-container">
         <div class="hotbar-slots" id="hotbar-slots">
-          <!-- 9 Hotbar Slots -->
+          <!-- 9 Hotbar Slots with Pixel Sprites -->
         </div>
       </div>
     </div>
@@ -115,9 +139,18 @@
       <div class="crafting-section">
         <div class="inv-section-title">КРАФТ (РЕЦЕПТЫ)</div>
         <div class="crafting-recipes-list" id="crafting-recipes-list">
-          <!-- Interactive Crafting Recipes -->
+          <!-- Interactive Crafting Recipes with Pixel Sprites -->
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 3. RESPAWN SCREEN MODAL -->
+  <div class="mc-modal" id="modal-respawn">
+    <div class="respawn-panel">
+      <div class="death-title">ВЫ ПОГИБЛИ!</div>
+      <div class="death-sub">Ваше приключение не заканчивается здесь...</div>
+      <button class="btn-mc-primary btn-lg" id="btn-respawn">🔄 ВОЗРОДИТЬСЯ (RESPAWN)</button>
     </div>
   </div>
 

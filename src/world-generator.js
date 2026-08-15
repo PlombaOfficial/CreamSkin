@@ -1,15 +1,18 @@
 /**
- * 2D MINECRAFT // PROCEDURAL WORLD GENERATOR (WITH DETERMINISTIC SEED SUPPORT)
+ * 2D MINECRAFT // MULTI-DIMENSION WORLD GENERATOR (OVERWORLD & THE NETHER)
+ * Brighter ambient lighting, procedural caverns, deterministic seeds.
  */
 
 import { BLOCKS } from "./items-recipes.js";
 
 export class WorldGenerator {
-  constructor(width = 450, height = 150, seed = 12345) {
+  constructor(width = 450, height = 150, seed = 12345, dimension = 'overworld') {
     this.width = width;
     this.height = height;
     this.surfaceLevel = 50;
     this.seed = seed;
+    this.dimension = dimension; // 'overworld' | 'nether'
+
     this.blocks = new Uint8Array(width * height);
     this.backgroundWalls = new Uint8Array(width * height);
     this.lightMap = new Float32Array(width * height);
@@ -18,7 +21,6 @@ export class WorldGenerator {
     this.generate();
   }
 
-  // Pseudo-random based on seed
   pseudoRandom(offset = 0) {
     const s = Math.sin(this.seed + offset) * 10000;
     return s - Math.floor(s);
@@ -40,7 +42,7 @@ export class WorldGenerator {
     if (idx === -1) return;
     this.blocks[idx] = blockId;
 
-    if (blockId === BLOCKS.TORCH) {
+    if (blockId === BLOCKS.TORCH || blockId === BLOCKS.GLOWSTONE) {
       this.torches.add(`${x},${y}`);
     } else {
       this.torches.delete(`${x},${y}`);
@@ -48,6 +50,14 @@ export class WorldGenerator {
   }
 
   generate() {
+    if (this.dimension === 'nether') {
+      this.generateNether();
+    } else {
+      this.generateOverworld();
+    }
+  }
+
+  generateOverworld() {
     // 1. Surface Heightmap
     const heightMap = new Int32Array(this.width);
     for (let x = 0; x < this.width; x++) {
@@ -95,7 +105,7 @@ export class WorldGenerator {
       }
     }
 
-    // 4. Generate Ore Clusters
+    // 4. Ore Clusters
     this.generateOreVeins(BLOCKS.COAL_ORE, 8, 45, 120, 0.025);
     this.generateOreVeins(BLOCKS.COPPER_ORE, 6, 55, 110, 0.02);
     this.generateOreVeins(BLOCKS.IRON_ORE, 5, 65, 135, 0.018);
@@ -103,7 +113,7 @@ export class WorldGenerator {
     this.generateOreVeins(BLOCKS.DIAMOND_ORE, 3, 115, 148, 0.008);
     this.generateOreVeins(BLOCKS.ANCIENT_DEBRIS, 2, 140, 148, 0.004);
 
-    // 5. Generate Trees
+    // 5. Trees
     for (let x = 6; x < this.width - 6; x += 5) {
       if (this.pseudoRandom(x * 17) > 0.4) {
         const surfaceY = heightMap[x];
@@ -112,6 +122,42 @@ export class WorldGenerator {
         }
       }
     }
+  }
+
+  generateNether() {
+    // Ceiling & Floor Bedrock, Netherrack caverns, Lava sea
+    for (let x = 0; x < this.width; x++) {
+      for (let y = 0; y < this.height; y++) {
+        const idx = this.getIndex(x, y);
+        if (y <= 2 || y >= this.height - 3) {
+          this.blocks[idx] = BLOCKS.BEDROCK;
+        } else if (y > 110) {
+          this.blocks[idx] = BLOCKS.LAVA; // Lava ocean
+        } else {
+          const n = Math.sin(x * 0.1) * Math.cos(y * 0.1) + Math.sin(x * 0.05 + y * 0.05);
+          if (n > 0.3) {
+            this.blocks[idx] = BLOCKS.AIR;
+          } else {
+            this.blocks[idx] = BLOCKS.NETHERRACK;
+          }
+        }
+      }
+    }
+
+    // Glowstone stalactites
+    for (let x = 4; x < this.width - 4; x += 8) {
+      for (let y = 6; y < 24; y++) {
+        if (this.getBlock(x, y) === BLOCKS.NETHERRACK && this.getBlock(x, y + 1) === BLOCKS.AIR) {
+          this.setBlock(x, y + 1, BLOCKS.GLOWSTONE);
+          this.setBlock(x, y + 2, BLOCKS.GLOWSTONE);
+          this.torches.add(`${x},${y + 1}`);
+          break;
+        }
+      }
+    }
+
+    // Ancient Debris in Nether
+    this.generateOreVeins(BLOCKS.ANCIENT_DEBRIS, 3, 80, 140, 0.015);
   }
 
   generateOreVeins(oreType, clusterSize, minY, maxY, density) {
@@ -123,7 +169,8 @@ export class WorldGenerator {
       for (let c = 0; c < clusterSize; c++) {
         const ox = rx + Math.floor((this.pseudoRandom(i + c) - 0.5) * 3);
         const oy = ry + Math.floor((this.pseudoRandom(i * 2 + c) - 0.5) * 3);
-        if (this.getBlock(ox, oy) === BLOCKS.STONE) {
+        const cur = this.getBlock(ox, oy);
+        if (cur === BLOCKS.STONE || cur === BLOCKS.NETHERRACK) {
           this.setBlock(ox, oy, oreType);
         }
       }
@@ -132,10 +179,7 @@ export class WorldGenerator {
 
   growTree(baseX, baseY) {
     const height = 4 + Math.floor(this.pseudoRandom(baseX) * 3);
-
-    for (let y = 0; y < height; y++) {
-      this.setBlock(baseX, baseY - y, BLOCKS.OAK_LOG);
-    }
+    for (let y = 0; y < height; y++) this.setBlock(baseX, baseY - y, BLOCKS.OAK_LOG);
 
     const topY = baseY - height;
     for (let lx = -2; lx <= 2; lx++) {
@@ -150,6 +194,7 @@ export class WorldGenerator {
     }
   }
 
+  // 💡 BRIGHTER AMBIENT LIGHTING (Min 0.38 instead of 0.08)
   computeLighting(sunIntensity = 1.0, viewMinX, viewMaxX, viewMinY, viewMaxY) {
     const startX = Math.max(0, viewMinX - 10);
     const endX = Math.min(this.width - 1, viewMaxX + 10);
@@ -162,8 +207,8 @@ export class WorldGenerator {
         const idx = this.getIndex(x, y);
         const b = this.blocks[idx];
 
-        if (b !== BLOCKS.AIR && b !== BLOCKS.TORCH && b !== BLOCKS.GLASS && b !== BLOCKS.LADDER) {
-          light = Math.max(0.08, light * 0.65);
+        if (b !== BLOCKS.AIR && b !== BLOCKS.TORCH && b !== BLOCKS.GLOWSTONE && b !== BLOCKS.GLASS && b !== BLOCKS.LADDER) {
+          light = Math.max(0.40, light * 0.75); // Bright cave ambient minimum!
         }
 
         this.lightMap[idx] = light;
@@ -173,7 +218,7 @@ export class WorldGenerator {
     this.torches.forEach(key => {
       const [tx, ty] = key.split(',').map(Number);
       if (tx >= startX && tx <= endX && ty >= startY && ty <= endY) {
-        this.propagateTorchLight(tx, ty, 1.0, 6);
+        this.propagateTorchLight(tx, ty, 1.0, 7);
       }
     });
   }
