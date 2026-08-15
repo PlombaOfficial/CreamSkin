@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>THE BACKROOMS // DIRECT P2P MULTIPLAYER</title>
+  <meta name="description" content="Многопользовательский 3D хоррор в Закулисье (The Backrooms) с прямым соединением компьютер-компьютер (P2P WebRTC), фонариком, монстрами и процедурным звуком.">
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- PeerJS for Direct Browser-to-Browser P2P WebRTC connection -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- 3D WebGL Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- VHS Scanlines & CRT Filter -->
+  <div class="vhs-overlay" aria-hidden="true"></div>
+
+  <!-- CCTV REC Badge -->
+  <div class="vhs-rec-badge">
+    <div class="rec-dot"></div>
+    <span>REC 00:04:12 [P2P DIRECT LINK]</span>
+  </div>
+
+  <!-- 1. MULTIPLAYER LOBBY SCREEN -->
+  <div class="lobby-screen" id="screen-lobby">
+    <h1 class="backrooms-title">THE BACKROOMS</h1>
+    <p class="backrooms-sub">ANALOG HORROR // DIRECT P2P EXPEDITION</p>
+
+    <div class="lobby-card">
+      <div class="lobby-input-group">
+        <label class="lobby-label" for="input-player-name">Позывной Исследователя:</label>
+        <input class="lobby-input" id="input-player-name" type="text" value="Оператор-704" maxlength="15">
+      </div>
+
+      <button class="btn-lobby-action" id="btn-create-room">⚡ СОЗДАТЬ КОМНАТУ (ХОСТ)</button>
+
+      <div class="lobby-divider">— ИЛИ ВВЕДИТЕ КОД ДРУГА —</div>
+
+      <div class="lobby-input-group">
+        <input class="lobby-input" id="input-room-code" type="text" placeholder="КОД КОМНАТЫ (НАПР. BCK4092)" maxlength="12">
+      </div>
+
+      <button class="btn-lobby-action btn-lobby-join" id="btn-join-room">🔗 ВОЙТИ ПО КОДУ</button>
+    </div>
+  </div>
+
+  <!-- 2. IN-GAME HUD -->
+  <div class="hud-overlay hidden" id="hud-game">
+    <div class="hud-top-bar">
+      <div class="hud-level-info">
+        <div class="hud-level-title" id="hud-level-title">УРОВЕНЬ 0: «THE LOBBY»</div>
+        <div class="hud-objective">ЦЕЛЬ: НАЙДИТЕ ВЫХОДНОЙ ЛИФТ И ИЗБЕГАЙТЕ СУЩНОСТЕЙ</div>
+      </div>
+
+      <div class="hud-room-tag">
+        <span>КОМНАТА: </span><strong id="hud-room-code">BCK0000</strong>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div class="chat-container">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-container hidden" id="chat-input-container">
+        <input class="chat-input" id="chat-input" type="text" placeholder="Сообщение... [Enter для отправки]">
+      </div>
+    </div>
+
+    <!-- Bottom HUD Meters -->
+    <div class="hud-bottom-bar">
+      <div class="hud-meters-group">
+        <div class="meter-row">
+          <span>ФОНАРЬ [F]</span>
+          <div class="meter-track"><div class="meter-fill fill-battery" id="fill-battery"></div></div>
+        </div>
+        <div class="meter-row">
+          <span>РАССУДОК</span>
+          <div class="meter-track"><div class="meter-fill fill-sanity" id="fill-sanity"></div></div>
+        </div>
+        <div class="meter-row">
+          <span>ВЫНОСЛИВОСТЬ</span>
+          <div class="meter-track"><div class="meter-fill fill-stamina" id="fill-stamina"></div></div>
+        </div>
+      </div>
+
+      <!-- Inventory -->
+      <div class="hud-inventory-group">
+        <div class="inv-slot">
+          <span class="inv-num">[1]</span>
+          <span>💧 Вода: <strong id="count-water" style="color: #ffea55;">1</strong></span>
+        </div>
+        <div class="inv-slot">
+          <span class="inv-num">[2]</span>
+          <span>🔋 Батареи: <strong id="count-batteries" style="color: #00f0ff;">1</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Banner -->
+  <div class="game-notification" id="game-notification"></div>
+
+  <!-- 3. JUMPSCARE / DEATH MODAL -->
+  <div class="modal-jumpscare" id="modal-jumpscare">
+    <h2 class="death-title">ВЫ ПОТЕРЯЛИ РАССУДОК</h2>
+    <p style="font-size: 24px; color: #888;">Сущность настигла вас в темноте...</p>
+    <button class="btn-lobby-action" id="btn-respawn" style="margin-top: 20px;">ВОЗРОДИТЬСЯ</button>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script type="module" src="src/app.js"></script>
+
+</body>
+</html>
