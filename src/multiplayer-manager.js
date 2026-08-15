@@ -1,26 +1,42 @@
 /**
- * THE BACKROOMS // DIRECT PEER-TO-PEER (P2P WebRTC) MULTIPLAYER ENGINE
- * 100% Direct computer-to-computer connection via WebRTC DataChannels (PeerJS).
- * Zero server databases, zero lag, 60fps direct UDP synchronization!
+ * THE BACKROOMS // ROBUST P2P WebRTC MULTIPLAYER ENGINE
+ * Includes Google & Cloudflare STUN servers, automatic code formatting,
+ * connection timeout handling, and friendly Russian error explanations.
  */
 
 export class MultiplayerManager {
   constructor(scene) {
     this.scene = scene;
     this.peer = null;
-    this.conn = null; // Active WebRTC DataConnection
-    this.connections = new Map(); // For host: peerId -> DataConnection
+    this.conn = null;
+    this.connections = new Map();
     
     this.isHost = false;
     this.roomId = null;
-    this.playerId = 'player_' + Math.random().toString(36).substring(2, 7);
+    this.playerId = 'p_' + Math.random().toString(36).substring(2, 7);
     this.playerName = 'Оператор-' + Math.floor(100 + Math.random() * 900);
 
-    // Remote Players 3D Avatars
-    this.remotePlayers = new Map(); // peerId -> { mesh, spotLight, targetPos, targetYaw }
-    
+    this.remotePlayers = new Map();
     this.lastBroadcastTime = 0;
-    this.ping = 0;
+  }
+
+  // Reliable Public STUN Configuration
+  getPeerOptions() {
+    return {
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun.cloudflare.com:3478' }
+        ]
+      }
+    };
+  }
+
+  formatCode(code) {
+    return (code || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   }
 
   generateRoomCode() {
@@ -34,10 +50,11 @@ export class MultiplayerManager {
       this.isHost = true;
       this.roomId = this.generateRoomCode();
 
-      // Initialize PeerJS host with custom room ID
-      this.peer = new window.Peer(this.roomId, {
-        debug: 1
-      });
+      try {
+        if (this.peer) this.peer.destroy();
+      } catch (e) {}
+
+      this.peer = new window.Peer(this.roomId, this.getPeerOptions());
 
       this.peer.on('open', (id) => {
         this.roomId = id;
@@ -50,40 +67,91 @@ export class MultiplayerManager {
 
       this.peer.on('error', (err) => {
         if (err.type === 'unavailable-id') {
-          // Retry with new code if collision
+          // If code is taken, generate new one
           this.roomId = this.generateRoomCode();
           this.createRoom(playerName).then(resolve).catch(reject);
         } else {
-          reject(err);
+          const msg = this.translateError(err);
+          reject(new Error(msg));
         }
       });
     });
   }
 
-  // 2. CLIENT: Connects directly to Friend's computer
+  // 2. CLIENT: Connects to Host's room
   joinRoom(roomId, playerName) {
     return new Promise((resolve, reject) => {
       this.playerName = playerName || this.playerName;
       this.isHost = false;
-      this.roomId = roomId.trim().toUpperCase();
+      const cleanCode = this.formatCode(roomId);
 
-      this.peer = new window.Peer();
+      if (!cleanCode) {
+        return reject(new Error('Введите код комнаты (например, BCK4092)!'));
+      }
+
+      this.roomId = cleanCode;
+
+      try {
+        if (this.peer) this.peer.destroy();
+      } catch (e) {}
+
+      this.peer = new window.Peer(this.getPeerOptions());
+
+      let hasResolved = false;
+
+      // 10 second timeout safety
+      const timeoutTimer = setTimeout(() => {
+        if (!hasResolved) {
+          hasResolved = true;
+          reject(new Error('Комната ' + this.roomId + ' не найдена. Убедитесь, что ваш друг нажал «СОЗДАТЬ КОМНАТУ» и находится в игре!'));
+        }
+      }, 10000);
 
       this.peer.on('open', () => {
         const conn = this.peer.connect(this.roomId, {
-          reliable: false // Ultra-low latency UDP mode
+          reliable: true
         });
 
         conn.on('open', () => {
-          this.setupConnection(conn);
-          resolve(this.roomId);
+          if (!hasResolved) {
+            hasResolved = true;
+            clearTimeout(timeoutTimer);
+            this.setupConnection(conn);
+            resolve(this.roomId);
+          }
         });
 
-        conn.on('error', (err) => reject(err));
+        conn.on('error', (err) => {
+          if (!hasResolved) {
+            hasResolved = true;
+            clearTimeout(timeoutTimer);
+            reject(new Error(this.translateError(err)));
+          }
+        });
       });
 
-      this.peer.on('error', (err) => reject(err));
+      this.peer.on('error', (err) => {
+        if (!hasResolved) {
+          hasResolved = true;
+          clearTimeout(timeoutTimer);
+          reject(new Error(this.translateError(err)));
+        }
+      });
     });
+  }
+
+  translateError(err) {
+    if (!err) return 'Неизвестная ошибка сети.';
+    if (err.type === 'peer-unavailable') {
+      return `Комната ${this.roomId} не найдена! Убедитесь, что хост уже нажал «Создать комнату» и находится в игре.`;
+    }
+    if (err.type === 'network') {
+      return 'Ошибка сети. Проверьте подключение к интернету.';
+    }
+    if (err.type === 'browser-incompatible') {
+      return 'Ваш браузер не поддерживает WebRTC. Попробуйте Chrome или Edge.';
+    }
+    return err.message || err.type || 'Не удалось подключиться к комнате.';
   }
 
   setupConnection(conn) {
@@ -114,11 +182,12 @@ export class MultiplayerManager {
   }
 
   handleIncomingData(senderId, packet) {
+    if (!packet) return;
+
     if (packet.type === 'handshake') {
       this.updateRemotePlayer(senderId, { name: packet.name, x: 6, y: 1.6, z: 6, yaw: 0 });
     } else if (packet.type === 'state') {
       this.updateRemotePlayer(senderId, packet);
-      // If host, forward to other peers
       if (this.isHost) {
         this.broadcastToOthers(senderId, packet);
       }
@@ -144,7 +213,6 @@ export class MultiplayerManager {
     });
   }
 
-  // Broadcasts player position directly to friend's computer 60 times/sec!
   broadcastPlayerState(pos, yaw, pitch, isFlashlightOn, sanity) {
     const packet = {
       type: 'state',
@@ -188,19 +256,15 @@ export class MultiplayerManager {
     }
   }
 
-  // --- 3D HAZMAT AVATARS FOR REMOTE FRIENDS ---
-
   createHazmatAvatar(name) {
     const group = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdfa008, roughness: 0.8 });
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
 
-    // Torso
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.75, 0.35), bodyMat);
     torso.position.y = 0.95;
     group.add(torso);
 
-    // Head with Visor
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), bodyMat);
     head.position.y = 1.55;
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.08), darkMat);
@@ -208,14 +272,12 @@ export class MultiplayerManager {
     head.add(visor);
     group.add(head);
 
-    // Friend's Flashlight beam
     const spotLight = new THREE.SpotLight(0xfffae0, 2.8, 20, Math.PI / 6, 0.5);
     spotLight.position.set(0.2, 1.1, -0.2);
     spotLight.target.position.set(0.2, 1.0, -8);
     group.add(spotLight);
     group.add(spotLight.target);
 
-    // Nametag
     const canvas = document.createElement('canvas');
     canvas.width = 256;
     canvas.height = 64;

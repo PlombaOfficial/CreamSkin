@@ -1,6 +1,6 @@
 /**
  * THE BACKROOMS MULTIPLAYER // MAIN APPLICATION COORDINATOR
- * Ties together Three.js WebGL, Firestore Realtime Networking,
+ * Ties together Three.js WebGL, P2P WebRTC Networking,
  * Audio Engine, AI Entities, Level Transitions, and VHS Horror UI.
  */
 
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Three.js Core Setup
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050504);
-  scene.fog = new THREE.FogExp2(0x0a0907, 0.08); // Dense atmospheric Backrooms fog
+  scene.fog = new THREE.FogExp2(0x0a0907, 0.08);
 
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
   scene.add(camera);
@@ -76,8 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!notifBox) return;
     notifBox.textContent = text;
     notifBox.classList.add('visible');
-    setTimeout(() => notifBox.classList.remove('visible'), 2500);
+    setTimeout(() => notifBox.classList.remove('visible'), 3000);
   };
+
+  // Click room code to copy
+  const roomTagBox = document.querySelector('.hud-room-tag');
+  if (roomTagBox) {
+    roomTagBox.style.cursor = 'pointer';
+    roomTagBox.title = 'Нажмите, чтобы скопировать код комнаты';
+    roomTagBox.addEventListener('click', () => {
+      const code = roomCodeDisplay.textContent;
+      if (code && code !== 'BCK0000') {
+        navigator.clipboard.writeText(code).then(() => {
+          window.showGameNotification(`Код ${code} скопирован в буфер!`);
+        }).catch(() => {});
+      }
+    });
+  }
 
   // Inventory UI Updater
   window.updateInventoryUI = (inv) => {
@@ -108,13 +123,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = inputPlayerName.value.trim() || 'Оператор';
     try {
       btnCreateRoom.disabled = true;
-      btnCreateRoom.textContent = 'Создание...';
+      btnCreateRoom.textContent = '⏳ Создание комнаты...';
       const code = await network.createRoom(name);
       startGameSession(code);
     } catch (err) {
-      alert('Ошибка подключения: ' + err.message);
+      alert('Ошибка создания комнаты: ' + err.message);
       btnCreateRoom.disabled = false;
-      btnCreateRoom.textContent = 'СОЗДАТЬ КОМНАТУ';
+      btnCreateRoom.textContent = '⚡ СОЗДАТЬ КОМНАТУ (ХОСТ)';
     }
   });
 
@@ -122,18 +137,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = inputPlayerName.value.trim() || 'Оператор';
     const code = inputRoomCode.value.trim();
     if (!code) {
-      alert('Введите 6-значный код комнаты (например, BCK-409)!');
+      alert('Введите код комнаты (например, BCK4092)!');
       return;
     }
     try {
       btnJoinRoom.disabled = true;
-      btnJoinRoom.textContent = 'Подключение...';
+      btnJoinRoom.textContent = '⏳ Поиск хоста и подключение...';
       const joinedCode = await network.joinRoom(code, name);
       startGameSession(joinedCode);
     } catch (err) {
-      alert('Ошибка входа: ' + err.message);
+      alert(err.message);
       btnJoinRoom.disabled = false;
-      btnJoinRoom.textContent = 'ВОЙТИ ПО КОДУ';
+      btnJoinRoom.textContent = '🔗 ВОЙТИ ПО КОДУ';
     }
   });
 
@@ -204,26 +219,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const delta = Math.min(clock.getDelta(), 0.08);
 
     if (!screenLobby.classList.contains('hidden')) {
-      // Rotate camera in background preview when in menu
       camera.rotation.y += delta * 0.1;
       renderer.render(scene, camera);
       return;
     }
 
-    // Update Player Controller
     player.update(delta);
 
-    // Update Monster AI
     smiler.update(delta, player.position, player.isFlashlightOn, (damage) => {
       player.sanity = Math.max(0, player.sanity - damage);
       if (player.sanity <= 0) triggerJumpscare();
     });
 
-    // Update World & Network Replication
     world.update(delta);
     network.update(delta);
 
-    // Broadcast Coordinates to Firestore
     network.broadcastPlayerState(
       player.position,
       player.euler.y,
@@ -232,12 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
       player.sanity
     );
 
-    // Update HUD Meters
     if (fillBattery) fillBattery.style.width = `${player.battery}%`;
     if (fillSanity) fillSanity.style.width = `${player.sanity}%`;
     if (fillStamina) fillStamina.style.width = `${player.stamina}%`;
 
-    // Render Scene
     renderer.render(scene, camera);
   }
 
