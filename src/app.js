@@ -1,262 +1,670 @@
 /**
- * THE BACKROOMS MULTIPLAYER // MAIN APPLICATION COORDINATOR
- * Ties together Three.js WebGL, P2P WebRTC Networking,
- * Audio Engine, AI Entities, Level Transitions, and VHS Horror UI.
+ * AMONG US // CYBER STATION PRIMARY GAME ENGINE (WITH FULL CHAT)
+ * Coordinates Canvas 2D rendering, Player Movement, Impostor Kills/Vents,
+ * Tasks, Bot AI, Emergency Meetings with Live Chat, and Speech Bubbles.
  */
 
-import { BackroomsTextures } from "./textures.js?v=3.0";
-import { BackroomsAudioEngine } from "./audio-engine.js?v=3.0";
-import { BackroomsWorld } from "./backrooms-world.js?v=3.0";
-import { BackroomsEntity } from "./entity-ai.js?v=3.0";
-import { PlayerController } from "./player-controller.js?v=3.0";
-import { MultiplayerManager } from "./multiplayer-manager.js?v=3.0";
+import { STATION_MAP } from "./station-map.js";
+import { AmongUsAudioEngine } from "./audio-engine.js";
+import { BotManager } from "./bot-ai.js";
+import { TaskManager } from "./tasks.js";
 
 document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('game-canvas');
+  const ctx = canvas.getContext('2d');
 
-  // 1. Audio Engine
-  const audio = new BackroomsAudioEngine();
-  window.bcAudio = audio;
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
 
-  // 2. Three.js Core Setup
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050504);
-  scene.fog = new THREE.FogExp2(0x0a0907, 0.08);
+  // 1. Audio, Bot, and Task Engines
+  const audio = new AmongUsAudioEngine();
+  const taskManager = new TaskManager(audio);
+  const botManager = new BotManager(STATION_MAP, audio);
 
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
-  scene.add(camera);
-
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: false,
-    powerPreference: 'high-performance'
-  });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-
-  // 3. Textures, World, Entity & Controller
-  const textures = new BackroomsTextures();
-  const world = new BackroomsWorld(scene, textures);
-  const player = new PlayerController(camera, scene, world);
-  const smiler = new BackroomsEntity(scene, world, 'smiler');
-  const network = new MultiplayerManager(scene);
-
-  window.world = world;
-  window.player = player;
-  window.network = network;
-
-  // 4. UI Elements
-  const screenLobby = document.getElementById('screen-lobby');
-  const hudGame = document.getElementById('hud-game');
-  const inputPlayerName = document.getElementById('input-player-name');
-  const inputRoomCode = document.getElementById('input-room-code');
-  const btnCreateRoom = document.getElementById('btn-create-room');
-  const btnJoinRoom = document.getElementById('btn-join-room');
-  const roomCodeDisplay = document.getElementById('hud-room-code');
-  const levelTitleDisplay = document.getElementById('hud-level-title');
-
-  // HUD Meters
-  const fillBattery = document.getElementById('fill-battery');
-  const fillSanity = document.getElementById('fill-sanity');
-  const fillStamina = document.getElementById('fill-stamina');
-  const countWater = document.getElementById('count-water');
-  const countBatteries = document.getElementById('count-batteries');
-  const notifBox = document.getElementById('game-notification');
-  const modalJumpscare = document.getElementById('modal-jumpscare');
-
-  // Chat Elements
-  const chatBox = document.getElementById('chat-messages');
-  const chatInputContainer = document.getElementById('chat-input-container');
-  const chatInput = document.getElementById('chat-input');
-
-  // Notification Helper
-  window.showGameNotification = (text) => {
-    if (!notifBox) return;
-    notifBox.textContent = text;
-    notifBox.classList.add('visible');
-    setTimeout(() => notifBox.classList.remove('visible'), 3000);
+  // 2. Player State
+  const player = {
+    x: 1225,
+    y: 460,
+    radius: 24,
+    speed: 4.8,
+    color: '#c51111',
+    name: 'Вы (Красный)',
+    isImpostor: false,
+    isAlive: true,
+    inVent: false,
+    currentVentIdx: 0,
+    killCooldown: 10.0,
+    completedTasks: 0,
+    totalTasks: 4,
+    speechBubble: null,
+    speechTimer: 0
   };
 
-  // Click room code to copy
-  const roomTagBox = document.querySelector('.hud-room-tag');
-  if (roomTagBox) {
-    roomTagBox.style.cursor = 'pointer';
-    roomTagBox.title = 'Нажмите, чтобы скопировать код комнаты';
-    roomTagBox.addEventListener('click', () => {
-      const code = roomCodeDisplay.textContent;
-      if (code && code !== 'BCK0000') {
-        navigator.clipboard.writeText(code).then(() => {
-          window.showGameNotification(`Код ${code} скопирован в буфер!`);
-        }).catch(() => {});
+  // Game Status
+  let gameState = 'ROLE_INTRO';
+  let meetingTimer = 30;
+  let meetingInterval = null;
+  let votes = {};
+  let hasPlayerVoted = false;
+
+  // Keyboard State
+  const keys = { w: false, a: false, s: false, d: false };
+
+  window.addEventListener('keydown', (e) => {
+    // If typing in chat, don't trigger game hotkeys
+    if (document.activeElement.tagName === 'INPUT') return;
+
+    if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
+    if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
+    if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
+    if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
+
+    if (e.code === 'KeyE') handleUseOrVent();
+    if (e.code === 'KeyQ') handleKill();
+    if (e.code === 'KeyR') handleReport();
+    if (e.code === 'KeyT') openHudChat();
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = false;
+    if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
+    if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
+    if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
+  });
+
+  // UI Buttons
+  const btnUse = document.getElementById('btn-action-use');
+  const btnKill = document.getElementById('btn-action-kill');
+  const btnVent = document.getElementById('btn-action-vent');
+  const btnReport = document.getElementById('btn-action-report');
+
+  btnUse.addEventListener('click', handleUseOrVent);
+  btnKill.addEventListener('click', handleKill);
+  btnVent.addEventListener('click', handleVentToggle);
+  btnReport.addEventListener('click', handleReport);
+
+  // Role Selection
+  document.getElementById('btn-select-crew').addEventListener('click', () => startGame(false));
+  document.getElementById('btn-select-impostor').addEventListener('click', () => startGame(true));
+
+  function startGame(asImpostor) {
+    audio.init();
+    player.isImpostor = asImpostor;
+    player.isAlive = true;
+    player.x = 1225;
+    player.y = 460;
+    player.inVent = false;
+    player.killCooldown = 12.0;
+
+    botManager.initBots(7);
+    if (!asImpostor) {
+      const impBot = botManager.bots[Math.floor(Math.random() * botManager.bots.length)];
+      impBot.isImpostor = true;
+    }
+
+    document.getElementById('screen-role-select').classList.add('hidden');
+    const introModal = document.getElementById('modal-role-intro');
+    const roleText = document.getElementById('intro-role-name');
+    const roleDesc = document.getElementById('intro-role-desc');
+
+    if (asImpostor) {
+      roleText.textContent = 'ПРЕДАТЕЛЬ (IMPOSTOR)';
+      roleText.style.color = '#ff3333';
+      roleDesc.textContent = 'Устраняйте членов экипажа, используйте вентиляцию и не дайте завершить задания!';
+      btnKill.classList.remove('hidden');
+      btnVent.classList.remove('hidden');
+    } else {
+      roleText.textContent = 'ЧЛЕН ЭКИПАЖА (CREWMATE)';
+      roleText.style.color = '#00f0ff';
+      roleDesc.textContent = 'Выполняйте задания на станции и вычислите предателя на собрании!';
+      btnKill.classList.add('hidden');
+      btnVent.classList.add('hidden');
+    }
+
+    introModal.classList.add('active');
+    setTimeout(() => {
+      introModal.classList.remove('active');
+      gameState = 'PLAYING';
+    }, 2800);
+  }
+
+  // --- ACTIONS ---
+
+  function handleUseOrVent() {
+    if (gameState !== 'PLAYING' || !player.isAlive) return;
+
+    const distToTable = Math.hypot(player.x - STATION_MAP.emergencyTable.x, player.y - STATION_MAP.emergencyTable.y);
+    if (distToTable < 70) {
+      startEmergencyMeeting('emergency', { name: player.name });
+      return;
+    }
+
+    for (let i = 0; i < STATION_MAP.tasks.length; i++) {
+      const t = STATION_MAP.tasks[i];
+      if (Math.hypot(player.x - t.x, player.y - t.y) < 60) {
+        taskManager.openTask(t, () => {
+          player.completedTasks++;
+          updateTaskProgress();
+        });
+        return;
+      }
+    }
+  }
+
+  function handleKill() {
+    if (gameState !== 'PLAYING' || !player.isImpostor || player.killCooldown > 0 || !player.isAlive) return;
+
+    let nearestBot = null;
+    let minDist = 80;
+
+    botManager.bots.forEach(bot => {
+      if (bot.isAlive) {
+        const dist = Math.hypot(player.x - bot.x, player.y - bot.y);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestBot = bot;
+        }
       }
     });
+
+    if (nearestBot) {
+      nearestBot.isAlive = false;
+      player.killCooldown = 22.0;
+      botManager.deadBodies.push({
+        x: nearestBot.x,
+        y: nearestBot.y,
+        color: nearestBot.color,
+        name: nearestBot.name,
+        reported: false
+      });
+      audio.playKill();
+      checkWinCondition();
+    }
   }
 
-  // Inventory UI Updater
-  window.updateInventoryUI = (inv) => {
-    if (countWater) countWater.textContent = inv.almondWater;
-    if (countBatteries) countBatteries.textContent = inv.batteries;
-  };
-  window.updateInventoryUI(player.inventory);
+  function handleVentToggle() {
+    if (gameState !== 'PLAYING' || !player.isImpostor || !player.isAlive) return;
 
-  // Chat Message Receiver
-  window.onChatMessageReceived = (msg) => {
-    if (!chatBox) return;
-    const line = document.createElement('div');
-    line.className = 'chat-line';
-    line.innerHTML = `<span class="chat-sender">${msg.sender}:</span> <span class="chat-text">${msg.text}</span>`;
-    chatBox.appendChild(line);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  };
-
-  // Level Names
-  const levelNames = [
-    'УРОВЕНЬ 0: «THE LOBBY»',
-    'УРОВЕНЬ 1: «HABITABLE ZONE»',
-    'УРОВЕНЬ 2: «PIPE DREAMS»'
-  ];
-
-  // 5. Lobby Event Listeners
-  btnCreateRoom.addEventListener('click', async () => {
-    const name = inputPlayerName.value.trim() || 'Оператор';
-    try {
-      btnCreateRoom.disabled = true;
-      btnCreateRoom.textContent = '⏳ Создание комнаты...';
-      const code = await network.createRoom(name);
-      startGameSession(code);
-    } catch (err) {
-      alert('Ошибка создания комнаты: ' + err.message);
-      btnCreateRoom.disabled = false;
-      btnCreateRoom.textContent = '⚡ СОЗДАТЬ КОМНАТУ (ХОСТ)';
-    }
-  });
-
-  btnJoinRoom.addEventListener('click', async () => {
-    const name = inputPlayerName.value.trim() || 'Оператор';
-    const code = inputRoomCode.value.trim();
-    if (!code) {
-      alert('Введите код комнаты (например, BCK4092)!');
-      return;
-    }
-    try {
-      btnJoinRoom.disabled = true;
-      btnJoinRoom.textContent = '⏳ Поиск хоста и подключение...';
-      const joinedCode = await network.joinRoom(code, name);
-      startGameSession(joinedCode);
-    } catch (err) {
-      alert(err.message);
-      btnJoinRoom.disabled = false;
-      btnJoinRoom.textContent = '🔗 ВОЙТИ ПО КОДУ';
-    }
-  });
-
-  function startGameSession(code) {
-    screenLobby.classList.add('hidden');
-    hudGame.classList.remove('hidden');
-    roomCodeDisplay.textContent = code;
-    levelTitleDisplay.textContent = levelNames[world.currentLevel];
-    audio.init();
-    canvas.requestPointerLock();
-  }
-
-  // Elevator Progression
-  window.onElevatorReached = (nextLvl, shouldBroadcast = true) => {
-    if (nextLvl >= 3) {
-      window.showGameNotification('ВЫ ВЫБРАЛИСЬ ИЗ ЗАКУЛИСЬЯ! ПОБЕДА!');
-      return;
-    }
-    audio.playElevatorChime();
-    world.buildLevel(nextLvl);
-    player.position.set(6, 1.6, 6);
-    levelTitleDisplay.textContent = levelNames[nextLvl];
-    window.showGameNotification(`ЛИФТ ПРИБЫЛ: ${levelNames[nextLvl]}`);
-    if (shouldBroadcast && network.isHost) {
-      network.syncElevatorLevel(nextLvl);
-    }
-  };
-
-  // 6. In-Game Chat Handling
-  window.addEventListener('keydown', (e) => {
-    if (e.code === 'KeyT' || e.code === 'Enter') {
-      if (document.activeElement !== chatInput && player.isLocked) {
-        document.exitPointerLock();
-        chatInputContainer.classList.remove('hidden');
-        chatInput.focus();
-        e.preventDefault();
-      } else if (document.activeElement === chatInput && e.code === 'Enter') {
-        const text = chatInput.value.trim();
-        if (text) {
-          network.sendChatMessage(text);
-          chatInput.value = '';
+    if (!player.inVent) {
+      let nearestVentIdx = -1;
+      let minDist = 70;
+      STATION_MAP.vents.forEach((v, idx) => {
+        const dist = Math.hypot(player.x - v.x, player.y - v.y);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestVentIdx = idx;
         }
-        chatInputContainer.classList.add('hidden');
-        canvas.requestPointerLock();
+      });
+
+      if (nearestVentIdx !== -1) {
+        player.inVent = true;
+        player.currentVentIdx = nearestVentIdx;
+        const v = STATION_MAP.vents[nearestVentIdx];
+        player.x = v.x;
+        player.y = v.y;
+        audio.playVent();
+      }
+    } else {
+      const curVent = STATION_MAP.vents[player.currentVentIdx];
+      const nextVentId = curVent.connectsTo[0];
+      const nextVentIdx = STATION_MAP.vents.findIndex(v => v.id === nextVentId);
+
+      if (nextVentIdx !== -1) {
+        player.currentVentIdx = nextVentIdx;
+        const nv = STATION_MAP.vents[nextVentIdx];
+        player.x = nv.x;
+        player.y = nv.y;
+      }
+      player.inVent = false;
+      audio.playVent();
+    }
+  }
+
+  function handleReport() {
+    if (gameState !== 'PLAYING' || !player.isAlive) return;
+
+    for (let i = 0; i < botManager.deadBodies.length; i++) {
+      const body = botManager.deadBodies[i];
+      if (!body.reported && Math.hypot(player.x - body.x, player.y - body.y) < 90) {
+        body.reported = true;
+        startEmergencyMeeting('body', { name: player.name }, body);
+        return;
       }
     }
-  });
-
-  // Jumpscare Death Handler
-  function triggerJumpscare() {
-    if (modalJumpscare.classList.contains('active')) return;
-    modalJumpscare.classList.add('active');
-    audio.playSmilerRoar();
-    document.exitPointerLock();
   }
 
-  document.getElementById('btn-respawn').addEventListener('click', () => {
-    modalJumpscare.classList.remove('active');
-    player.sanity = 100;
-    player.battery = 100;
-    player.position.set(6, 1.6, 6);
-    canvas.requestPointerLock();
+  // --- EMERGENCY MEETING, LIVE CHAT & VOTING ---
+
+  const chatContainer = document.getElementById('meeting-chat-list');
+  const chatInput = document.getElementById('meeting-chat-input');
+  const btnSendChat = document.getElementById('btn-send-meeting-chat');
+
+  function startEmergencyMeeting(type, reporter, bodyInfo) {
+    if (gameState === 'MEETING') return;
+    gameState = 'MEETING';
+    hasPlayerVoted = false;
+    votes = {};
+
+    if (type === 'body') audio.playReport();
+    else audio.playEmergency();
+
+    const meetingModal = document.getElementById('modal-meeting');
+    const meetingTitle = document.getElementById('meeting-title');
+    const voteGrid = document.getElementById('voting-grid');
+
+    meetingTitle.textContent = type === 'body' 
+      ? `НАЙДЕНО ТЕЛО: ${bodyInfo.name}!` 
+      : `СРОЧНОЕ СОБРАНИЕ (${reporter.name})`;
+    
+    meetingModal.classList.add('active');
+
+    // 1. Initial Bot Discussion
+    chatContainer.innerHTML = '';
+    const discussions = botManager.generateDiscussion(reporter, bodyInfo);
+    discussions.forEach(d => addMeetingChatMessage(d.sender, d.text));
+
+    // 2. Build Voting Cards
+    voteGrid.innerHTML = '';
+    buildVoteCard(voteGrid, 'player', player.name, player.color, player.isAlive);
+    botManager.bots.forEach(bot => {
+      buildVoteCard(voteGrid, bot.id, bot.name, bot.color, bot.isAlive);
+    });
+
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn-skip-vote';
+    skipBtn.textContent = 'ПРОПУСТИТЬ ГОЛОСОВАНИЕ (SKIP)';
+    skipBtn.addEventListener('click', () => castVote('skip'));
+    voteGrid.appendChild(skipBtn);
+
+    // 3. Timer Countdown
+    meetingTimer = 35;
+    const timerEl = document.getElementById('meeting-timer');
+    if (meetingInterval) clearInterval(meetingInterval);
+
+    meetingInterval = setInterval(() => {
+      meetingTimer--;
+      timerEl.textContent = `Голосование: ${meetingTimer}с`;
+      if (meetingTimer <= 0) {
+        clearInterval(meetingInterval);
+        resolveVoting();
+      }
+    }, 1000);
+  }
+
+  function addMeetingChatMessage(sender, text, isPlayer = false) {
+    const row = document.createElement('div');
+    row.className = 'meeting-chat-row';
+    row.innerHTML = `<strong style="color: ${isPlayer ? '#00f0ff' : '#ffdd00'};">${sender}:</strong> <span>${text}</span>`;
+    chatContainer.appendChild(row);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  // Handle Player Sending Chat in Meeting
+  function sendPlayerMeetingChat() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+
+    addMeetingChatMessage(player.name, text, true);
+
+    // Smart Bot AI reaction
+    setTimeout(() => {
+      const reply = botManager.respondToPlayerChat(text);
+      if (reply) {
+        addMeetingChatMessage(reply.sender, reply.text);
+      }
+    }, 1200 + Math.random() * 1000);
+  }
+
+  btnSendChat.addEventListener('click', sendPlayerMeetingChat);
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendPlayerMeetingChat();
   });
 
-  // 7. Main Game Loop (60 FPS)
+  // HUD Chat Input during normal gameplay
+  const hudChatInputContainer = document.getElementById('hud-chat-input-box');
+  const hudChatInput = document.getElementById('hud-chat-input');
+
+  function openHudChat() {
+    if (gameState !== 'PLAYING') return;
+    hudChatInputContainer.classList.remove('hidden');
+    hudChatInput.focus();
+  }
+
+  hudChatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const text = hudChatInput.value.trim();
+      if (text) {
+        player.speechBubble = text;
+        player.speechTimer = 4.0;
+        hudChatInput.value = '';
+      }
+      hudChatInputContainer.classList.add('hidden');
+      canvas.focus();
+    } else if (e.key === 'Escape') {
+      hudChatInputContainer.classList.add('hidden');
+      canvas.focus();
+    }
+  });
+
+  function buildVoteCard(container, id, name, color, isAlive) {
+    const card = document.createElement('div');
+    card.className = `vote-card ${!isAlive ? 'dead' : ''}`;
+    card.innerHTML = `
+      <div class="vote-avatar" style="background: ${color};"></div>
+      <div class="vote-name">${name}</div>
+    `;
+
+    if (isAlive && player.isAlive) {
+      card.addEventListener('click', () => castVote(id));
+    }
+    container.appendChild(card);
+  }
+
+  function castVote(targetId) {
+    if (hasPlayerVoted) return;
+    hasPlayerVoted = true;
+    audio.playVoteTick();
+
+    votes[targetId] = (votes[targetId] || 0) + 1;
+
+    botManager.bots.forEach(b => {
+      if (b.isAlive) {
+        const aliveTargets = ['player', ...botManager.bots.filter(ob => ob.isAlive).map(ob => ob.id), 'skip'];
+        const randomTarget = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
+        votes[randomTarget] = (votes[randomTarget] || 0) + 1;
+      }
+    });
+
+    document.querySelectorAll('.vote-card, .btn-skip-vote').forEach(el => el.classList.add('voted'));
+    setTimeout(resolveVoting, 1500);
+  }
+
+  function resolveVoting() {
+    clearInterval(meetingInterval);
+    document.getElementById('modal-meeting').classList.remove('active');
+
+    let highestTarget = null;
+    let maxVotes = 0;
+    let tie = false;
+
+    Object.entries(votes).forEach(([target, count]) => {
+      if (count > maxVotes) {
+        maxVotes = count;
+        highestTarget = target;
+        tie = false;
+      } else if (count === maxVotes) {
+        tie = true;
+      }
+    });
+
+    showEjectionCinematic(tie || highestTarget === 'skip' ? null : highestTarget);
+  }
+
+  function showEjectionCinematic(ejectedId) {
+    gameState = 'EJECTION';
+    audio.playEjection();
+
+    const ejectionModal = document.getElementById('modal-ejection');
+    const ejectionText = document.getElementById('ejection-text');
+    ejectionModal.classList.add('active');
+
+    if (!ejectedId) {
+      ejectionText.textContent = 'Никто не был выброшен (Ничья или Пропуск).';
+    } else if (ejectedId === 'player') {
+      player.isAlive = false;
+      ejectionText.textContent = `${player.name} был выброшен в космос. ${player.isImpostor ? 'Он был Предателем.' : 'Он НЕ был Предателем.'}`;
+    } else {
+      const ejectedBot = botManager.bots.find(b => b.id === ejectedId);
+      if (ejectedBot) {
+        ejectedBot.isAlive = false;
+        ejectionText.textContent = `${ejectedBot.name} был выброшен в космос. ${ejectedBot.isImpostor ? 'Он был Предателем!' : 'Он НЕ был Предателем.'}`;
+      }
+    }
+
+    setTimeout(() => {
+      ejectionModal.classList.remove('active');
+      checkWinCondition();
+      if (gameState !== 'GAME_OVER') {
+        gameState = 'PLAYING';
+      }
+    }, 3800);
+  }
+
+  function updateTaskProgress() {
+    const totalCrewTasks = 8;
+    const progressPct = Math.min(100, Math.floor((player.completedTasks / totalCrewTasks) * 100));
+    document.getElementById('task-bar-fill').style.width = `${progressPct}%`;
+
+    if (progressPct >= 100) {
+      showGameOver('ПОБЕДА ЭКИПАЖА!', 'Все задания станции успешно выполнены!', '#00ffaa');
+    }
+  }
+
+  function checkWinCondition() {
+    const aliveImpostors = (player.isImpostor && player.isAlive ? 1 : 0) + botManager.bots.filter(b => b.isAlive && b.isImpostor).length;
+    const aliveCrew = (!player.isImpostor && player.isAlive ? 1 : 0) + botManager.bots.filter(b => b.isAlive && !b.isImpostor).length;
+
+    if (aliveImpostors === 0) {
+      showGameOver('ПОБЕДА ЭКИПАЖА!', 'Все предатели обнаружены и выброшены в космос!', '#00ffaa');
+    } else if (aliveImpostors >= aliveCrew) {
+      showGameOver('ПОБЕДА ПРЕДАТЕЛЯ!', 'Предатель захватил космическую станцию!', '#ff3333');
+    }
+  }
+
+  function showGameOver(title, desc, color) {
+    gameState = 'GAME_OVER';
+    const overModal = document.getElementById('modal-game-over');
+    const titleEl = document.getElementById('game-over-title');
+    const descEl = document.getElementById('game-over-desc');
+
+    titleEl.textContent = title;
+    titleEl.style.color = color;
+    descEl.textContent = desc;
+    overModal.classList.add('active');
+  }
+
+  document.getElementById('btn-play-again').addEventListener('click', () => {
+    document.getElementById('modal-game-over').classList.remove('active');
+    document.getElementById('screen-role-select').classList.remove('hidden');
+    gameState = 'ROLE_INTRO';
+  });
+
+  // --- RENDER LOOP ---
+
   const clock = new THREE.Clock();
 
-  function animate() {
-    requestAnimationFrame(animate);
-
+  function loop() {
+    requestAnimationFrame(loop);
     const delta = Math.min(clock.getDelta(), 0.08);
 
-    if (!screenLobby.classList.contains('hidden')) {
-      camera.rotation.y += delta * 0.1;
-      renderer.render(scene, camera);
-      return;
+    if (gameState === 'PLAYING') {
+      if (player.speechTimer > 0) {
+        player.speechTimer -= delta;
+        if (player.speechTimer <= 0) player.speechBubble = null;
+      }
+
+      if (player.isAlive && !player.inVent) {
+        let mx = 0, my = 0;
+        if (keys.w) my -= 1;
+        if (keys.s) my += 1;
+        if (keys.a) mx -= 1;
+        if (keys.d) mx += 1;
+
+        if (mx !== 0 || my !== 0) {
+          const len = Math.hypot(mx, my);
+          player.x = Math.max(80, Math.min(STATION_MAP.width - 80, player.x + (mx / len) * player.speed));
+          player.y = Math.max(80, Math.min(STATION_MAP.height - 80, player.y + (my / len) * player.speed));
+        }
+      }
+
+      if (player.isImpostor) {
+        player.killCooldown = Math.max(0, player.killCooldown - delta);
+        const cdText = document.getElementById('kill-cooldown-text');
+        if (cdText) cdText.textContent = player.killCooldown > 0 ? Math.ceil(player.killCooldown) : 'ГОТОВО';
+        btnKill.classList.toggle('ready', player.killCooldown <= 0);
+      }
+
+      botManager.update(delta, player, (type, reporter, body) => {
+        startEmergencyMeeting(type, reporter, body);
+      });
     }
 
-    player.update(delta);
-
-    smiler.update(delta, player.position, player.isFlashlightOn, (damage) => {
-      player.sanity = Math.max(0, player.sanity - damage);
-      if (player.sanity <= 0) triggerJumpscare();
-    });
-
-    world.update(delta);
-    network.update(delta);
-
-    network.broadcastPlayerState(
-      player.position,
-      player.euler.y,
-      player.euler.x,
-      player.isFlashlightOn,
-      player.sanity
-    );
-
-    if (fillBattery) fillBattery.style.width = `${player.battery}%`;
-    if (fillSanity) fillSanity.style.width = `${player.sanity}%`;
-    if (fillStamina) fillStamina.style.width = `${player.stamina}%`;
-
-    renderer.render(scene, camera);
+    renderCanvas();
   }
 
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+  function renderCanvas() {
+    ctx.fillStyle = '#0a0d14';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  animate();
+    ctx.save();
+    ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
+
+    // 1. Draw Corridors
+    ctx.fillStyle = '#222938';
+    STATION_MAP.corridors.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h));
+
+    // 2. Draw Rooms
+    STATION_MAP.rooms.forEach(r => {
+      ctx.fillStyle = r.color;
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = '#4f627a';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(r.name, r.x + r.w / 2, r.y + r.h / 2);
+    });
+
+    // 3. Draw Emergency Table
+    ctx.fillStyle = '#1c2430';
+    ctx.beginPath();
+    ctx.arc(STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y, STATION_MAP.emergencyTable.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ff3333';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ff2222';
+    ctx.beginPath();
+    ctx.arc(STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y, 16, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Draw Vents
+    STATION_MAP.vents.forEach(v => {
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(v.x - 18, v.y - 12, 36, 24);
+      ctx.strokeStyle = '#555555';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(v.x - 18, v.y - 12, 36, 24);
+    });
+
+    // 5. Draw Task Consoles
+    STATION_MAP.tasks.forEach(t => {
+      ctx.fillStyle = '#ffdd00';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    // 6. Draw Dead Bodies
+    botManager.deadBodies.forEach(b => drawDeadBody(ctx, b.x, b.y, b.color));
+
+    // 7. Draw Bots
+    botManager.bots.forEach(bot => {
+      if (bot.isAlive) {
+        drawAstronaut(ctx, bot.x, bot.y, bot.color, bot.name, false, bot.speechBubble);
+      }
+    });
+
+    // 8. Draw Player
+    if (player.isAlive && !player.inVent) {
+      drawAstronaut(ctx, player.x, player.y, player.color, player.name, true, player.speechBubble);
+    }
+
+    ctx.restore();
+  }
+
+  function drawAstronaut(c, x, y, color, name, isPlayer = false, speech = null) {
+    c.save();
+    c.translate(x, y);
+
+    c.fillStyle = color;
+    c.fillRect(-22, -12, 10, 24);
+    c.strokeStyle = '#000';
+    c.lineWidth = 2;
+    c.strokeRect(-22, -12, 10, 24);
+
+    c.fillStyle = color;
+    c.beginPath();
+    c.arc(0, -6, 16, Math.PI, 0);
+    c.lineTo(16, 12);
+    c.arc(8, 12, 8, 0, Math.PI);
+    c.arc(-8, 12, 8, 0, Math.PI);
+    c.lineTo(-16, -6);
+    c.closePath();
+    c.fill();
+    c.stroke();
+
+    c.fillStyle = '#66ccff';
+    c.beginPath();
+    c.ellipse(6, -6, 10, 6, 0, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = '#000';
+    c.lineWidth = 2;
+    c.stroke();
+
+    c.fillStyle = isPlayer ? '#ffff55' : '#ffffff';
+    c.font = 'bold 14px sans-serif';
+    c.textAlign = 'center';
+    c.fillText(name, 0, -26);
+
+    // Speech Bubble
+    if (speech) {
+      c.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      c.strokeStyle = '#00f0ff';
+      c.lineWidth = 2;
+      const textW = c.measureText(speech).width;
+      c.fillRect(-textW / 2 - 10, -60, textW + 20, 26);
+      c.strokeRect(-textW / 2 - 10, -60, textW + 20, 26);
+      c.fillStyle = '#ffffff';
+      c.font = 'bold 13px sans-serif';
+      c.fillText(speech, 0, -42);
+    }
+
+    c.restore();
+  }
+
+  function drawDeadBody(c, x, y, color) {
+    c.save();
+    c.translate(x, y);
+
+    c.fillStyle = 'rgba(180, 20, 20, 0.45)';
+    c.beginPath();
+    c.arc(0, 0, 26, 0, Math.PI * 2);
+    c.fill();
+
+    c.fillStyle = color;
+    c.fillRect(-14, -6, 28, 16);
+    c.strokeStyle = '#000';
+    c.lineWidth = 2;
+    c.strokeRect(-14, -6, 28, 16);
+
+    c.fillStyle = '#ffffff';
+    c.fillRect(-4, -14, 8, 10);
+    c.strokeRect(-4, -14, 8, 10);
+
+    c.restore();
+  }
+
+  loop();
 });

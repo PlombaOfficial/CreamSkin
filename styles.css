@@ -1,17 +1,17 @@
 /* ==========================================================================
-   THE BACKROOMS // ANALOG HORROR & VHS CRT DESIGN SYSTEM
+   AMONG US // CYBER STATION ARCADE DESIGN SYSTEM (WITH FULL CHAT)
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;900&family=VT323&display=swap');
 
 :root {
-  --font-vhs: 'VT323', monospace;
-  --font-mono: 'Space Mono', monospace;
-  --color-yellow: #f2cb05;
-  --color-cyan: #00f0ff;
-  --color-red: #ff3333;
-  --color-green: #00ff66;
-  --bg-dark: #070706;
+  --font-game: 'Rubik', sans-serif;
+  --font-mono: 'VT323', monospace;
+  --color-impostor: #ff3333;
+  --color-crew: #00f0ff;
+  --color-task-green: #00ff66;
+  --color-yellow: #ffdd00;
+  --bg-dark: #070a14;
 }
 
 *, *::before, *::after {
@@ -28,10 +28,9 @@ html, body {
   overflow: hidden;
   background-color: var(--bg-dark);
   color: #ffffff;
-  font-family: var(--font-vhs);
+  font-family: var(--font-game);
 }
 
-/* 3D WebGL Canvas */
 #game-canvas {
   position: fixed;
   top: 0;
@@ -42,383 +41,590 @@ html, body {
   z-index: 1;
 }
 
-/* VHS Scanlines & CRT Distortion Overlay */
-.vhs-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 100;
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
-  ), linear-gradient(
-    90deg,
-    rgba(255, 0, 0, 0.03),
-    rgba(0, 255, 0, 0.01),
-    rgba(0, 0, 255, 0.03)
-  );
-  background-size: 100% 3px, 6px 100%;
-}
-
-.vhs-rec-badge {
-  position: fixed;
-  top: 24px;
-  left: 24px;
-  font-size: 24px;
-  color: #ff3333;
-  letter-spacing: 2px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 101;
-  pointer-events: none;
-  text-shadow: 0 0 10px #ff3333;
-}
-
-.rec-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ff3333;
-  animation: blink-rec 1s infinite alternate;
-}
-
-@keyframes blink-rec {
-  0% { opacity: 0.2; }
-  100% { opacity: 1; }
-}
-
 /* --------------------------------------------------------------------------
-   MULTIPLAYER LOBBY SCREEN
+   ROLE SELECTION SCREEN
    -------------------------------------------------------------------------- */
 
-.lobby-screen {
+.fullscreen-screen {
   position: fixed;
   inset: 0;
-  z-index: 50;
-  background: radial-gradient(circle at center, rgba(30, 26, 16, 0.88) 0%, rgba(6, 6, 5, 0.96) 100%);
+  z-index: 100;
+  background: radial-gradient(circle at center, #141c2e 0%, #060912 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 24px;
   transition: opacity 0.3s ease;
 }
 
-.lobby-screen.hidden {
+.fullscreen-screen.hidden {
   opacity: 0;
   pointer-events: none;
 }
 
-.backrooms-title {
-  font-size: clamp(42px, 7vw, 84px);
-  color: var(--color-yellow);
-  letter-spacing: 4px;
-  text-shadow: 0 0 20px rgba(242, 203, 5, 0.4), 3px 3px 0 #554400;
-  text-align: center;
-  margin-bottom: 6px;
-}
-
-.backrooms-sub {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  letter-spacing: 3px;
-  color: #888877;
-  text-transform: uppercase;
-  margin-bottom: 30px;
-}
-
-.lobby-card {
-  background: rgba(18, 18, 16, 0.95);
-  border: 2px solid var(--color-yellow);
-  box-shadow: 0 0 30px rgba(242, 203, 5, 0.15);
-  border-radius: 8px;
-  padding: 28px 36px;
-  width: 100%;
-  max-width: 460px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.lobby-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.lobby-label {
-  font-size: 18px;
-  color: var(--color-yellow);
-}
-
-.lobby-input {
-  font-family: var(--font-vhs);
-  font-size: 24px;
-  padding: 10px 14px;
-  background: #0d0d0b;
-  border: 2px solid #555544;
-  color: #ffffff;
-  border-radius: 4px;
-  outline: none;
-}
-
-.lobby-input:focus {
-  border-color: var(--color-yellow);
-  box-shadow: 0 0 10px rgba(242, 203, 5, 0.3);
-}
-
-.lobby-divider {
-  text-align: center;
-  font-size: 18px;
-  color: #666655;
-}
-
-.btn-lobby-action {
-  font-family: var(--font-vhs);
-  font-size: 24px;
-  padding: 12px 20px;
-  background: var(--color-yellow);
-  color: #000000;
-  border: none;
-  border-radius: 4px;
+.game-logo {
+  font-size: clamp(48px, 8vw, 84px);
   font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 4px;
+  text-shadow: 0 0 30px var(--color-crew), 0 4px 0 #005577;
+  text-align: center;
+}
+
+.game-logo span {
+  color: var(--color-impostor);
+  text-shadow: 0 0 30px var(--color-impostor), 0 4px 0 #880000;
+}
+
+.game-sub {
+  font-size: 16px;
+  color: #8fa0b5;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 6px;
+  margin-bottom: 40px;
+}
+
+.role-select-box {
+  display: flex;
+  gap: 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.role-card {
+  width: 260px;
+  background: rgba(20, 28, 45, 0.9);
+  border: 3px solid #334460;
+  border-radius: 16px;
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
   cursor: pointer;
-  box-shadow: 0 0 15px rgba(242, 203, 5, 0.3);
-  transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.btn-lobby-action:hover {
-  transform: scale(1.03);
-  background: #ffe033;
+.role-card:hover {
+  transform: translateY(-8px) scale(1.04);
 }
 
-.btn-lobby-join {
-  background: #2b2b24;
-  color: var(--color-yellow);
-  border: 2px solid var(--color-yellow);
+.role-card.crew:hover {
+  border-color: var(--color-crew);
+  box-shadow: 0 0 35px var(--color-crew);
+}
+
+.role-card.imp:hover {
+  border-color: var(--color-impostor);
+  box-shadow: 0 0 35px var(--color-impostor);
+}
+
+.role-icon {
+  font-size: 56px;
+}
+
+.role-title {
+  font-size: 22px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.role-desc {
+  font-size: 13px;
+  color: #9ab0c8;
+  text-align: center;
+  line-height: 1.4;
 }
 
 /* --------------------------------------------------------------------------
-   IN-GAME HUD
+   IN-GAME HUD & QUICK CHAT
    -------------------------------------------------------------------------- */
 
-.hud-overlay {
+.game-hud {
   position: fixed;
   inset: 0;
-  z-index: 20;
   pointer-events: none;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 24px 30px;
+  padding: 24px;
 }
 
-.hud-overlay.hidden {
-  display: none;
-}
-
-.hud-top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-top: 30px;
-}
-
-.hud-level-info {
+.hud-top-progress {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+  width: 380px;
+  max-width: 90%;
 }
 
-.hud-level-title {
-  font-size: 26px;
-  color: var(--color-yellow);
-  text-shadow: 0 0 10px rgba(242, 203, 5, 0.5);
-}
-
-.hud-objective {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: #aaaa99;
-}
-
-.hud-room-tag {
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid var(--color-yellow);
-  padding: 6px 14px;
-  border-radius: 4px;
-  font-size: 20px;
-  color: var(--color-yellow);
-}
-
-/* Bottom HUD Meters */
-.hud-bottom-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.hud-meters-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 240px;
-}
-
-.meter-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 18px;
-}
-
-.meter-track {
-  flex: 1;
-  height: 12px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid #555544;
-  border-radius: 2px;
+.task-bar-track {
+  height: 18px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 2px solid #ffffff;
+  border-radius: 9px;
   overflow: hidden;
 }
 
-.meter-fill {
+.task-bar-fill {
   height: 100%;
-  width: 100%;
-  transition: width 0.2s ease;
+  width: 0%;
+  background: linear-gradient(90deg, #00bb44, var(--color-task-green));
+  box-shadow: 0 0 12px var(--color-task-green);
+  transition: width 0.3s ease;
 }
 
-.fill-battery { background: var(--color-cyan); box-shadow: 0 0 8px var(--color-cyan); }
-.fill-sanity { background: var(--color-yellow); box-shadow: 0 0 8px var(--color-yellow); }
-.fill-stamina { background: var(--color-green); }
-
-.hud-inventory-group {
-  display: flex;
-  gap: 12px;
+.task-bar-label {
+  font-size: 14px;
+  font-weight: 800;
+  text-shadow: 0 2px 4px #000;
 }
 
-.inv-slot {
-  background: rgba(18, 18, 16, 0.85);
-  border: 2px solid #555544;
-  padding: 6px 12px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 20px;
-}
-
-.inv-num {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-yellow);
-}
-
-/* --------------------------------------------------------------------------
-   IN-GAME CHAT & NOTIFICATIONS
-   -------------------------------------------------------------------------- */
-
-.chat-container {
+.hud-chat-input-box {
   position: fixed;
-  bottom: 90px;
+  bottom: 120px;
   left: 30px;
   width: 320px;
-  max-height: 180px;
-  pointer-events: none;
-  z-index: 25;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.chat-messages {
-  overflow-y: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 18px;
-  text-shadow: 1px 1px 2px #000;
-}
-
-.chat-sender {
-  color: var(--color-yellow);
-}
-
-.chat-input-container {
   pointer-events: auto;
 }
 
-.chat-input-container.hidden {
+.hud-chat-input-box.hidden {
   display: none;
 }
 
-.chat-input {
+.hud-chat-input {
   width: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid var(--color-yellow);
-  color: #fff;
-  font-family: var(--font-vhs);
-  font-size: 18px;
-  padding: 4px 8px;
+  padding: 10px 14px;
+  background: rgba(10, 16, 26, 0.95);
+  border: 2px solid var(--color-crew);
+  color: #ffffff;
+  border-radius: 8px;
+  font-family: var(--font-game);
+  font-size: 14px;
   outline: none;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
 }
 
-/* Floating Notification */
-.game-notification {
+/* Action Buttons (Bottom-Right) */
+.hud-actions-group {
   position: fixed;
-  top: 90px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid var(--color-yellow);
-  padding: 8px 20px;
-  font-size: 22px;
-  color: var(--color-yellow);
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-  z-index: 30;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  gap: 16px;
+  pointer-events: auto;
 }
 
-.game-notification.visible {
-  opacity: 1;
-}
-
-/* --------------------------------------------------------------------------
-   JUMPSCARE / DEATH MODAL
-   -------------------------------------------------------------------------- */
-
-.modal-jumpscare {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: #000000;
+.btn-action {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(20, 30, 48, 0.85);
+  border: 3px solid #5577aa;
+  color: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
+  gap: 2px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.modal-jumpscare.active {
+.btn-action.hidden {
+  display: none;
+}
+
+.btn-action svg {
+  width: 32px;
+  height: 32px;
+  fill: currentColor;
+}
+
+.btn-action span {
+  font-size: 11px;
+}
+
+.btn-action:hover {
+  transform: scale(1.1);
+  background: rgba(40, 60, 90, 0.95);
+}
+
+.btn-kill {
+  border-color: var(--color-impostor);
+  color: var(--color-impostor);
+}
+
+.btn-kill.ready {
+  background: var(--color-impostor);
+  color: #000;
+  box-shadow: 0 0 25px var(--color-impostor);
+}
+
+.btn-report {
+  border-color: var(--color-yellow);
+  color: var(--color-yellow);
+}
+
+/* --------------------------------------------------------------------------
+   TASK MODAL POPUP
+   -------------------------------------------------------------------------- */
+
+.task-modal-container {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-modal-container.hidden {
+  display: none;
+}
+
+.task-modal-box {
+  background: #1b2536;
+  border: 4px solid #4a638a;
+  border-radius: 16px;
+  padding: 24px;
+  width: 540px;
+  max-width: 95%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+}
+
+.task-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-modal-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-yellow);
+}
+
+.btn-close-task {
+  padding: 6px 14px;
+  background: #ff3333;
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.task-modal-content {
+  background: #0f1624;
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.task-complete-banner {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 255, 102, 0.9);
+  color: #000;
+  font-size: 28px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  animation: pop-banner 0.3s ease;
+}
+
+@keyframes pop-banner {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Wires Minigame */
+.wiring-game-box {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wire-column {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.wire-pin {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 3px solid #ffffff;
+  cursor: grab;
+}
+
+/* Card Swipe */
+.card-swipe-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.card-reader-status {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  color: var(--color-yellow);
+}
+
+.card-reader-slot {
+  width: 420px;
+  height: 90px;
+  background: #2b394f;
+  border: 3px solid #5a759e;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.id-card {
+  width: 120px;
+  height: 70px;
+  background: #ffffff;
+  color: #000;
+  border-radius: 6px;
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  cursor: grab;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+
+.card-photo {
+  font-size: 32px;
+}
+
+.card-info {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* --------------------------------------------------------------------------
+   EMERGENCY MEETING & VOTING MODAL (WITH LIVE CHAT)
+   -------------------------------------------------------------------------- */
+
+.game-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.game-modal.active {
   opacity: 1;
   pointer-events: auto;
 }
 
-.death-title {
-  font-size: 64px;
-  color: #ff2222;
-  letter-spacing: 4px;
-  text-shadow: 0 0 20px #ff2222;
-  animation: glitch-text 0.2s infinite;
+.meeting-box {
+  background: #141d2c;
+  border: 4px solid #ff3333;
+  border-radius: 16px;
+  padding: 28px;
+  width: 850px;
+  max-width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 0 50px rgba(255, 51, 51, 0.4);
 }
 
-@keyframes glitch-text {
-  0% { transform: translate(0, 0); }
-  50% { transform: translate(2px, -2px); }
-  100% { transform: translate(-2px, 2px); }
+.meeting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meeting-title {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--color-impostor);
+  text-transform: uppercase;
+}
+
+.meeting-timer {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-yellow);
+}
+
+.meeting-chat-list {
+  background: #0b111c;
+  border: 2px solid #2d3e58;
+  border-radius: 8px;
+  padding: 12px;
+  height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.meeting-chat-row {
+  display: flex;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.meeting-chat-input-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.meeting-chat-input {
+  flex: 1;
+  padding: 10px 14px;
+  background: #0b111c;
+  border: 2px solid #4a638a;
+  color: #fff;
+  border-radius: 8px;
+  font-family: var(--font-game);
+  font-size: 14px;
+  outline: none;
+}
+
+.meeting-chat-input:focus {
+  border-color: var(--color-crew);
+}
+
+.btn-send-chat {
+  padding: 10px 20px;
+  background: var(--color-crew);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.btn-send-chat:hover {
+  transform: scale(1.05);
+}
+
+.voting-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.vote-card {
+  background: #233147;
+  border: 2px solid #4a638a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.vote-card:hover {
+  background: #364b6e;
+  transform: scale(1.04);
+}
+
+.vote-card.dead {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.vote-card.voted {
+  pointer-events: none;
+}
+
+.vote-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #000;
+}
+
+.vote-name {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.btn-skip-vote {
+  grid-column: 1 / -1;
+  padding: 12px;
+  background: #2b3a4f;
+  border: 2px solid #6688bb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease;
+}
+
+.btn-skip-vote:hover {
+  background: #415777;
+}
+
+/* Ejection Cinematic */
+.ejection-box {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.ejection-text {
+  font-size: 32px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(255,255,255,0.6);
+}
+
+/* Role Intro */
+.role-intro-title {
+  font-size: 56px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-shadow: 0 0 30px currentColor;
 }

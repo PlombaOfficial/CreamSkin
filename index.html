@@ -3,115 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>THE BACKROOMS // MULTIPLAYER EXPEDITION</title>
-  <meta name="description" content="Многопользовательский 3D хоррор в Закулисье (The Backrooms) с фонариком, монстрами и процедурным звуком.">
-
-  <!-- Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <title>AMONG US // CYBER STATION (БОТЫ И ЗАДАНИЯ)</title>
+  <meta name="description" content="Полноценный Among Us в браузере с умными ботами, интерактивными заданиями (провода, карта, астероиды), вентиляцией, саботажем, собранием и голосованием.">
 
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-  <!-- 3D WebGL Canvas -->
+  <!-- Game Canvas -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- VHS Scanlines & CRT Filter -->
-  <div class="vhs-overlay" aria-hidden="true"></div>
+  <!-- 1. ROLE SELECTION SCREEN -->
+  <div class="fullscreen-screen" id="screen-role-select">
+    <h1 class="game-logo">AMONG <span>US</span></h1>
+    <p class="game-sub">CYBER STATION // ИГРА С УМНЫМИ БОТАМИ</p>
 
-  <!-- CCTV REC Badge -->
-  <div class="vhs-rec-badge">
-    <div class="rec-dot"></div>
-    <span>REC 00:04:12 [ONLINE LINK]</span>
-  </div>
-
-  <!-- 1. MULTIPLAYER LOBBY SCREEN -->
-  <div class="lobby-screen" id="screen-lobby">
-    <h1 class="backrooms-title">THE BACKROOMS</h1>
-    <p class="backrooms-sub">ANALOG HORROR // DIRECT P2P EXPEDITION</p>
-
-    <div class="lobby-card">
-      <div class="lobby-input-group">
-        <label class="lobby-label" for="input-player-name">Позывной Исследователя:</label>
-        <input class="lobby-input" id="input-player-name" type="text" value="Оператор-704" maxlength="15">
+    <div class="role-select-box">
+      <!-- Crewmate Card -->
+      <div class="role-card crew" id="btn-select-crew">
+        <div class="role-icon">🧑‍🚀</div>
+        <div class="role-title" style="color: #00f0ff;">ЧЛЕН ЭКИПАЖА</div>
+        <p class="role-desc">Выполняйте задания на космической станции, чините провода, следите за подозрительными ботами и выгоняйте предателя на собрании!</p>
       </div>
 
-      <button class="btn-lobby-action" id="btn-create-room">⚡ СОЗДАТЬ КОМНАТУ (ХОСТ)</button>
-
-      <div class="lobby-divider">— ИЛИ ВВЕДИТЕ КОД ДРУГА —</div>
-
-      <div class="lobby-input-group">
-        <input class="lobby-input" id="input-room-code" type="text" placeholder="КОД КОМНАТЫ (НАПР. BCK4092)" maxlength="12">
-      </div>
-
-      <button class="btn-lobby-action btn-lobby-join" id="btn-join-room">🔗 ВОЙТИ ПО КОДУ</button>
-    </div>
-  </div>
-
-  <!-- 2. IN-GAME HUD -->
-  <div class="hud-overlay hidden" id="hud-game">
-    <div class="hud-top-bar">
-      <div class="hud-level-info">
-        <div class="hud-level-title" id="hud-level-title">УРОВЕНЬ 0: «THE LOBBY»</div>
-        <div class="hud-objective">ЦЕЛЬ: НАЙДИТЕ ВЫХОДНОЙ ЛИФТ И ИЗБЕГАЙТЕ СУЩНОСТЕЙ</div>
-      </div>
-
-      <div class="hud-room-tag">
-        <span>КОМНАТА: </span><strong id="hud-room-code">BCK0000</strong>
-      </div>
-    </div>
-
-    <!-- Chat messages -->
-    <div class="chat-container">
-      <div class="chat-messages" id="chat-messages"></div>
-      <div class="chat-input-container hidden" id="chat-input-container">
-        <input class="chat-input" id="chat-input" type="text" placeholder="Сообщение... [Enter для отправки]">
-      </div>
-    </div>
-
-    <!-- Bottom HUD Meters -->
-    <div class="hud-bottom-bar">
-      <div class="hud-meters-group">
-        <div class="meter-row">
-          <span>ФОНАРЬ [F]</span>
-          <div class="meter-track"><div class="meter-fill fill-battery" id="fill-battery"></div></div>
-        </div>
-        <div class="meter-row">
-          <span>РАССУДОК</span>
-          <div class="meter-track"><div class="meter-fill fill-sanity" id="fill-sanity"></div></div>
-        </div>
-        <div class="meter-row">
-          <span>ВЫНОСЛИВОСТЬ</span>
-          <div class="meter-track"><div class="meter-fill fill-stamina" id="fill-stamina"></div></div>
-        </div>
-      </div>
-
-      <!-- Inventory -->
-      <div class="hud-inventory-group">
-        <div class="inv-slot">
-          <span class="inv-num">[1]</span>
-          <span>💧 Вода: <strong id="count-water" style="color: #ffea55;">1</strong></span>
-        </div>
-        <div class="inv-slot">
-          <span class="inv-num">[2]</span>
-          <span>🔋 Батареи: <strong id="count-batteries" style="color: #00f0ff;">1</strong></span>
-        </div>
+      <!-- Impostor Card -->
+      <div class="role-card imp" id="btn-select-impostor">
+        <div class="role-icon">🔪</div>
+        <div class="role-title" style="color: #ff3333;">ПРЕДАТЕЛЬ</div>
+        <p class="role-desc">Устраняйте членов экипажа, прыгайте по вентиляции, устраивайте саботажи и подставляйте невинных ботов на голосовании!</p>
       </div>
     </div>
   </div>
 
-  <!-- Notification Banner -->
-  <div class="game-notification" id="game-notification"></div>
+  <!-- 2. ROLE INTRO SPLASH MODAL -->
+  <div class="game-modal" id="modal-role-intro">
+    <div style="text-align: center; display: flex; flex-direction: column; gap: 16px;">
+      <h2 class="role-intro-title" id="intro-role-name">ЧЛЕН ЭКИПАЖА</h2>
+      <p style="font-size: 20px; color: #aaccff;" id="intro-role-desc">Среди нас 1 Предатель...</p>
+    </div>
+  </div>
 
-  <!-- 3. JUMPSCARE / DEATH MODAL -->
-  <div class="modal-jumpscare" id="modal-jumpscare">
-    <h2 class="death-title">ВЫ ПОТЕРЯЛИ РАССУДОК</h2>
-    <p style="font-size: 24px; color: #888;">Сущность настигла вас в темноте...</p>
-    <button class="btn-lobby-action" id="btn-respawn" style="margin-top: 20px;">ВОЗРОДИТЬСЯ</button>
+  <!-- 3. IN-GAME HUD -->
+  <div class="game-hud" id="game-hud">
+    <!-- Top Progress Bar -->
+    <div class="hud-top-progress">
+      <div class="task-bar-label">ОБЩИЙ ПРОГРЕСС ЗАДАНИЙ:</div>
+      <div class="task-bar-track">
+        <div class="task-bar-fill" id="task-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Action Buttons (Bottom-Right) -->
+    <div class="hud-actions-group">
+      <button class="btn-action" id="btn-action-use" title="Использовать таск [E]">
+        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+        <span>ТАСК [E]</span>
+      </button>
+
+      <button class="btn-action btn-kill hidden" id="btn-action-kill" title="Убить [Q]">
+        <svg viewBox="0 0 24 24"><path d="M19.48 12.35l-1.41-1.41L15 14l-2.07-2.07a4 4 0 0 0-5.66 0l-4.24 4.24 1.41 1.41 4.24-4.24a2 2 0 0 1 2.83 0L13.59 15.4l-1.41 1.41L15 19.64l4.48-4.48a2 2 0 0 0 0-2.81z"/></svg>
+        <span id="kill-cooldown-text">УБИТЬ [Q]</span>
+      </button>
+
+      <button class="btn-action hidden" id="btn-action-vent" title="Вентиляция [E]">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18"/></svg>
+        <span>ЛЮК [E]</span>
+      </button>
+
+      <button class="btn-action btn-report" id="btn-action-report" title="Репорт тела [R]">
+        <svg viewBox="0 0 24 24"><path d="M3 11v2h4l5 5V4L7 9H3zm13.5 1a4.5 4.5 0 0 0-2-3.72v7.44a4.5 4.5 0 0 0 2-3.72zm2.5 0a7 7 0 0 0-4.5-6.54v2.13a5 5 0 0 1 0 8.82v2.13A7 7 0 0 0 19 12z"/></svg>
+        <span>РЕПОРТ [R]</span>
+      </button>
+    <!-- Quick HUD Chat Input -->
+    <div class="hud-chat-input-box hidden" id="hud-chat-input-box">
+      <input class="hud-chat-input" id="hud-chat-input" type="text" placeholder="Сказать фразу... [Enter]">
+    </div>
+  </div>
+
+  <!-- 4. TASK MODAL POPUP -->
+  <div class="task-modal-container hidden" id="task-modal-container">
+    <div class="task-modal-box">
+      <div class="task-modal-header">
+        <h3 class="task-modal-title" id="task-modal-title">Соединить провода</h3>
+        <button class="btn-close-task" id="btn-close-task">✕ ЗАКРЫТЬ</button>
+      </div>
+      <div class="task-modal-content" id="task-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- 5. EMERGENCY MEETING & VOTING MODAL -->
+  <div class="game-modal" id="modal-meeting">
+    <div class="meeting-box">
+      <div class="meeting-header">
+        <h2 class="meeting-title" id="meeting-title">СРОЧНОЕ СОБРАНИЕ</h2>
+        <span class="meeting-timer" id="meeting-timer">Голосование: 20с</span>
+      </div>
+
+      <!-- Bot debate chat list -->
+      <div class="meeting-chat-list" id="meeting-chat-list"></div>
+
+      <!-- Meeting Chat Input -->
+      <div class="meeting-chat-input-bar">
+        <input class="meeting-chat-input" id="meeting-chat-input" type="text" placeholder="Напишите алиби или обвините кого-то... (напр. 'Синий', 'Скип', 'Я чинил провода')">
+        <button class="btn-send-chat" id="btn-send-meeting-chat">ОТПРАВИТЬ</button>
+      </div>
+
+      <!-- Voting grid -->
+      <div class="voting-grid" id="voting-grid"></div>
+    </div>
+  </div>
+
+  <!-- 6. EJECTION CINEMATIC MODAL -->
+  <div class="game-modal" id="modal-ejection">
+    <div class="ejection-box">
+      <div style="font-size: 64px;">🌌 🧑‍🚀 ...</div>
+      <h2 class="ejection-text" id="ejection-text">Красный был выброшен в космос...</h2>
+    </div>
+  </div>
+
+  <!-- 7. GAME OVER MODAL -->
+  <div class="game-modal" id="modal-game-over">
+    <div style="text-align: center; display: flex; flex-direction: column; gap: 20px; align-items: center;">
+      <h2 style="font-size: 48px; font-weight: 900;" id="game-over-title">ПОБЕДА ЭКИПАЖА!</h2>
+      <p style="font-size: 20px; color: #aaccff;" id="game-over-desc">Все предатели найдены!</p>
+      <button class="role-card crew" id="btn-play-again" style="width: 220px; padding: 14px; font-weight: 800; font-size: 18px; margin-top: 10px;">ИГРАТЬ СНОВА</button>
+    </div>
   </div>
 
   <!-- SCRIPTS -->
-  <script type="module" src="src/app.js?v=3.0"></script>
+  <script type="module" src="src/app.js"></script>
 
 </body>
 </html>
