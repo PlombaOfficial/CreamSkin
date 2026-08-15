@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MINECRAFT 2D // ULTIMATE SANDBOX EDITION</title>
-  <meta name="description" content="Бесконечный 2D Minecraft с процедурным миром, пещерами, 60+ блоками, крафтом (верстак, печь, сундук), зомби, скелетами, криперами, боссом драконом и авто-сохранением.">
+  <title>MINECRAFT 2D // СЕТЕВОЕ ВЫЖИВАНИЕ</title>
+  <meta name="description" content="2D Minecraft с мультиплеером по коду комнаты, процедурным миром, крафтом, рудами, зомби и боссом.">
 
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -14,11 +14,53 @@
   <!-- Game Canvas -->
   <canvas id="game-canvas"></canvas>
 
+  <!-- 0. MAIN MULTIPLAYER LOBBY SCREEN -->
+  <div class="mc-lobby-screen" id="screen-mc-lobby">
+    <div class="mc-menu-panel">
+      <div class="mc-logo-title">MINECRAFT 2D</div>
+      <div class="mc-logo-sub">СЕТЕВОЕ ВЫЖИВАНИЕ С ДРУГОМ</div>
+
+      <div class="mc-lobby-form">
+        <!-- Nickname & Skin -->
+        <div class="form-group">
+          <label>ВАШ НИКНЕЙМ:</label>
+          <input type="text" id="mc-player-name" class="mc-input" value="Стив" maxlength="16">
+        </div>
+
+        <div class="form-group">
+          <label>ЦВЕТ СКИНА (РУБАШКА):</label>
+          <div class="mc-skins-row">
+            <div class="mc-skin-dot active" data-color="#00aaaa" style="background: #00aaaa;" title="Стив"></div>
+            <div class="mc-skin-dot" data-color="#55aa55" style="background: #55aa55;" title="Алекс"></div>
+            <div class="mc-skin-dot" data-color="#aa0000" style="background: #aa0000;" title="Рыцарь"></div>
+            <div class="mc-skin-dot" data-color="#8800aa" style="background: #8800aa;" title="Маг"></div>
+            <div class="mc-skin-dot" data-color="#222222" style="background: #222222;" title="Тень"></div>
+          </div>
+        </div>
+
+        <hr class="mc-divider">
+
+        <!-- Buttons -->
+        <button class="btn-mc-primary" id="btn-mc-create-online">⚡ СОЗДАТЬ СЕТЕВОЙ МИР</button>
+
+        <div class="join-room-row">
+          <input type="text" id="mc-room-code" class="mc-input code-input" placeholder="КОД МИРА (MC...)">
+          <button class="btn-mc-primary" id="btn-mc-join-online">🔗 ВОЙТИ</button>
+        </div>
+
+        <button class="btn-mc-secondary" id="btn-mc-single">🕹 ОДИНОЧНЫЙ МИР (ОФФЛАЙН)</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 1. IN-GAME HUD -->
-  <div class="mc-hud" id="mc-hud">
+  <div class="mc-hud hidden" id="mc-hud">
     <!-- Top Bar -->
     <div class="hud-top-bar">
-      <div class="hud-title-badge">MINECRAFT 2D // ВЫЖИВАНИЕ</div>
+      <div class="hud-badges-group">
+        <div class="hud-title-badge">MINECRAFT 2D</div>
+        <div class="hud-room-badge hidden" id="hud-mc-room-tag" title="Нажмите, чтобы скопировать код другу">КОМНАТА: MC...</div>
+      </div>
       <div class="hud-save-group">
         <button class="btn-mc" id="btn-save-world" title="Сохранить мир в браузере">💾 СОХРАНИТЬ</button>
         <button class="btn-mc" id="btn-export-world" title="Скачать файл мира">📥 СКАЧАТЬ МИР</button>
@@ -30,6 +72,14 @@
       <div class="boss-title">⚡ ДРАКОН-ВИТЕР (БОСС) ⚡</div>
       <div class="boss-track">
         <div class="boss-fill" id="boss-fill"></div>
+      </div>
+    </div>
+
+    <!-- In-Game Chat Feed & Box -->
+    <div class="hud-mc-chat-container">
+      <div class="hud-mc-chat-feed" id="hud-mc-chat-feed"></div>
+      <div class="hud-mc-chat-box hidden" id="hud-mc-chat-box">
+        <input type="text" id="hud-mc-chat-input" placeholder="Нажмите Enter для отправки..." maxlength="80">
       </div>
     </div>
 

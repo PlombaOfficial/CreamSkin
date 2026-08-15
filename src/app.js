@@ -1,14 +1,15 @@
 /**
- * 2D MINECRAFT // COMPLETE MASTER GAME ENGINE
- * Coordinates Canvas 2D rendering, Player Physics, Mining/Building,
- * Crafting Grid, Furnace Smelting, Mob AI, Boss Fights, Day-Night Cycle,
- * Sound Synthesizer, and Auto-Saving.
+ * 2D MINECRAFT // COMPLETE MASTER GAME ENGINE WITH MULTIPLAYER ROOMS
+ * Pixel-Art Texture Rendering, Platformer Physics, Room Codes,
+ * Realtime Block & Player Synchronization, Crafting, and Combat.
  */
 
-import { BLOCKS, ITEMS, ITEM_DATA, CRAFTING_RECIPES, SMELTING_RECIPES } from "./items-recipes.js";
+import { BLOCKS, ITEMS, ITEM_DATA, CRAFTING_RECIPES } from "./items-recipes.js";
 import { MinecraftAudioEngine } from "./audio-engine.js";
+import { TextureAtlas } from "./textures.js";
 import { WorldGenerator } from "./world-generator.js";
 import { Player, Mob, Projectile, DroppedItem } from "./entities.js";
+import { MinecraftMultiplayerManager } from "./multiplayer-manager.js";
 import { SaveManager } from "./storage-save.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,52 +23,51 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', resize);
   resize();
 
-  // 1. Initialize Engines
+  // 1. Initialize Core Engines
   const audio = new MinecraftAudioEngine();
-  const world = new WorldGenerator(450, 150);
-  const player = new Player(225, 45);
+  const atlas = new TextureAtlas();
+  const network = new MinecraftMultiplayerManager();
   const saveManager = new SaveManager();
 
-  // Try loading existing save
-  const loadedTime = saveManager.loadGame(world, player);
-  let gameTime = loadedTime || 300; // seconds
+  let world = null;
+  let player = null;
+  let gameTime = 300;
+  let isGameRunning = false;
 
-  // Entities
   const mobs = [];
   const projectiles = [];
   const droppedItems = [];
   const particles = [];
 
-  // Tile Scale
-  const TILE_SIZE = 32; // px per block
-  const camera = { x: player.x * TILE_SIZE, y: player.y * TILE_SIZE };
+  const TILE_SIZE = 32;
+  const camera = { x: 0, y: 0 };
 
   // Mining state
   const mouse = { x: 0, y: 0, worldX: 0, worldY: 0, leftDown: false, rightDown: false };
-  let miningTarget = null; // { x, y, progress, maxHardness }
+  let miningTarget = null;
 
   // Keyboard state
   const keys = {};
 
   window.addEventListener('keydown', (e) => {
+    if (document.activeElement.tagName === 'INPUT') return;
     audio.init();
     keys[e.code] = true;
 
-    // Number keys 1..9 for hotbar
     if (e.key >= '1' && e.key <= '9') {
-      player.selectedHotbarSlot = parseInt(e.key) - 1;
+      if (player) player.selectedHotbarSlot = parseInt(e.key) - 1;
       updateHotbarUI();
     }
 
     if (e.code === 'KeyE') toggleInventoryModal();
     if (e.code === 'KeyQ') dropHeldItem();
+    if (e.code === 'KeyT' || e.code === 'Enter') openChatInput();
   });
 
   window.addEventListener('keyup', (e) => {
     keys[e.code] = false;
   });
 
-  // Mouse controls
   canvas.addEventListener('mousemove', (e) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   canvas.addEventListener('mousedown', (e) => {
+    if (!isGameRunning) return;
     audio.init();
     if (e.button === 0) mouse.leftDown = true;
     if (e.button === 2) mouse.rightDown = true;
@@ -89,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   canvas.addEventListener('wheel', (e) => {
+    if (!player) return;
     if (e.deltaY > 0) player.selectedHotbarSlot = (player.selectedHotbarSlot + 1) % 9;
     else player.selectedHotbarSlot = (player.selectedHotbarSlot + 8) % 9;
     updateHotbarUI();
@@ -99,33 +101,151 @@ document.addEventListener('DOMContentLoaded', () => {
     mouse.worldY = Math.floor((mouse.y - canvas.height / 2 + camera.y) / TILE_SIZE);
   }
 
+  // --------------------------------------------------------------------------
+  // LOBBY & MULTIPLAYER CONNECT
+  // --------------------------------------------------------------------------
+  const screenLobby = document.getElementById('screen-mc-lobby');
+  const inputPlayerName = document.getElementById('mc-player-name');
+  const inputRoomCode = document.getElementById('mc-room-code');
+  const btnSingleplayer = document.getElementById('btn-mc-single');
+  const btnCreateWorld = document.getElementById('btn-mc-create-online');
+  const btnJoinWorld = document.getElementById('btn-mc-join-online');
+
+  let selectedColor = '#00aaaa';
+
+  document.querySelectorAll('.mc-skin-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      document.querySelectorAll('.mc-skin-dot').forEach(d => d.classList.remove('active'));
+      dot.classList.add('active');
+      selectedColor = dot.dataset.color;
+    });
+  });
+
+  // Singleplayer
+  btnSingleplayer.addEventListener('click', () => {
+    startWorld(Math.floor(Math.random() * 999999), null);
+  });
+
+  // Create Online World
+  btnCreateWorld.addEventListener('click', async () => {
+    const pName = inputPlayerName.value.trim() || 'Стив';
+    btnCreateWorld.disabled = true;
+    btnCreateWorld.textContent = 'Создание...';
+    try {
+      const { roomId, seed } = await network.createWorld(pName, selectedColor);
+      startWorld(seed, roomId);
+    } catch (e) {
+      alert('Ошибка базы: ' + e.message);
+    } finally {
+      btnCreateWorld.disabled = false;
+      btnCreateWorld.textContent = '⚡ СОЗДАТЬ СЕТЕВОЙ МИР';
+    }
+  });
+
+  // Join Online World
+  btnJoinWorld.addEventListener('click', async () => {
+    const pName = inputPlayerName.value.trim() || 'Стив';
+    const code = inputRoomCode.value.trim();
+    if (!code) {
+      alert('Введите код мира (например, MC4092)!');
+      return;
+    }
+    btnJoinWorld.disabled = true;
+    btnJoinWorld.textContent = 'Вход...';
+    try {
+      const { roomId, seed } = await network.joinWorld(code, pName, selectedColor);
+      startWorld(seed, roomId);
+    } catch (e) {
+      alert(e.message || 'Мир не найден');
+    } finally {
+      btnJoinWorld.disabled = false;
+      btnJoinWorld.textContent = '🔗 ВОЙТИ К ДРУГУ ПО КОДУ';
+    }
+  });
+
+  function startWorld(seed, roomCode) {
+    audio.init();
+    screenLobby.classList.add('hidden');
+    document.getElementById('mc-hud').classList.remove('hidden');
+
+    world = new WorldGenerator(450, 150, seed);
+
+    // Safe surface spawn finder
+    let spawnY = 40;
+    for (let y = 10; y < 90; y++) {
+      if (world.getBlock(100, y) === BLOCKS.GRASS) {
+        spawnY = y - 2.5;
+        break;
+      }
+    }
+
+    player = new Player(100, spawnY);
+    player.name = inputPlayerName.value.trim() || 'Стив';
+    player.color = selectedColor;
+
+    camera.x = player.x * TILE_SIZE;
+    camera.y = player.y * TILE_SIZE;
+
+    // Multiplayer room listener
+    if (roomCode) {
+      document.getElementById('hud-mc-room-tag').textContent = `КОМНАТА: ${roomCode}`;
+      document.getElementById('hud-mc-room-tag').classList.remove('hidden');
+
+      network.listenToWorld(
+        roomCode,
+        (bx, by, blockId) => {
+          world.setBlock(bx, by, blockId);
+        },
+        (remotePlayers) => {
+          // updated
+        },
+        (chat) => {
+          addChatMessage(chat.sender, chat.text);
+        }
+      );
+      showBannerNotification(`Сетевой мир запущен! Код: ${roomCode}`);
+    } else {
+      document.getElementById('hud-mc-room-tag').classList.add('hidden');
+      showBannerNotification('Одиночный мир запущен!');
+    }
+
+    isGameRunning = true;
+    updateHotbarUI();
+  }
+
+  // Click Room Tag to Copy
+  document.getElementById('hud-mc-room-tag').addEventListener('click', () => {
+    const text = document.getElementById('hud-mc-room-tag').textContent.replace('КОМНАТА: ', '');
+    navigator.clipboard.writeText(text).then(() => {
+      showBannerNotification(`Код ${text} скопирован в буфер!`);
+    }).catch(() => {});
+  });
+
   // --- MINING & INTERACTION ---
 
   function handleMouseAction(button) {
+    if (!player || player.isDead) return;
     updateWorldMouse();
     const bx = mouse.worldX;
     const by = mouse.worldY;
-    const distToBlock = Math.hypot(player.x - bx, (player.y + 0.8) - by);
+    const dist = Math.hypot(player.x - bx, (player.y + 0.8) - by);
 
-    if (distToBlock > 6.5) return; // Block reach distance
+    if (dist > 6.5) return;
 
     const targetBlock = world.getBlock(bx, by);
     const held = player.getHeldItem();
 
     if (button === 0) {
-      // Left Click: Attack mob or Start Mining
+      // Left Click: Attack Mob / Start Mining
       player.swingProgress = 1.0;
       audio.playSwing();
 
-      // Check hit mob
       let hitMob = false;
       mobs.forEach(mob => {
         if (!mob.isDead && Math.hypot(mob.x - bx, mob.y - by) < 1.4) {
           hitMob = true;
-          let dmg = 2; // Fist
-          if (held && ITEM_DATA[held.id] && ITEM_DATA[held.id].damage) {
-            dmg = ITEM_DATA[held.id].damage;
-          }
+          let dmg = 2;
+          if (held && ITEM_DATA[held.id] && ITEM_DATA[held.id].damage) dmg = ITEM_DATA[held.id].damage;
           mob.takeDamage(dmg, droppedItems, audio);
           createHitParticles(mob.x * TILE_SIZE, mob.y * TILE_SIZE, '#ff3333');
         }
@@ -137,29 +257,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } 
     else if (button === 2) {
-      // Right Click: Place block / Interact / Eat food / Bow / Summon Boss
+      // Right Click: Place / Interact / Eat / Boss
       player.swingProgress = 1.0;
 
-      // 1. Open Crafting Table
       if (targetBlock === BLOCKS.CRAFTING_TABLE) {
         openCraftingTableModal();
-        return;
-      }
-      // 2. Open Furnace
-      if (targetBlock === BLOCKS.FURNACE) {
-        openFurnaceModal();
         return;
       }
 
       if (!held) return;
 
-      // 3. Eat Food
       if (ITEM_DATA[held.id] && ITEM_DATA[held.id].food) {
         if (player.hunger < player.maxHunger || player.health < player.maxHealth) {
           player.hunger = Math.min(player.maxHunger, player.hunger + ITEM_DATA[held.id].food);
-          if (ITEM_DATA[held.id].health) {
-            player.health = Math.min(player.maxHealth, player.health + ITEM_DATA[held.id].health);
-          }
+          if (ITEM_DATA[held.id].health) player.health = Math.min(player.maxHealth, player.health + ITEM_DATA[held.id].health);
           held.count--;
           if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
           audio.playEat();
@@ -168,7 +279,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // 4. Shoot Bow
       if (held.id === ITEMS.BOW) {
         const hasArrow = player.inventory.some(s => s && s.id === ITEMS.ARROW);
         if (hasArrow) {
@@ -186,7 +296,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // 5. Summon Boss (Eye of Ender)
       if (held.id === ITEMS.EYE_OF_ENDER) {
         held.count--;
         if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
@@ -197,10 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // 6. Place Block
       if (ITEM_DATA[held.id] && ITEM_DATA[held.id].isBlock) {
         if (targetBlock === BLOCKS.AIR || targetBlock === BLOCKS.WATER) {
-          // Check player not intersecting placement
           const overlapsPlayer = (
             bx >= Math.floor(player.x - player.w / 2) &&
             bx <= Math.floor(player.x + player.w / 2) &&
@@ -210,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (!overlapsPlayer || held.id === BLOCKS.TORCH || held.id === BLOCKS.LADDER) {
             world.setBlock(bx, by, held.id);
+            network.broadcastBlock(bx, by, held.id);
             audio.playBlockPlace();
             held.count--;
             if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
@@ -221,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateMining(delta) {
-    if (!mouse.leftDown || !miningTarget) return;
+    if (!mouse.leftDown || !miningTarget || !world) return;
 
     updateWorldMouse();
     if (miningTarget.x !== mouse.worldX || miningTarget.y !== mouse.worldY) {
@@ -231,13 +339,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const held = player.getHeldItem();
     let speedMult = 1.0;
-    if (held && ITEM_DATA[held.id] && ITEM_DATA[held.id].speed) {
-      speedMult = ITEM_DATA[held.id].speed;
-    }
+    if (held && ITEM_DATA[held.id] && ITEM_DATA[held.id].speed) speedMult = ITEM_DATA[held.id].speed;
 
     miningTarget.progress += delta * speedMult;
 
-    // Dig sound interval
     if (Math.random() < 0.25) {
       const b = world.getBlock(miningTarget.x, miningTarget.y);
       const bDef = ITEM_DATA[b];
@@ -245,12 +350,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (miningTarget.progress >= miningTarget.hardness) {
-      // Block Broken!
       const b = world.getBlock(miningTarget.x, miningTarget.y);
       const bDef = ITEM_DATA[b];
       const dropId = bDef && bDef.drop !== undefined ? bDef.drop : b;
 
       world.setBlock(miningTarget.x, miningTarget.y, BLOCKS.AIR);
+      network.broadcastBlock(miningTarget.x, miningTarget.y, BLOCKS.AIR);
+
       droppedItems.push(new DroppedItem(dropId, miningTarget.x + 0.5, miningTarget.y + 0.5, 1));
       createHitParticles((miningTarget.x + 0.5) * TILE_SIZE, (miningTarget.y + 0.5) * TILE_SIZE, bDef ? bDef.color : '#888');
 
@@ -259,6 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function dropHeldItem() {
+    if (!player) return;
     const held = player.getHeldItem();
     if (!held) return;
 
@@ -282,19 +389,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- SPAWN MOBS AT NIGHT ---
-
+  // --- MOBS SPAWNER ---
   let mobSpawnTimer = 0;
   function updateMobSpawning(delta) {
+    if (!world || !player) return;
     mobSpawnTimer += delta;
     if (mobSpawnTimer > 6.0 && mobs.length < 12) {
       mobSpawnTimer = 0;
       const isNight = (gameTime % 600) > 300;
 
-      // Spawn off-screen
       const spawnX = Math.floor(player.x + (Math.random() > 0.5 ? 1 : -1) * (18 + Math.random() * 8));
       if (spawnX > 4 && spawnX < world.width - 4) {
-        // Find top block
         for (let y = 10; y < world.height - 10; y++) {
           if (world.getBlock(spawnX, y) !== BLOCKS.AIR && world.getBlock(spawnX, y - 1) === BLOCKS.AIR) {
             const types = isNight ? ['zombie', 'skeleton', 'creeper', 'spider'] : ['zombie'];
@@ -308,11 +413,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- INVENTORY & CRAFTING UI ---
-
   const inventoryModal = document.getElementById('modal-inventory');
   const craftingList = document.getElementById('crafting-recipes-list');
 
   function toggleInventoryModal(forceState = null) {
+    if (!player) return;
     const isVis = forceState !== null ? forceState : !inventoryModal.classList.contains('active');
     if (isVis) {
       renderInventoryGrid();
@@ -325,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openCraftingTableModal() {
     renderInventoryGrid();
-    renderCraftingList(true); // 3x3 allowed
+    renderCraftingList(true);
     inventoryModal.classList.add('active');
     showBannerNotification('ОТКРЫТ ВЕРСТАК (3x3)');
   }
@@ -421,19 +526,47 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Add result
     new DroppedItem(recipe.result, 0, 0, recipe.count).giveToPlayer(player);
   }
 
-  // --- FURNACE MODAL ---
-  function openFurnaceModal() {
-    toggleInventoryModal(true);
-    showBannerNotification('ПЕЧЬ: ПЕРЕПЛАВКА РУДЫ');
+  // --- CHAT SYSTEM ---
+  const chatInputBox = document.getElementById('hud-mc-chat-box');
+  const chatInput = document.getElementById('hud-mc-chat-input');
+  const chatFeed = document.getElementById('hud-mc-chat-feed');
+
+  function openChatInput() {
+    chatInputBox.classList.remove('hidden');
+    chatInput.focus();
+  }
+
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const text = chatInput.value.trim();
+      if (text && player) {
+        addChatMessage(player.name, text);
+        network.sendChat(text);
+        chatInput.value = '';
+      }
+      chatInputBox.classList.add('hidden');
+      canvas.focus();
+    } else if (e.key === 'Escape') {
+      chatInputBox.classList.add('hidden');
+      canvas.focus();
+    }
+  });
+
+  function addChatMessage(sender, text) {
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.innerHTML = `<span class="chat-sender">&lt;${sender}&gt;</span> ${text}`;
+    chatFeed.appendChild(msg);
+    chatFeed.scrollTop = chatFeed.scrollHeight;
+    setTimeout(() => msg.remove(), 12000);
   }
 
   // --- HUD UPDATES ---
-
   function updateHotbarUI() {
+    if (!player) return;
     const bar = document.getElementById('hotbar-slots');
     bar.innerHTML = '';
 
@@ -460,15 +593,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateStatusHUD() {
-    // Health (Hearts)
-    const heartsContainer = document.getElementById('hud-hearts');
-    heartsContainer.innerHTML = '❤️'.repeat(Math.ceil(player.health / 2));
+    if (!player) return;
+    document.getElementById('hud-hearts').innerHTML = '❤️'.repeat(Math.ceil(player.health / 2));
+    document.getElementById('hud-hunger').innerHTML = '🍗'.repeat(Math.ceil(player.hunger / 2));
 
-    // Hunger (Drumsticks)
-    const hungerContainer = document.getElementById('hud-hunger');
-    hungerContainer.innerHTML = '🍗'.repeat(Math.ceil(player.hunger / 2));
-
-    // Boss Bar
     const boss = mobs.find(m => m.type === 'boss' && !m.isDead);
     const bossHud = document.getElementById('hud-boss-bar');
     if (boss) {
@@ -488,71 +616,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-close-inv').addEventListener('click', () => toggleInventoryModal(false));
   document.getElementById('btn-save-world').addEventListener('click', () => {
-    saveManager.saveGame(world, player, gameTime);
-    showBannerNotification('МИР УСПЕШНО СОХРАНЕН!');
+    if (world && player) {
+      saveManager.saveGame(world, player, gameTime);
+      showBannerNotification('МИР УСПЕШНО СОХРАНЕН!');
+    }
   });
   document.getElementById('btn-export-world').addEventListener('click', () => {
-    saveManager.exportSaveFile(world, player, gameTime);
+    if (world && player) saveManager.exportSaveFile(world, player, gameTime);
   });
 
   // --- RENDER & PHYSICS LOOP ---
-
-  let lastSaveTime = 0;
   const clock = new THREE.Clock();
 
   function loop() {
     requestAnimationFrame(loop);
     const delta = Math.min(clock.getDelta(), 0.08);
-    gameTime += delta;
 
-    // 1. Auto-save every 30s
-    if (gameTime - lastSaveTime > 30) {
-      lastSaveTime = gameTime;
-      saveManager.saveGame(world, player, gameTime);
+    if (isGameRunning && world && player) {
+      gameTime += delta;
+
+      // 1. Update Player & Camera
+      player.update(delta, world, keys, audio);
+      camera.x += ((player.x * TILE_SIZE) - camera.x) * 0.12;
+      camera.y += (((player.y + 0.8) * TILE_SIZE) - camera.y) * 0.12;
+
+      // Broadcast position to friend
+      network.broadcastPlayer(player.x, player.y, player.facing, player.getHeldItem() ? player.getHeldItem().id : 0, !player.isDead);
+
+      // 2. Mining
+      updateMining(delta);
+
+      // 3. Mobs & Spawns
+      updateMobSpawning(delta);
+      mobs.forEach(mob => mob.update(delta, player, world, projectiles, droppedItems, audio));
+
+      // 4. Projectiles
+      projectiles.forEach(p => p.update(delta, world, player, mobs, audio));
+
+      // 5. Dropped Items
+      droppedItems.forEach(item => item.update(delta, world, player, audio));
+
+      // 6. Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].life -= delta;
+        particles[i].x += particles[i].vx * delta;
+        particles[i].y += particles[i].vy * delta;
+        if (particles[i].life <= 0) particles.splice(i, 1);
+      }
+
+      // 7. Render Game
+      renderGame();
+      updateStatusHUD();
     }
-
-    // 2. Update Player & Camera
-    player.update(delta, world, keys, audio);
-    camera.x += ((player.x * TILE_SIZE) - camera.x) * 0.12;
-    camera.y += (((player.y + 0.8) * TILE_SIZE) - camera.y) * 0.12;
-
-    // 3. Mining
-    updateMining(delta);
-
-    // 4. Update Mobs
-    updateMobSpawning(delta);
-    mobs.forEach(mob => mob.update(delta, player, world, projectiles, droppedItems, audio));
-
-    // 5. Update Projectiles
-    projectiles.forEach(p => p.update(delta, world, player, mobs, audio));
-
-    // 6. Update Dropped Items
-    droppedItems.forEach(item => item.update(delta, world, player, audio));
-
-    // 7. Update Particles
-    for (let i = particles.length - 1; i >= 0; i--) {
-      particles[i].life -= delta;
-      particles[i].x += particles[i].vx * delta;
-      particles[i].y += particles[i].vy * delta;
-      if (particles[i].life <= 0) particles.splice(i, 1);
-    }
-
-    // 8. Render Scene
-    renderGame();
-    updateStatusHUD();
   }
 
   function renderGame() {
-    // 1. Dynamic Sky Cycle
-    const cycleTime = (gameTime % 600) / 600; // 0..1 (Day -> Sunset -> Night -> Dawn)
-    let skyColor = '#80b5ff'; // Day
+    const cycleTime = (gameTime % 600) / 600;
+    let skyColor = '#80b5ff';
     let sunIntensity = 1.0;
 
     if (cycleTime > 0.45 && cycleTime < 0.55) {
-      skyColor = '#d97d43'; // Sunset
+      skyColor = '#d97d43';
       sunIntensity = 0.5;
     } else if (cycleTime >= 0.55 && cycleTime <= 0.95) {
-      skyColor = '#0b0f19'; // Starry Night
+      skyColor = '#0b0f19';
       sunIntensity = 0.15;
     }
 
@@ -567,36 +694,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const minY = Math.max(0, Math.floor((camera.y - canvas.height / 2) / TILE_SIZE) - 2);
     const maxY = Math.min(world.height - 1, Math.ceil((camera.y + canvas.height / 2) / TILE_SIZE) + 2);
 
-    // Compute Dynamic Lighting
     world.computeLighting(sunIntensity, minX, maxX, minY, maxY);
 
-    // 2. Draw World Blocks
+    // Draw Pixel Blocks
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
         const b = world.getBlock(x, y);
         if (b === BLOCKS.AIR) continue;
 
-        const bDef = ITEM_DATA[b] || { color: '#888888' };
+        const tex = atlas.textures.get(b);
         const light = world.lightMap[world.getIndex(x, y)] || 1.0;
 
-        ctx.fillStyle = bDef.color;
-        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        if (tex) {
+          ctx.drawImage(tex, x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        } else {
+          const bDef = ITEM_DATA[b] || { color: '#888888' };
+          ctx.fillStyle = bDef.color;
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
 
-        // Pixel block texture border
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-        ctx.fillRect(x * TILE_SIZE, (y + 0.9) * TILE_SIZE, TILE_SIZE, TILE_SIZE * 0.1);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE * 0.1);
-
-        // Torch Glow
         if (b === BLOCKS.TORCH) {
           ctx.fillStyle = '#ffeedd';
           ctx.beginPath();
-          ctx.arc((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE, 6, 0, Math.PI * 2);
+          ctx.arc((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE, 5, 0, Math.PI * 2);
           ctx.fill();
         }
 
-        // Apply Darkness / Cave shadow
         if (light < 0.95 && b !== BLOCKS.TORCH) {
           ctx.fillStyle = `rgba(0, 0, 0, ${1.0 - light})`;
           ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -604,27 +727,27 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 3. Draw Mining Cracks
+    // Mining Crack Overlay
     if (miningTarget) {
       const crackStage = Math.floor((miningTarget.progress / miningTarget.hardness) * 5);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
       ctx.strokeRect(miningTarget.x * TILE_SIZE, miningTarget.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
       ctx.fillStyle = `rgba(0, 0, 0, ${crackStage * 0.15})`;
       ctx.fillRect(miningTarget.x * TILE_SIZE, miningTarget.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     }
 
-    // 4. Draw Dropped Items
+    // Dropped Items
     droppedItems.forEach(item => {
       if (!item.isDead) {
         const itemInfo = ITEM_DATA[item.itemId] || { icon: '📦' };
-        ctx.font = '18px sans-serif';
+        ctx.font = '20px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(itemInfo.icon || '🧱', item.x * TILE_SIZE, (item.y + Math.sin(item.floatTimer * 4) * 0.15) * TILE_SIZE);
       }
     });
 
-    // 5. Draw Projectiles
+    // Projectiles
     projectiles.forEach(p => {
       if (!p.isDead) {
         ctx.fillStyle = p.source === 'boss' ? '#8a2be2' : '#ffffff';
@@ -634,17 +757,24 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // 6. Draw Mobs
+    // Mobs
     mobs.forEach(mob => {
       if (!mob.isDead) drawMob(ctx, mob);
     });
 
-    // 7. Draw Player
+    // Remote Players (Friend!)
+    network.remotePlayers.forEach(rp => {
+      if (rp.isAlive) {
+        drawSteve(ctx, rp.x, rp.y, rp.facing, rp.name, rp.color, rp.heldId);
+      }
+    });
+
+    // Local Player
     if (!player.isDead) {
-      drawPlayer(ctx, player);
+      drawSteve(ctx, player.x, player.y, player.facing, player.name, player.color, player.getHeldItem() ? player.getHeldItem().id : 0, player.swingProgress, player.walkAnimTimer);
     }
 
-    // 8. Draw Particles
+    // Particles
     particles.forEach(p => {
       ctx.fillStyle = p.color;
       ctx.fillRect(p.x, p.y, 4, 4);
@@ -653,13 +783,16 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
   }
 
-  function drawPlayer(c, p) {
-    const px = p.x * TILE_SIZE;
-    const py = p.y * TILE_SIZE;
+  function drawSteve(c, x, y, facing, name, shirtColor, heldId = 0, swing = 0, walkTimer = 0) {
+    const px = x * TILE_SIZE;
+    const py = y * TILE_SIZE;
 
     c.save();
     c.translate(px, py);
-    c.scale(p.facing, 1);
+    c.scale(facing, 1);
+
+    // Leg walk swing
+    const legOffset = Math.sin(walkTimer) * 4;
 
     // Head
     c.fillStyle = '#c68c53';
@@ -667,25 +800,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hair
     c.fillStyle = '#4a2e18';
     c.fillRect(-6, 0, 12, 4);
-    // Body (Cyan Shirt)
-    c.fillStyle = '#00aaaa';
-    c.fillRect(-8, 12, 16, 20);
-    // Legs (Blue Pants)
-    c.fillStyle = '#2b3990';
-    c.fillRect(-7, 32, 6, 22);
-    c.fillRect(1, 32, 6, 22);
+    // Eyes
+    c.fillStyle = '#ffffff';
+    c.fillRect(1, 4, 3, 2);
+    c.fillStyle = '#3a5da8';
+    c.fillRect(3, 4, 2, 2);
 
-    // Tool/Weapon in Hand
-    const held = p.getHeldItem();
-    if (held) {
-      const itemInfo = ITEM_DATA[held.id] || { icon: '🗡️' };
+    // Shirt
+    c.fillStyle = shirtColor || '#00aaaa';
+    c.fillRect(-7, 12, 14, 18);
+
+    // Legs
+    c.fillStyle = '#2b3990';
+    c.fillRect(-6, 30, 5, 20 + legOffset);
+    c.fillRect(1, 30, 5, 20 - legOffset);
+
+    // Held Item
+    if (heldId) {
+      const itemInfo = ITEM_DATA[heldId] || { icon: '🗡️' };
       c.save();
-      c.translate(8, 20);
-      c.rotate(p.swingProgress * Math.PI * 0.6);
+      c.translate(6, 18);
+      c.rotate(swing * Math.PI * 0.6);
       c.font = '20px sans-serif';
       c.fillText(itemInfo.icon || '🗡️', 0, 0);
       c.restore();
     }
+
+    // Nametag
+    c.fillStyle = '#ffffff';
+    c.font = 'bold 12px sans-serif';
+    c.textAlign = 'center';
+    c.scale(facing, 1); // unflip nametag
+    c.fillText(name, 0, -8);
 
     c.restore();
   }
@@ -699,42 +845,40 @@ document.addEventListener('DOMContentLoaded', () => {
     c.scale(m.facing, 1);
 
     if (m.type === 'zombie') {
-      c.fillStyle = '#497332'; // Green head
+      c.fillStyle = '#497332';
       c.fillRect(-6, 0, 12, 12);
-      c.fillStyle = '#008888'; // Cyan shirt
-      c.fillRect(-8, 12, 16, 20);
+      c.fillStyle = '#008888';
+      c.fillRect(-7, 12, 14, 18);
       c.fillStyle = '#2b3990';
-      c.fillRect(-7, 32, 6, 22);
-      c.fillRect(1, 32, 6, 22);
+      c.fillRect(-6, 30, 5, 20);
+      c.fillRect(1, 30, 5, 20);
     } else if (m.type === 'skeleton') {
-      c.fillStyle = '#d9d9d9'; // Bone head
+      c.fillStyle = '#d9d9d9';
       c.fillRect(-6, 0, 12, 12);
-      c.fillRect(-6, 12, 12, 20);
-      c.fillRect(-5, 32, 4, 22);
-      c.fillRect(1, 32, 4, 22);
+      c.fillRect(-5, 12, 10, 18);
+      c.fillRect(-5, 30, 4, 20);
+      c.fillRect(1, 30, 4, 20);
     } else if (m.type === 'creeper') {
       c.fillStyle = m.fuseTimer > 0 && Math.floor(Date.now() / 80) % 2 === 0 ? '#ffffff' : '#00aa00';
-      c.fillRect(-8, 0, 16, 16); // Head
-      c.fillRect(-7, 16, 14, 24); // Body
-      c.fillRect(-8, 40, 6, 10);
-      c.fillRect(2, 40, 6, 10);
+      c.fillRect(-7, 0, 14, 14);
+      c.fillRect(-6, 14, 12, 22);
+      c.fillRect(-7, 36, 5, 10);
+      c.fillRect(2, 36, 5, 10);
     } else if (m.type === 'spider') {
       c.fillStyle = '#1c1108';
-      c.fillRect(-18, 0, 36, 16);
-      c.fillStyle = '#ff0000'; // Red eyes
-      c.fillRect(10, 4, 4, 4);
+      c.fillRect(-16, 0, 32, 14);
+      c.fillStyle = '#ff0000';
+      c.fillRect(8, 4, 4, 4);
     } else if (m.type === 'boss') {
-      // Giant Wither Dragon
       c.fillStyle = '#140d1e';
-      c.fillRect(-36, -36, 72, 72);
+      c.fillRect(-32, -32, 64, 64);
       c.fillStyle = '#ff00ff';
-      c.fillRect(-20, -10, 8, 8);
-      c.fillRect(12, -10, 8, 8);
+      c.fillRect(-18, -8, 8, 8);
+      c.fillRect(10, -8, 8, 8);
     }
 
     c.restore();
   }
 
-  updateHotbarUI();
   loop();
 });

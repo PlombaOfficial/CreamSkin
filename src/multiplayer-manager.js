@@ -1,6 +1,7 @@
 /**
- * AMONG US // BULLETPROOF REALTIME FIRESTORE MULTIPLAYER ENGINE
- * Single-Document Realtime Sync for Rooms, Lobby, Match Start, and Live Coordinates.
+ * 2D MINECRAFT // REALTIME FIRESTORE MULTIPLAYER ENGINE
+ * Realtime Block Placements/Breaking Sync, Seed Replication,
+ * Player Movement Streaming, and In-Game Chat.
  */
 
 import { 
@@ -13,65 +14,67 @@ import {
   serverTimestamp 
 } from "./firebase-config.js";
 
-export class MultiplayerManager {
+export class MinecraftMultiplayerManager {
   constructor() {
     this.roomId = null;
     this.playerId = 'p_' + Math.random().toString(36).substring(2, 8);
-    this.playerName = 'Оператор';
-    this.playerColor = '#c51111';
+    this.playerName = 'Стив';
+    this.playerColor = '#00aaaa';
     this.isHost = false;
+    this.worldSeed = 12345;
 
-    // Remote Players State
-    this.remotePlayers = new Map(); // pId -> { name, color, x, y, isAlive }
-    this.remoteBots = []; // Synced from Host if client
+    this.remotePlayers = new Map(); // pId -> { name, color, x, y, facing, heldId, isAlive }
     this.unsubRoom = null;
     this.lastBroadcast = 0;
+    this.pendingBlockUpdates = [];
   }
 
   generateRoomCode() {
-    return 'BCK' + Math.floor(1000 + Math.random() * 9000);
+    return 'MC' + Math.floor(1000 + Math.random() * 9000);
   }
 
   formatCode(code) {
     return (code || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   }
 
-  // 1. CREATE ROOM (HOST)
-  async createRoom(playerName, playerColor) {
+  // 1. CREATE MULTIPLAYER WORLD (HOST)
+  async createWorld(playerName, playerColor) {
     this.playerName = playerName || this.playerName;
     this.playerColor = playerColor || this.playerColor;
     this.isHost = true;
     this.roomId = this.generateRoomCode();
+    this.worldSeed = Math.floor(Math.random() * 999999);
 
-    const roomRef = doc(db, 'backrooms_rooms', this.roomId);
+    const roomRef = doc(db, 'minecraft_rooms', this.roomId);
     await setDoc(roomRef, {
-      status: 'LOBBY',
+      status: 'PLAYING',
       hostId: this.playerId,
+      worldSeed: this.worldSeed,
       players: [
         { id: this.playerId, name: this.playerName, color: this.playerColor, isHost: true }
       ],
-      secretPick: 0,
       createdAt: serverTimestamp()
     });
 
-    return this.roomId;
+    return { roomId: this.roomId, seed: this.worldSeed };
   }
 
-  // 2. JOIN ROOM (FRIEND)
-  async joinRoom(roomCode, playerName, playerColor) {
+  // 2. JOIN MULTIPLAYER WORLD (FRIEND)
+  async joinWorld(roomCode, playerName, playerColor) {
     this.playerName = playerName || this.playerName;
     this.playerColor = playerColor || this.playerColor;
     this.isHost = false;
     this.roomId = this.formatCode(roomCode);
 
-    const roomRef = doc(db, 'backrooms_rooms', this.roomId);
+    const roomRef = doc(db, 'minecraft_rooms', this.roomId);
     const snap = await getDoc(roomRef);
 
     if (!snap.exists()) {
-      throw new Error(`Комната ${this.roomId} не найдена! Проверьте правильность кода.`);
+      throw new Error(`Мир ${this.roomId} не найден! Проверьте правильность кода.`);
     }
 
     const data = snap.data();
+    this.worldSeed = data.worldSeed || 12345;
     const existingPlayers = data.players || [];
 
     const alreadyIn = existingPlayers.find(p => p.id === this.playerId);
@@ -85,94 +88,98 @@ export class MultiplayerManager {
       await updateDoc(roomRef, { players: existingPlayers });
     }
 
-    return this.roomId;
+    return { roomId: this.roomId, seed: this.worldSeed };
   }
 
-  // 3. LISTEN TO ROOM (LOBBY + GAME START + LIVE PLAYER COORDINATES)
-  listenToRoom(roomId, onPlayersChanged, onGameStarted, onSyncReceived) {
+  // 3. LISTEN TO REALTIME WORLD (BLOCKS + PLAYERS + CHAT)
+  listenToWorld(roomId, onBlockChange, onPlayersChange, onChatMessage) {
     if (this.unsubRoom) this.unsubRoom();
     this.roomId = roomId;
-    const roomRef = doc(db, 'backrooms_rooms', roomId);
+    const roomRef = doc(db, 'minecraft_rooms', roomId);
 
     this.unsubRoom = onSnapshot(roomRef, (docSnap) => {
       if (!docSnap.exists()) return;
       const data = docSnap.data();
 
-      // A. Lobby player updates
-      if (onPlayersChanged && data.players) {
-        onPlayersChanged(data.players);
-      }
-
-      // B. Game start signal
-      if (data.status === 'PLAYING' && onGameStarted) {
-        onGameStarted(data);
-      }
-
-      // C. Live Player & Bot Coordinates Sync
+      // A. Extract and apply real-time Block Changes
       Object.keys(data).forEach(key => {
-        if (key.startsWith('pos_')) {
-          const pId = key.replace('pos_', '');
-          if (pId !== this.playerId) {
-            const pInfo = data[key];
-            this.remotePlayers.set(pId, pInfo);
+        if (key.startsWith('blk_')) {
+          const [bx, by] = key.replace('blk_', '').split('_').map(Number);
+          const blockId = data[key];
+          if (onBlockChange) {
+            onBlockChange(bx, by, blockId);
           }
         }
       });
 
-      if (!this.isHost && data.syncedBots) {
-        this.remoteBots = data.syncedBots;
+      // B. Extract Remote Players Coordinates
+      Object.keys(data).forEach(key => {
+        if (key.startsWith('pos_')) {
+          const pId = key.replace('pos_', '');
+          if (pId !== this.playerId) {
+            this.remotePlayers.set(pId, data[key]);
+          }
+        }
+      });
+
+      if (onPlayersChange) {
+        onPlayersChange(this.remotePlayers);
       }
 
-      if (onSyncReceived) {
-        onSyncReceived(this.remotePlayers, this.remoteBots);
+      // C. In-Game Chat
+      if (data.lastChat && onChatMessage) {
+        onChatMessage(data.lastChat);
       }
     }, (err) => {
-      console.error('Firestore listen error:', err);
+      console.error('Multiplayer listen error:', err);
     });
   }
 
-  // 4. START MATCH IN FIRESTORE
-  async startMatchInFirestore(secretPick) {
+  // 4. BROADCAST BLOCK PLACED / BROKEN
+  broadcastBlock(x, y, blockId) {
     if (!this.roomId) return;
-    const roomRef = doc(db, 'backrooms_rooms', this.roomId);
-    await updateDoc(roomRef, {
-      status: 'PLAYING',
-      secretPick: secretPick
-    });
+    const roomRef = doc(db, 'minecraft_rooms', this.roomId);
+    const key = `blk_${Math.round(x)}_${Math.round(y)}`;
+
+    updateDoc(roomRef, {
+      [key]: blockId
+    }).catch(() => {});
   }
 
-  // 5. BROADCAST LIVE COORDINATES
-  broadcastPosition(x, y, isAlive, bots = null) {
+  // 5. BROADCAST PLAYER COORDINATES
+  broadcastPlayer(x, y, facing, heldId, isAlive) {
     if (!this.roomId) return;
     const now = performance.now();
     if (now - this.lastBroadcast < 80) return; // ~12 updates/sec
     this.lastBroadcast = now;
 
-    const roomRef = doc(db, 'backrooms_rooms', this.roomId);
-    const updatePayload = {
-      ['pos_' + this.playerId]: {
+    const roomRef = doc(db, 'minecraft_rooms', this.roomId);
+    const key = `pos_${this.playerId}`;
+
+    updateDoc(roomRef, {
+      [key]: {
         id: this.playerId,
         name: this.playerName,
         color: this.playerColor,
-        x: Math.round(x),
-        y: Math.round(y),
+        x: Number(x.toFixed(2)),
+        y: Number(y.toFixed(2)),
+        facing: facing,
+        heldId: heldId,
         isAlive: isAlive
       }
-    };
+    }).catch(() => {});
+  }
 
-    if (this.isHost && bots) {
-      updatePayload.syncedBots = bots.map(b => ({
-        id: b.id,
-        name: b.name,
-        color: b.color,
-        x: Math.round(b.x),
-        y: Math.round(b.y),
-        isAlive: b.isAlive,
-        isImpostor: b.isImpostor,
-        speechBubble: b.speechBubble
-      }));
-    }
-
-    updateDoc(roomRef, updatePayload).catch(() => {});
+  // 6. SEND CHAT MESSAGE
+  sendChat(text) {
+    if (!this.roomId || !text) return;
+    const roomRef = doc(db, 'minecraft_rooms', this.roomId);
+    updateDoc(roomRef, {
+      lastChat: {
+        sender: this.playerName,
+        text: text,
+        timestamp: Date.now()
+      }
+    }).catch(() => {});
   }
 }

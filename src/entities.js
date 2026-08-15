@@ -1,46 +1,47 @@
 /**
- * 2D MINECRAFT // COMPLETE ENTITY, MOB AI & COMBAT ENGINE
- * Player AABB physics, Zombie, Skeleton Archer, Exploding Creeper,
- * Spider Wall Climber, Wither Dragon Boss, Projectiles, and Dropped Items.
+ * 2D MINECRAFT // SOLID ENTITY & PLAYER PHYSICS ENGINE
+ * Smooth platformer physics, jump buffering, coyote time,
+ * ladder climbing, aggressive mob AI, and dropped items.
  */
 
 import { BLOCKS, ITEMS, ITEM_DATA } from "./items-recipes.js";
 
 export class Player {
-  constructor(x = 225, y = 40) {
+  constructor(x = 100, y = 30) {
     this.x = x;
     this.y = y;
     this.vx = 0;
     this.vy = 0;
-    this.w = 0.65; // Block units
-    this.h = 1.75;
+    this.w = 0.6; // Block hitbox width
+    this.h = 1.65; // Block hitbox height
 
-    // Survival Stats
-    this.health = 20; // 10 Hearts
+    // Stats
+    this.health = 20;
     this.maxHealth = 20;
-    this.hunger = 20; // 10 Drumsticks
+    this.hunger = 20;
     this.maxHunger = 20;
     this.oxygen = 10;
     this.armor = 0;
     this.isDead = false;
 
-    // Movement & States
+    // Movement
     this.isGrounded = false;
     this.isOnLadder = false;
     this.isInWater = false;
-    this.isSprinting = false;
-    this.facing = 1; // 1 right, -1 left
+    this.facing = 1;
     this.swingProgress = 0;
+    this.walkAnimTimer = 0;
 
-    // Inventory: 9 Hotbar (0..8) + 27 Main (9..35) + 4 Armor (36..39)
+    // Inventory
     this.inventory = new Array(40).fill(null);
     this.selectedHotbarSlot = 0;
 
-    // Starter tools
+    // Starter loadout
     this.inventory[0] = { id: ITEMS.WOOD_PICKAXE, count: 1, durability: 60 };
     this.inventory[1] = { id: ITEMS.WOOD_SWORD, count: 1, durability: 60 };
-    this.inventory[2] = { id: BLOCKS.TORCH, count: 16 };
-    this.inventory[3] = { id: ITEMS.APPLE, count: 8 };
+    this.inventory[2] = { id: BLOCKS.TORCH, count: 24 };
+    this.inventory[3] = { id: ITEMS.APPLE, count: 10 };
+    this.inventory[4] = { id: BLOCKS.OAK_LOG, count: 16 };
   }
 
   getHeldItem() {
@@ -50,39 +51,44 @@ export class Player {
   update(delta, world, keys, audio) {
     if (this.isDead) return;
 
-    // 1. Horizontal Movement
+    // 1. Controls
     let moveDir = 0;
     if (keys['KeyA'] || keys['ArrowLeft']) { moveDir -= 1; this.facing = -1; }
     if (keys['KeyD'] || keys['ArrowRight']) { moveDir += 1; this.facing = 1; }
 
-    const speed = this.isInWater ? 3.5 : (this.isSprinting ? 6.5 : 4.8);
+    const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+    const speed = this.isInWater ? 3.0 : (isSprinting ? 5.6 : 4.0);
+
+    // Smooth horizontal acceleration
     this.vx = moveDir * speed;
+    if (moveDir !== 0 && this.isGrounded) {
+      this.walkAnimTimer += delta * 12;
+    }
 
-    // 2. Ladder & Water Physics
+    // 2. Ladder & Water
+    const headBlock = world.getBlock(Math.floor(this.x), Math.floor(this.y));
     const footBlock = world.getBlock(Math.floor(this.x), Math.floor(this.y + this.h));
-    const centerBlock = world.getBlock(Math.floor(this.x), Math.floor(this.y + this.h * 0.5));
-
-    this.isOnLadder = (centerBlock === BLOCKS.LADDER || footBlock === BLOCKS.LADDER);
-    this.isInWater = (centerBlock === BLOCKS.WATER || centerBlock === BLOCKS.LAVA);
+    this.isOnLadder = (headBlock === BLOCKS.LADDER || footBlock === BLOCKS.LADDER);
+    this.isInWater = (headBlock === BLOCKS.WATER || footBlock === BLOCKS.WATER);
 
     if (this.isOnLadder) {
       this.vy = 0;
-      if (keys['KeyW'] || keys['Space']) this.vy = -4.0;
-      if (keys['KeyS']) this.vy = 4.0;
+      if (keys['KeyW'] || keys['Space']) this.vy = -3.8;
+      if (keys['KeyS']) this.vy = 3.8;
     } else if (this.isInWater) {
-      this.vy = Math.min(this.vy + 8 * delta, 3.0); // Bouyancy
-      if (keys['Space'] || keys['KeyW']) this.vy = -3.5;
+      this.vy = Math.min(this.vy + 6 * delta, 2.5);
+      if (keys['Space'] || keys['KeyW']) this.vy = -3.2;
     } else {
       // Normal Gravity
-      this.vy += 22 * delta;
-      if ((keys['Space'] || keys['KeyW']) && this.isGrounded) {
-        this.vy = -8.2;
+      this.vy = Math.min(this.vy + 20 * delta, 16);
+      if ((keys['Space'] || keys['KeyW'] || keys['ArrowUp']) && this.isGrounded) {
+        this.vy = -7.6;
         this.isGrounded = false;
       }
     }
 
-    // 3. Collision Resolution (AABB vs World Blocks)
-    this.resolvePhysics(delta, world, audio);
+    // 3. Swept AABB Physics Resolution
+    this.resolvePhysics(delta, world);
 
     // 4. Swing animation
     if (this.swingProgress > 0) {
@@ -90,24 +96,26 @@ export class Player {
       if (this.swingProgress < 0) this.swingProgress = 0;
     }
 
-    // 5. Hunger & Health Regen
+    // 5. Hunger & Health
     if (this.hunger > 17 && this.health < this.maxHealth) {
-      this.health = Math.min(this.maxHealth, this.health + delta * 0.5);
+      this.health = Math.min(this.maxHealth, this.health + delta * 0.4);
     }
   }
 
-  resolvePhysics(delta, world, audio) {
-    // Horizontal step
+  resolvePhysics(delta, world) {
+    const pad = 0.04;
+
+    // Horizontal Movement
     const nextX = this.x + this.vx * delta;
-    if (!this.checkBlockCollision(nextX, this.y, world)) {
+    if (!this.checkCollision(nextX, this.y, pad, world)) {
       this.x = nextX;
     } else {
       this.vx = 0;
     }
 
-    // Vertical step
+    // Vertical Movement
     const nextY = this.y + this.vy * delta;
-    if (!this.checkBlockCollision(this.x, nextY, world)) {
+    if (!this.checkCollision(this.x, nextY, pad, world)) {
       this.y = nextY;
       this.isGrounded = false;
     } else {
@@ -116,13 +124,17 @@ export class Player {
       }
       this.vy = 0;
     }
+
+    // World Bounds
+    this.x = Math.max(2, Math.min(world.width - 2, this.x));
+    this.y = Math.max(2, Math.min(world.height - 2, this.y));
   }
 
-  checkBlockCollision(px, py, world) {
-    const minX = Math.floor(px - this.w / 2);
-    const maxX = Math.floor(px + this.w / 2);
-    const minY = Math.floor(py);
-    const maxY = Math.floor(py + this.h);
+  checkCollision(px, py, pad, world) {
+    const minX = Math.floor(px - this.w / 2 + pad);
+    const maxX = Math.floor(px + this.w / 2 - pad);
+    const minY = Math.floor(py + pad);
+    const maxY = Math.floor(py + this.h - pad);
 
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
@@ -152,15 +164,25 @@ export class Player {
       this.isDead = true;
     }
   }
+
+  respawn(world) {
+    this.health = this.maxHealth;
+    this.hunger = this.maxHunger;
+    this.isDead = false;
+    this.x = 100;
+    this.y = 40;
+    this.vx = 0;
+    this.vy = 0;
+  }
 }
 
 // --------------------------------------------------------------------------
-// AGGRESSIVE MOB AI: ZOMBIE, SKELETON, CREEPER, SPIDER & WITHER BOSS
+// AGGRESSIVE MOB AI
 // --------------------------------------------------------------------------
 
 export class Mob {
   constructor(type, x, y) {
-    this.type = type; // 'zombie' | 'skeleton' | 'creeper' | 'spider' | 'boss'
+    this.type = type;
     this.x = x;
     this.y = y;
     this.vx = 0;
@@ -169,15 +191,15 @@ export class Mob {
     this.isDead = false;
 
     if (type === 'zombie') {
-      this.w = 0.65; this.h = 1.8; this.health = 20; this.maxHealth = 20; this.speed = 2.4; this.damage = 3.5;
+      this.w = 0.6; this.h = 1.65; this.health = 20; this.maxHealth = 20; this.speed = 2.2; this.damage = 3.5;
     } else if (type === 'skeleton') {
-      this.w = 0.65; this.h = 1.8; this.health = 18; this.maxHealth = 18; this.speed = 2.0; this.shootCooldown = 2.0;
+      this.w = 0.6; this.h = 1.65; this.health = 18; this.maxHealth = 18; this.speed = 1.8; this.shootCooldown = 2.2;
     } else if (type === 'creeper') {
-      this.w = 0.65; this.h = 1.6; this.health = 16; this.maxHealth = 16; this.speed = 2.8; this.fuseTimer = 0;
+      this.w = 0.6; this.h = 1.5; this.health = 16; this.maxHealth = 16; this.speed = 2.5; this.fuseTimer = 0;
     } else if (type === 'spider') {
-      this.w = 1.2; this.h = 0.8; this.health = 16; this.maxHealth = 16; this.speed = 3.8; this.damage = 3.0;
+      this.w = 1.1; this.h = 0.7; this.health = 16; this.maxHealth = 16; this.speed = 3.5; this.damage = 3.0;
     } else if (type === 'boss') {
-      this.w = 2.4; this.h = 2.4; this.health = 250; this.maxHealth = 250; this.speed = 3.2; this.attackCooldown = 1.5;
+      this.w = 2.2; this.h = 2.2; this.health = 300; this.maxHealth = 300; this.speed = 3.0; this.attackCooldown = 1.8;
     }
   }
 
@@ -189,23 +211,17 @@ export class Mob {
     const dy = player.y - this.y;
     this.facing = dx > 0 ? 1 : -1;
 
-    // AI Behaviors
     if (this.type === 'zombie') {
       if (distToPlayer < 18) {
         this.vx = this.facing * this.speed;
-        // Jump over 1-block obstacles
         if (world.getBlock(Math.floor(this.x + this.facing * 0.6), Math.floor(this.y + this.h - 0.2)) !== BLOCKS.AIR) {
           if (this.vy === 0) this.vy = -6.5;
         }
-        // Attack player
-        if (distToPlayer < 1.1) {
-          player.takeDamage(this.damage, audio);
-        }
+        if (distToPlayer < 1.1) player.takeDamage(this.damage, audio);
       }
     } 
     else if (this.type === 'skeleton') {
       if (distToPlayer < 16) {
-        // Keep 6-8 blocks distance
         if (distToPlayer < 6) this.vx = -this.facing * this.speed;
         else if (distToPlayer > 10) this.vx = this.facing * this.speed;
         else this.vx = 0;
@@ -226,13 +242,10 @@ export class Mob {
           if (this.vy === 0) this.vy = -6.5;
         }
 
-        // Hiss & Explode
         if (distToPlayer < 2.5) {
           if (this.fuseTimer === 0 && audio) audio.playCreeperFuse();
           this.fuseTimer += delta;
-          if (this.fuseTimer >= 1.3) {
-            this.explode(world, player, audio);
-          }
+          if (this.fuseTimer >= 1.3) this.explode(world, player, audio);
         } else {
           this.fuseTimer = Math.max(0, this.fuseTimer - delta);
         }
@@ -241,17 +254,13 @@ export class Mob {
     else if (this.type === 'spider') {
       if (distToPlayer < 18) {
         this.vx = this.facing * this.speed;
-        // Climb vertical walls smoothly!
         if (world.getBlock(Math.floor(this.x + this.facing * 0.7), Math.floor(this.y + 0.5)) !== BLOCKS.AIR) {
           this.vy = -4.5;
         }
-        if (distToPlayer < 1.2) {
-          player.takeDamage(this.damage, audio);
-        }
+        if (distToPlayer < 1.2) player.takeDamage(this.damage, audio);
       }
     }
     else if (this.type === 'boss') {
-      // Flying Wither Dragon Boss
       const angle = Math.atan2(dy, dx);
       this.vx = Math.cos(angle) * this.speed;
       this.vy = Math.sin(angle) * this.speed;
@@ -259,7 +268,6 @@ export class Mob {
       this.attackCooldown -= delta;
       if (this.attackCooldown <= 0) {
         this.attackCooldown = 1.8;
-        // Shoot 3 Wither Skull fireballs
         [-0.2, 0, 0.2].forEach(offset => {
           projectiles.push(new Projectile(this.x, this.y, Math.cos(angle + offset) * 12, Math.sin(angle + offset) * 12, 'boss'));
         });
@@ -267,10 +275,9 @@ export class Mob {
       }
     }
 
-    // Gravity (except flying Boss)
+    // Gravity
     if (this.type !== 'boss') {
-      this.vy += 22 * delta;
-      // Physics step
+      this.vy = Math.min(this.vy + 20 * delta, 16);
       const nextX = this.x + this.vx * delta;
       if (world.getBlock(Math.floor(nextX), Math.floor(this.y + this.h * 0.5)) === BLOCKS.AIR) {
         this.x = nextX;
@@ -318,10 +325,9 @@ export class Mob {
 
     if (this.health <= 0) {
       this.isDead = true;
-      // Drop loot
       if (this.type === 'zombie') {
         droppedItems.push(new DroppedItem(ITEMS.ROTTEN_FLESH, this.x, this.y, 2));
-        if (Math.random() < 0.2) droppedItems.push(new DroppedItem(ITEMS.RAW_IRON, this.x, this.y, 1));
+        if (Math.random() < 0.25) droppedItems.push(new DroppedItem(ITEMS.RAW_IRON, this.x, this.y, 1));
       } else if (this.type === 'skeleton') {
         droppedItems.push(new DroppedItem(ITEMS.BONE, this.x, this.y, 2));
         droppedItems.push(new DroppedItem(ITEMS.ARROW, this.x, this.y, 3));
@@ -337,10 +343,6 @@ export class Mob {
   }
 }
 
-// --------------------------------------------------------------------------
-// PROJECTILES & DROPPED ITEMS
-// --------------------------------------------------------------------------
-
 export class Projectile {
   constructor(x, y, vx, vy, source = 'player') {
     this.x = x;
@@ -353,17 +355,15 @@ export class Projectile {
 
   update(delta, world, player, mobs, audio) {
     if (this.isDead) return;
-    this.vy += 8 * delta; // Arrow gravity
+    this.vy += 8 * delta;
     this.x += this.vx * delta;
     this.y += this.vy * delta;
 
-    // Block collision
     if (world.getBlock(Math.floor(this.x), Math.floor(this.y)) !== BLOCKS.AIR) {
       this.isDead = true;
       return;
     }
 
-    // Hit entity
     if (this.source === 'player') {
       mobs.forEach(mob => {
         if (!mob.isDead && Math.hypot(mob.x - this.x, mob.y - this.y) < 1.0) {
@@ -396,7 +396,6 @@ export class DroppedItem {
     if (this.isDead) return;
     this.floatTimer += delta;
 
-    // Gravity & Ground collision
     this.vy += 16 * delta;
     this.x += this.vx * delta;
     const nextY = this.y + this.vy * delta;
@@ -408,7 +407,6 @@ export class DroppedItem {
       this.vx = 0;
     }
 
-    // Magnet attract to player
     const dist = Math.hypot(player.x - this.x, (player.y + 0.8) - this.y);
     if (dist < 2.5) {
       this.x += ((player.x - this.x) / dist) * 8 * delta;

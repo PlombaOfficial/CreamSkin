@@ -1,143 +1,338 @@
 /**
- * THE BACKROOMS // PROCEDURAL TEXTURE GENERATOR
- * Generates photorealistic retro textures for Backrooms Levels 0, 1, 2,
- * fluorescent ceiling lights, carpets, and hazmat suits using HTML5 Canvas.
+ * 2D MINECRAFT // PROCEDURAL PIXEL-ART TEXTURE ATLAS
+ * Generates authentic 16x16 pixel-art patterns for Grass, Dirt, Stone,
+ * Cobblestone, Wood Logs, Planks, Leaves, Ores, Glass, Torches, and Steve.
  */
 
-export class BackroomsTextures {
+import { BLOCKS } from "./items-recipes.js";
+
+export class TextureAtlas {
   constructor() {
-    this.textures = {};
-    this.materials = {};
+    this.textures = new Map();
     this.generateAll();
   }
 
-  createCanvas(width = 256, height = 256) {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+  generateAll() {
+    this.textures.set(BLOCKS.GRASS, this.createGrassTexture());
+    this.textures.set(BLOCKS.DIRT, this.createDirtTexture());
+    this.textures.set(BLOCKS.STONE, this.createStoneTexture());
+    this.textures.set(BLOCKS.COBBLESTONE, this.createCobbleTexture());
+    this.textures.set(BLOCKS.OAK_LOG, this.createLogTexture());
+    this.textures.set(BLOCKS.OAK_PLANKS, this.createPlanksTexture());
+    this.textures.set(BLOCKS.OAK_LEAVES, this.createLeavesTexture());
+    this.textures.set(BLOCKS.SAND, this.createSandTexture());
+    this.textures.set(BLOCKS.BEDROCK, this.createBedrockTexture());
+    
+    // Ores
+    this.textures.set(BLOCKS.COAL_ORE, this.createOreTexture('#222222', '#111111'));
+    this.textures.set(BLOCKS.COPPER_ORE, this.createOreTexture('#d97d43', '#8c4820'));
+    this.textures.set(BLOCKS.IRON_ORE, this.createOreTexture('#d8af93', '#9c7358'));
+    this.textures.set(BLOCKS.GOLD_ORE, this.createOreTexture('#fcee4b', '#bfae18'));
+    this.textures.set(BLOCKS.DIAMOND_ORE, this.createOreTexture('#5decf2', '#1aa8b3'));
+    this.textures.set(BLOCKS.ANCIENT_DEBRIS, this.createOreTexture('#5c4238', '#38251e'));
+
+    // Utilities
+    this.textures.set(BLOCKS.CRAFTING_TABLE, this.createCraftingTableTexture());
+    this.textures.set(BLOCKS.FURNACE, this.createFurnaceTexture());
+    this.textures.set(BLOCKS.CHEST, this.createChestTexture());
+    this.textures.set(BLOCKS.GLASS, this.createGlassTexture());
+    this.textures.set(BLOCKS.TNT, this.createTNTTexture());
+  }
+
+  createCanvas() {
+    const c = document.createElement('canvas');
+    c.width = 16;
+    c.height = 16;
+    return { canvas: c, ctx: c.getContext('2d') };
+  }
+
+  createGrassTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    // Dirt base
+    ctx.fillStyle = '#866043';
+    ctx.fillRect(0, 0, 16, 16);
+    // Darker dirt specks
+    ctx.fillStyle = '#654832';
+    ctx.fillRect(2, 6, 2, 2);
+    ctx.fillRect(10, 12, 2, 2);
+    ctx.fillRect(12, 7, 2, 2);
+
+    // Lush Grass Top with hanging fringes
+    ctx.fillStyle = '#5b8c32';
+    ctx.fillRect(0, 0, 16, 4);
+    ctx.fillRect(1, 4, 2, 2);
+    ctx.fillRect(5, 4, 3, 3);
+    ctx.fillRect(11, 4, 2, 2);
+    ctx.fillRect(14, 4, 2, 1);
+
+    // Bright Grass highlights
+    ctx.fillStyle = '#73ab3e';
+    ctx.fillRect(0, 0, 16, 1);
+    ctx.fillRect(3, 1, 3, 1);
+    ctx.fillRect(9, 1, 4, 1);
+
     return canvas;
   }
 
-  generateAll() {
-    // 1. Level 0: Iconic Yellow Wallpaper
-    const wpCanvas = this.createCanvas(256, 256);
-    const wpCtx = wpCanvas.getContext('2d');
-    wpCtx.fillStyle = '#cca856';
-    wpCtx.fillRect(0, 0, 256, 256);
+  createDirtTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#866043';
+    ctx.fillRect(0, 0, 16, 16);
 
-    // Wallpaper subtle damask/striped pattern
-    wpCtx.strokeStyle = '#b89240';
-    wpCtx.lineWidth = 2;
-    for (let x = 0; x < 256; x += 16) {
-      wpCtx.beginPath();
-      wpCtx.moveTo(x, 0);
-      wpCtx.lineTo(x, 256);
-      wpCtx.stroke();
-    }
-    // Water/mold stains on bottom
-    const imgData = wpCtx.getImageData(0, 0, 256, 256);
-    for (let i = 0; i < imgData.data.length; i += 4) {
-      const noise = (Math.random() - 0.5) * 22;
-      imgData.data[i] += noise;
-      imgData.data[i + 1] += noise * 0.9;
-      imgData.data[i + 2] += noise * 0.6;
-    }
-    wpCtx.putImageData(imgData, 0, 0);
-    this.textures.level0_wallpaper = this.toThreeTexture(wpCanvas);
+    ctx.fillStyle = '#654832';
+    ctx.fillRect(2, 2, 3, 2);
+    ctx.fillRect(9, 5, 2, 3);
+    ctx.fillRect(4, 11, 3, 2);
+    ctx.fillRect(12, 12, 2, 2);
 
-    // 2. Level 0: Damp Mold Carpet
-    const carpetCanvas = this.createCanvas(256, 256);
-    const cCtx = carpetCanvas.getContext('2d');
-    cCtx.fillStyle = '#6b5c3e';
-    cCtx.fillRect(0, 0, 256, 256);
-    const cData = cCtx.getImageData(0, 0, 256, 256);
-    for (let i = 0; i < cData.data.length; i += 4) {
-      const n = (Math.random() - 0.5) * 35;
-      cData.data[i] = Math.max(0, Math.min(255, cData.data[i] + n));
-      cData.data[i + 1] = Math.max(0, Math.min(255, cData.data[i + 1] + n * 0.8));
-      cData.data[i + 2] = Math.max(0, Math.min(255, cData.data[i + 2] + n * 0.5));
-    }
-    cCtx.putImageData(cData, 0, 0);
-    this.textures.level0_carpet = this.toThreeTexture(carpetCanvas);
+    ctx.fillStyle = '#a07452';
+    ctx.fillRect(7, 1, 2, 2);
+    ctx.fillRect(1, 8, 2, 2);
+    ctx.fillRect(11, 9, 2, 2);
 
-    // 3. Ceiling Tile with Fluorescent Light
-    const ceilCanvas = this.createCanvas(256, 256);
-    const ceilCtx = ceilCanvas.getContext('2d');
-    ceilCtx.fillStyle = '#8f8f82';
-    ceilCtx.fillRect(0, 0, 256, 256);
-    ceilCtx.strokeStyle = '#555548';
-    ceilCtx.lineWidth = 4;
-    ceilCtx.strokeRect(0, 0, 256, 256);
-
-    // Embedded Fluorescent Lamp
-    ceilCtx.fillStyle = '#ffffea';
-    ceilCtx.fillRect(48, 64, 160, 128);
-    ceilCtx.strokeStyle = '#333333';
-    ceilCtx.strokeRect(48, 64, 160, 128);
-    this.textures.ceiling_light = this.toThreeTexture(ceilCanvas);
-
-    // 4. Level 1: Concrete Warehouse Wall
-    const concreteCanvas = this.createCanvas(256, 256);
-    const concCtx = concreteCanvas.getContext('2d');
-    concCtx.fillStyle = '#6e706e';
-    concCtx.fillRect(0, 0, 256, 256);
-    const concData = concCtx.getImageData(0, 0, 256, 256);
-    for (let i = 0; i < concData.data.length; i += 4) {
-      const n = (Math.random() - 0.5) * 28;
-      concData.data[i] += n;
-      concData.data[i + 1] += n;
-      concData.data[i + 2] += n;
-    }
-    concCtx.putImageData(concData, 0, 0);
-    this.textures.level1_concrete = this.toThreeTexture(concreteCanvas);
-
-    // 5. Level 2: Rusty Metal Pipes Wall
-    const rustCanvas = this.createCanvas(256, 256);
-    const rustCtx = rustCanvas.getContext('2d');
-    rustCtx.fillStyle = '#4a3d35';
-    rustCtx.fillRect(0, 0, 256, 256);
-    rustCtx.fillStyle = '#8a4b22';
-    for (let i = 0; i < 20; i++) {
-      rustCtx.fillRect(Math.random() * 240, Math.random() * 240, 30, 20);
-    }
-    this.textures.level2_rust = this.toThreeTexture(rustCanvas);
-
-    // 6. Elevator Exit Door (with yellow hazard stripes)
-    const doorCanvas = this.createCanvas(256, 256);
-    const doorCtx = doorCanvas.getContext('2d');
-    doorCtx.fillStyle = '#22262b';
-    doorCtx.fillRect(0, 0, 256, 256);
-    doorCtx.strokeStyle = '#444c56';
-    doorCtx.lineWidth = 6;
-    doorCtx.strokeRect(10, 10, 236, 236);
-
-    // Hazard stripe band
-    doorCtx.fillStyle = '#f0b400';
-    doorCtx.fillRect(20, 20, 216, 32);
-    doorCtx.fillStyle = '#000000';
-    for (let x = 20; x < 236; x += 32) {
-      doorCtx.beginPath();
-      doorCtx.moveTo(x, 20);
-      doorCtx.lineTo(x + 16, 52);
-      doorCtx.lineTo(x + 24, 52);
-      doorCtx.lineTo(x + 8, 20);
-      doorCtx.fill();
-    }
-    this.textures.elevator_door = this.toThreeTexture(doorCanvas);
-
-    // Build Three.js Materials
-    this.materials.level0_wall = new THREE.MeshStandardMaterial({ map: this.textures.level0_wallpaper, roughness: 0.85 });
-    this.materials.level0_floor = new THREE.MeshStandardMaterial({ map: this.textures.level0_carpet, roughness: 0.95 });
-    this.materials.ceiling = new THREE.MeshStandardMaterial({ map: this.textures.ceiling_light, roughness: 0.7 });
-    this.materials.level1_wall = new THREE.MeshStandardMaterial({ map: this.textures.level1_concrete, roughness: 0.9 });
-    this.materials.level2_wall = new THREE.MeshStandardMaterial({ map: this.textures.level2_rust, metalness: 0.4, roughness: 0.7 });
-    this.materials.door = new THREE.MeshStandardMaterial({ map: this.textures.elevator_door, metalness: 0.5, roughness: 0.6 });
+    return canvas;
   }
 
-  toThreeTexture(canvas) {
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    return tex;
+  createStoneTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#737373';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.fillStyle = '#555555';
+    ctx.fillRect(3, 3, 3, 2);
+    ctx.fillRect(10, 8, 4, 2);
+    ctx.fillRect(2, 12, 4, 2);
+
+    ctx.fillStyle = '#8c8c8c';
+    ctx.fillRect(7, 1, 3, 2);
+    ctx.fillRect(1, 6, 2, 2);
+    ctx.fillRect(11, 13, 3, 2);
+
+    return canvas;
+  }
+
+  createCobbleTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#5c5c5c';
+    ctx.fillRect(0, 0, 16, 16);
+
+    // Stone block mortar seams
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(0, 7, 16, 1);
+    ctx.fillRect(7, 0, 1, 7);
+    ctx.fillRect(10, 8, 1, 8);
+
+    ctx.fillStyle = '#7a7a7a';
+    ctx.fillRect(1, 1, 5, 5);
+    ctx.fillRect(9, 1, 6, 5);
+    ctx.fillRect(1, 9, 8, 5);
+    ctx.fillRect(12, 9, 3, 5);
+
+    return canvas;
+  }
+
+  createLogTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#674d2b';
+    ctx.fillRect(0, 0, 16, 16);
+
+    // Vertical bark lines
+    ctx.fillStyle = '#48351d';
+    ctx.fillRect(3, 0, 2, 16);
+    ctx.fillRect(9, 0, 2, 16);
+    ctx.fillRect(14, 0, 1, 16);
+
+    ctx.fillStyle = '#7d5e35';
+    ctx.fillRect(1, 0, 1, 16);
+    ctx.fillRect(6, 0, 2, 16);
+    ctx.fillRect(12, 0, 1, 16);
+
+    return canvas;
+  }
+
+  createPlanksTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#a0784a';
+    ctx.fillRect(0, 0, 16, 16);
+
+    // Plank seams
+    ctx.fillStyle = '#6b4e2d';
+    ctx.fillRect(0, 3, 16, 1);
+    ctx.fillRect(0, 7, 16, 1);
+    ctx.fillRect(0, 11, 16, 1);
+    ctx.fillRect(0, 15, 16, 1);
+
+    ctx.fillStyle = '#b88b56';
+    ctx.fillRect(0, 0, 16, 1);
+    ctx.fillRect(0, 4, 16, 1);
+    ctx.fillRect(0, 8, 16, 1);
+    ctx.fillRect(0, 12, 16, 1);
+
+    return canvas;
+  }
+
+  createLeavesTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#2f5e18';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.fillStyle = '#427d24';
+    ctx.fillRect(2, 2, 4, 3);
+    ctx.fillRect(9, 1, 5, 4);
+    ctx.fillRect(3, 9, 6, 4);
+    ctx.fillRect(11, 10, 4, 3);
+
+    ctx.fillStyle = '#1e3d10';
+    ctx.fillRect(0, 6, 2, 2);
+    ctx.fillRect(7, 6, 2, 2);
+    ctx.fillRect(14, 4, 2, 2);
+
+    return canvas;
+  }
+
+  createSandTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#d9cb91';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.fillStyle = '#c4b576';
+    ctx.fillRect(3, 3, 2, 1);
+    ctx.fillRect(10, 7, 2, 1);
+    ctx.fillRect(4, 12, 2, 1);
+
+    ctx.fillStyle = '#eee2a9';
+    ctx.fillRect(8, 2, 2, 1);
+    ctx.fillRect(1, 8, 2, 1);
+
+    return canvas;
+  }
+
+  createBedrockTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#1c1c1c';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(2, 2, 5, 4);
+    ctx.fillRect(10, 4, 4, 5);
+    ctx.fillRect(3, 10, 6, 4);
+
+    ctx.fillStyle = '#383838';
+    ctx.fillRect(8, 1, 2, 2);
+    ctx.fillRect(1, 8, 2, 2);
+    ctx.fillRect(12, 11, 2, 2);
+
+    return canvas;
+  }
+
+  createOreTexture(gemColor, gemDark) {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#737373';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.fillStyle = '#555555';
+    ctx.fillRect(3, 3, 3, 2);
+    ctx.fillRect(10, 8, 4, 2);
+
+    // Glowing Gem Clusters
+    ctx.fillStyle = gemDark;
+    ctx.fillRect(4, 4, 4, 4);
+    ctx.fillRect(10, 9, 4, 4);
+
+    ctx.fillStyle = gemColor;
+    ctx.fillRect(5, 5, 2, 2);
+    ctx.fillRect(11, 10, 2, 2);
+    ctx.fillRect(2, 11, 3, 3);
+    ctx.fillRect(8, 2, 3, 2);
+
+    return canvas;
+  }
+
+  createCraftingTableTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#a0784a';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.fillStyle = '#4a331c';
+    ctx.fillRect(0, 0, 16, 2);
+    ctx.fillRect(0, 14, 16, 2);
+    ctx.fillRect(0, 0, 2, 16);
+    ctx.fillRect(14, 0, 2, 16);
+
+    // Grid on side
+    ctx.fillStyle = '#c79c65';
+    ctx.fillRect(4, 4, 8, 8);
+    ctx.fillStyle = '#3b2816';
+    ctx.fillRect(7, 4, 1, 8);
+    ctx.fillRect(4, 7, 8, 1);
+
+    return canvas;
+  }
+
+  createFurnaceTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#5c5c5c';
+    ctx.fillRect(0, 0, 16, 16);
+
+    // Furnace mouth opening
+    ctx.fillStyle = '#1c1c1c';
+    ctx.fillRect(4, 6, 8, 6);
+    // Fiery glow inside
+    ctx.fillStyle = '#ff6600';
+    ctx.fillRect(5, 8, 6, 3);
+    ctx.fillStyle = '#ffff00';
+    ctx.fillRect(6, 9, 4, 1);
+
+    return canvas;
+  }
+
+  createChestTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#9e6d38';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.fillStyle = '#5a3d1c';
+    ctx.strokeRect(1, 1, 14, 14);
+
+    // Lock latch
+    ctx.fillStyle = '#dcdcdc';
+    ctx.fillRect(7, 6, 2, 4);
+
+    return canvas;
+  }
+
+  createGlassTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = 'rgba(180, 220, 240, 0.4)';
+    ctx.fillRect(0, 0, 16, 16);
+
+    ctx.strokeStyle = '#c2e3f2';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, 16, 16);
+
+    // Glint
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(3, 3, 2, 2);
+    ctx.fillRect(5, 5, 2, 2);
+
+    return canvas;
+  }
+
+  createTNTTexture() {
+    const { canvas, ctx } = this.createCanvas();
+    ctx.fillStyle = '#d92b2b';
+    ctx.fillRect(0, 0, 16, 16);
+
+    // White center banner
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 5, 16, 6);
+
+    // TNT Text
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(2, 6, 3, 4);
+    ctx.fillRect(7, 6, 2, 4);
+    ctx.fillRect(11, 6, 3, 4);
+
+    return canvas;
   }
 }
