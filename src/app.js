@@ -1,14 +1,15 @@
 /**
- * AMONG US // CYBER STATION COMPLETE ENGINE
- * Strict Wall Collisions, BFS Waypoint Pathfinding, Single-Document Realtime Sync,
- * Host-Client Bot Replication, and Remote Player Rendering.
+ * 2D MINECRAFT // COMPLETE MASTER GAME ENGINE
+ * Coordinates Canvas 2D rendering, Player Physics, Mining/Building,
+ * Crafting Grid, Furnace Smelting, Mob AI, Boss Fights, Day-Night Cycle,
+ * Sound Synthesizer, and Auto-Saving.
  */
 
-import { STATION_MAP } from "./station-map.js";
-import { AmongUsAudioEngine } from "./audio-engine.js";
-import { BotManager } from "./bot-ai.js";
-import { TaskManager } from "./tasks.js";
-import { MultiplayerManager } from "./multiplayer-manager.js";
+import { BLOCKS, ITEMS, ITEM_DATA, CRAFTING_RECIPES, SMELTING_RECIPES } from "./items-recipes.js";
+import { MinecraftAudioEngine } from "./audio-engine.js";
+import { WorldGenerator } from "./world-generator.js";
+import { Player, Mob, Projectile, DroppedItem } from "./entities.js";
+import { SaveManager } from "./storage-save.js";
 
 document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('game-canvas');
@@ -21,910 +22,719 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', resize);
   resize();
 
-  // 1. Audio, Bot, Task & Network Managers
-  const audio = new AmongUsAudioEngine();
-  const taskManager = new TaskManager(audio);
-  const botManager = new BotManager(STATION_MAP, audio);
-  const network = new MultiplayerManager();
+  // 1. Initialize Engines
+  const audio = new MinecraftAudioEngine();
+  const world = new WorldGenerator(450, 150);
+  const player = new Player(225, 45);
+  const saveManager = new SaveManager();
 
-  // 2. Player State
-  const player = {
-    x: 1000,
-    y: 290,
-    radius: 16,
-    speed: 3.4,
-    color: '#c51111',
-    name: 'Оператор',
-    isImpostor: false,
-    isAlive: true,
-    inVent: false,
-    currentVentIdx: 0,
-    killCooldown: 12.0,
-    completedTasks: 0,
-    totalTasks: 4,
-    speechBubble: null,
-    speechTimer: 0
-  };
+  // Try loading existing save
+  const loadedTime = saveManager.loadGame(world, player);
+  let gameTime = loadedTime || 300; // seconds
 
-  // Game Status
-  let gameState = 'LOBBY';
-  let meetingTimer = 30;
-  let meetingInterval = null;
-  let votes = {};
-  let hasPlayerVoted = false;
-  let activeRoomCode = null;
+  // Entities
+  const mobs = [];
+  const projectiles = [];
+  const droppedItems = [];
+  const particles = [];
 
-  // Keyboard State
-  const keys = { w: false, a: false, s: false, d: false };
+  // Tile Scale
+  const TILE_SIZE = 32; // px per block
+  const camera = { x: player.x * TILE_SIZE, y: player.y * TILE_SIZE };
+
+  // Mining state
+  const mouse = { x: 0, y: 0, worldX: 0, worldY: 0, leftDown: false, rightDown: false };
+  let miningTarget = null; // { x, y, progress, maxHardness }
+
+  // Keyboard state
+  const keys = {};
 
   window.addEventListener('keydown', (e) => {
-    if (document.activeElement.tagName === 'INPUT') return;
+    audio.init();
+    keys[e.code] = true;
 
-    if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
-    if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
-    if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
-    if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = true;
+    // Number keys 1..9 for hotbar
+    if (e.key >= '1' && e.key <= '9') {
+      player.selectedHotbarSlot = parseInt(e.key) - 1;
+      updateHotbarUI();
+    }
 
-    if (e.code === 'KeyE') handleUseOrVent();
-    if (e.code === 'KeyQ') handleKill();
-    if (e.code === 'KeyR') handleReport();
-    if (e.code === 'KeyT') openHudChat();
+    if (e.code === 'KeyE') toggleInventoryModal();
+    if (e.code === 'KeyQ') dropHeldItem();
   });
 
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = false;
-    if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = false;
-    if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = false;
-    if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.d = false;
+    keys[e.code] = false;
   });
 
-  // UI Buttons
-  const btnUse = document.getElementById('btn-action-use');
-  const btnKill = document.getElementById('btn-action-kill');
-  const btnVent = document.getElementById('btn-action-vent');
-  const btnReport = document.getElementById('btn-action-report');
-
-  btnUse.addEventListener('click', handleUseOrVent);
-  btnKill.addEventListener('click', handleKill);
-  btnVent.addEventListener('click', handleVentToggle);
-  btnReport.addEventListener('click', handleReport);
-
-  // --------------------------------------------------------------------------
-  // LOBBY SETUP & REALTIME FIRESTORE WAITING ROOM
-  // --------------------------------------------------------------------------
-  const inputPlayerName = document.getElementById('input-player-name');
-  const inputRoomCode = document.getElementById('input-room-code');
-  const btnCreateRoom = document.getElementById('btn-create-room');
-  const btnJoinRoom = document.getElementById('btn-join-room');
-  const screenWaiting = document.getElementById('screen-waiting-room');
-  const waitingCodeBadge = document.getElementById('waiting-room-code');
-  const waitingPlayerList = document.getElementById('waiting-player-list');
-  const btnStartMatch = document.getElementById('btn-start-match');
-  const btnCancelRoom = document.getElementById('btn-cancel-room');
-
-  document.querySelectorAll('.color-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
-      dot.classList.add('active');
-      player.color = dot.dataset.color;
-    });
+  // Mouse controls
+  canvas.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    updateWorldMouse();
   });
 
-  // 1. Host creates room
-  btnCreateRoom.addEventListener('click', async () => {
-    player.name = inputPlayerName.value.trim() || 'Оператор';
-    try {
-      btnCreateRoom.disabled = true;
-      btnCreateRoom.textContent = 'Создание...';
-      const code = await network.createRoom(player.name, player.color);
-      openWaitingRoom(code, true);
-    } catch (e) {
-      alert('Ошибка базы Firebase: ' + e.message);
-    } finally {
-      btnCreateRoom.disabled = false;
-      btnCreateRoom.textContent = '⚡ СОЗДАТЬ КОМНАТУ';
-    }
-  });
-
-  // 2. Friend joins room
-  btnJoinRoom.addEventListener('click', async () => {
-    player.name = inputPlayerName.value.trim() || 'Оператор';
-    const code = inputRoomCode.value.trim();
-    if (!code) {
-      alert('Введите код комнаты (например, BCK4092)!');
-      return;
-    }
-    try {
-      btnJoinRoom.disabled = true;
-      btnJoinRoom.textContent = 'Вход...';
-      const joinedCode = await network.joinRoom(code, player.name, player.color);
-      openWaitingRoom(joinedCode, false);
-    } catch (e) {
-      alert(e.message || 'Комната не найдена');
-    } finally {
-      btnJoinRoom.disabled = false;
-      btnJoinRoom.textContent = '🔗 ВОЙТИ ПО КОДУ';
-    }
-  });
-
-  function openWaitingRoom(code, isHost) {
-    activeRoomCode = code;
-    document.getElementById('screen-lobby').classList.add('hidden');
-    screenWaiting.classList.remove('hidden');
-    waitingCodeBadge.textContent = code;
-
-    if (isHost) {
-      btnStartMatch.classList.remove('hidden');
-      btnStartMatch.textContent = '🚀 НАЧАТЬ ИГРУ СЕЙЧАС';
-    } else {
-      btnStartMatch.classList.add('hidden');
-    }
-
-    // Realtime Listener for room players & match start
-    network.listenToRoom(
-      code,
-      (players) => {
-        waitingPlayerList.innerHTML = '';
-        players.forEach(p => {
-          const item = document.createElement('div');
-          item.className = 'waiting-player-slot';
-          item.innerHTML = `
-            <div class="waiting-player-dot" style="background: ${p.color};"></div>
-            <span>${p.name} ${p.isHost ? '(Хост)' : '(Подключен)'}</span>
-          `;
-          waitingPlayerList.appendChild(item);
-        });
-
-        const botSlot = document.createElement('div');
-        botSlot.className = 'waiting-player-slot';
-        botSlot.style.color = '#5a759e';
-        botSlot.innerHTML = `
-          <div class="waiting-player-dot" style="background: #132ed1;"></div>
-          <span>+ ${Math.max(0, 8 - players.length)} Умных AI-Ботов (Заполнят экипаж)</span>
-        `;
-        waitingPlayerList.appendChild(botSlot);
-      },
-      (roomData) => {
-        if (gameState === 'LOBBY') {
-          screenWaiting.classList.add('hidden');
-          startMatch(code, roomData.secretPick);
-        }
-      }
-    );
-  }
-
-  waitingCodeBadge.addEventListener('click', () => {
-    navigator.clipboard.writeText(activeRoomCode).then(() => {
-      showFloatingNotif(`Код ${activeRoomCode} скопирован в буфер!`);
-    }).catch(() => {});
-  });
-
-  // Host starts match
-  btnStartMatch.addEventListener('click', async () => {
-    const totalParticipants = 8;
-    const secretPick = Math.floor(Math.random() * totalParticipants);
-    await network.startMatchInFirestore(secretPick);
-    screenWaiting.classList.add('hidden');
-    startMatch(activeRoomCode, secretPick);
-  });
-
-  btnCancelRoom.addEventListener('click', () => {
-    screenWaiting.classList.add('hidden');
-    document.getElementById('screen-lobby').classList.remove('hidden');
-  });
-
-  function startMatch(roomCode, secretPick = 0) {
+  canvas.addEventListener('mousedown', (e) => {
     audio.init();
-    document.getElementById('screen-lobby').classList.add('hidden');
-    screenWaiting.classList.add('hidden');
-    document.getElementById('game-hud').classList.remove('hidden');
-    document.getElementById('hud-room-code-tag').textContent = `КОМНАТА: ${roomCode}`;
-
-    // Reset Player
-    player.x = 1000;
-    player.y = 290;
-    player.isAlive = true;
-    player.inVent = false;
-    player.killCooldown = 12.0;
-    player.completedTasks = 0;
-    document.getElementById('task-bar-fill').style.width = '0%';
-
-    // Init Bots
-    botManager.initBots(6);
-
-    // Synchronized Secret Impostor Assignment
-    if (secretPick === 0) {
-      player.isImpostor = network.isHost;
-    } else if (secretPick === 1) {
-      player.isImpostor = !network.isHost;
-    } else {
-      player.isImpostor = false;
-      const impBotIdx = Math.min(botManager.bots.length - 1, secretPick - 2);
-      botManager.bots[impBotIdx].isImpostor = true;
-    }
-
-    // Role Intro Splash
-    const introModal = document.getElementById('modal-role-intro');
-    const roleText = document.getElementById('intro-role-name');
-    const roleDesc = document.getElementById('intro-role-desc');
-
-    if (player.isImpostor) {
-      roleText.textContent = 'ПРЕДАТЕЛЬ (IMPOSTOR)';
-      roleText.style.color = '#ff3333';
-      roleDesc.textContent = 'Устраняйте экипаж, используйте вентиляцию и не дайте завершить задания!';
-      btnKill.classList.remove('hidden');
-      btnVent.classList.remove('hidden');
-    } else {
-      roleText.textContent = 'ЧЛЕН ЭКИПАЖА (CREWMATE)';
-      roleText.style.color = '#00f0ff';
-      roleDesc.textContent = 'Среди нас 1 тайный Предатель... Выполняйте задания и найдите его!';
-      btnKill.classList.add('hidden');
-      btnVent.classList.add('hidden');
-    }
-
-    introModal.classList.add('active');
-    setTimeout(() => {
-      introModal.classList.remove('active');
-      gameState = 'PLAYING';
-    }, 2800);
-  }
-
-  // Room Code Copy in HUD
-  document.getElementById('hud-room-code-tag').addEventListener('click', () => {
-    const text = document.getElementById('hud-room-code-tag').textContent.replace('КОМНАТА: ', '');
-    navigator.clipboard.writeText(text).then(() => {
-      showFloatingNotif(`Код ${text} скопирован в буфер!`);
-    }).catch(() => {});
+    if (e.button === 0) mouse.leftDown = true;
+    if (e.button === 2) mouse.rightDown = true;
+    handleMouseAction(e.button);
   });
 
-  function showFloatingNotif(msg) {
-    const notif = document.getElementById('game-notification');
-    notif.textContent = msg;
-    notif.classList.add('visible');
-    setTimeout(() => notif.classList.remove('visible'), 2500);
+  canvas.addEventListener('mouseup', (e) => {
+    if (e.button === 0) { mouse.leftDown = false; miningTarget = null; }
+    if (e.button === 2) mouse.rightDown = false;
+  });
+
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  canvas.addEventListener('wheel', (e) => {
+    if (e.deltaY > 0) player.selectedHotbarSlot = (player.selectedHotbarSlot + 1) % 9;
+    else player.selectedHotbarSlot = (player.selectedHotbarSlot + 8) % 9;
+    updateHotbarUI();
+  });
+
+  function updateWorldMouse() {
+    mouse.worldX = Math.floor((mouse.x - canvas.width / 2 + camera.x) / TILE_SIZE);
+    mouse.worldY = Math.floor((mouse.y - canvas.height / 2 + camera.y) / TILE_SIZE);
   }
 
-  // --- ACTIONS ---
+  // --- MINING & INTERACTION ---
 
-  function handleUseOrVent() {
-    if (gameState !== 'PLAYING' || !player.isAlive) return;
+  function handleMouseAction(button) {
+    updateWorldMouse();
+    const bx = mouse.worldX;
+    const by = mouse.worldY;
+    const distToBlock = Math.hypot(player.x - bx, (player.y + 0.8) - by);
 
-    const distToTable = Math.hypot(player.x - STATION_MAP.emergencyTable.x, player.y - STATION_MAP.emergencyTable.y);
-    if (distToTable < 70) {
-      startEmergencyMeeting('emergency', { name: player.name });
+    if (distToBlock > 6.5) return; // Block reach distance
+
+    const targetBlock = world.getBlock(bx, by);
+    const held = player.getHeldItem();
+
+    if (button === 0) {
+      // Left Click: Attack mob or Start Mining
+      player.swingProgress = 1.0;
+      audio.playSwing();
+
+      // Check hit mob
+      let hitMob = false;
+      mobs.forEach(mob => {
+        if (!mob.isDead && Math.hypot(mob.x - bx, mob.y - by) < 1.4) {
+          hitMob = true;
+          let dmg = 2; // Fist
+          if (held && ITEM_DATA[held.id] && ITEM_DATA[held.id].damage) {
+            dmg = ITEM_DATA[held.id].damage;
+          }
+          mob.takeDamage(dmg, droppedItems, audio);
+          createHitParticles(mob.x * TILE_SIZE, mob.y * TILE_SIZE, '#ff3333');
+        }
+      });
+
+      if (!hitMob && targetBlock !== BLOCKS.AIR && targetBlock !== BLOCKS.BEDROCK) {
+        const blockDef = ITEM_DATA[targetBlock] || { hardness: 1.0 };
+        miningTarget = { x: bx, y: by, progress: 0, hardness: blockDef.hardness };
+      }
+    } 
+    else if (button === 2) {
+      // Right Click: Place block / Interact / Eat food / Bow / Summon Boss
+      player.swingProgress = 1.0;
+
+      // 1. Open Crafting Table
+      if (targetBlock === BLOCKS.CRAFTING_TABLE) {
+        openCraftingTableModal();
+        return;
+      }
+      // 2. Open Furnace
+      if (targetBlock === BLOCKS.FURNACE) {
+        openFurnaceModal();
+        return;
+      }
+
+      if (!held) return;
+
+      // 3. Eat Food
+      if (ITEM_DATA[held.id] && ITEM_DATA[held.id].food) {
+        if (player.hunger < player.maxHunger || player.health < player.maxHealth) {
+          player.hunger = Math.min(player.maxHunger, player.hunger + ITEM_DATA[held.id].food);
+          if (ITEM_DATA[held.id].health) {
+            player.health = Math.min(player.maxHealth, player.health + ITEM_DATA[held.id].health);
+          }
+          held.count--;
+          if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
+          audio.playEat();
+          updateHotbarUI();
+          return;
+        }
+      }
+
+      // 4. Shoot Bow
+      if (held.id === ITEMS.BOW) {
+        const hasArrow = player.inventory.some(s => s && s.id === ITEMS.ARROW);
+        if (hasArrow) {
+          const arrowSlot = player.inventory.find(s => s && s.id === ITEMS.ARROW);
+          arrowSlot.count--;
+          if (arrowSlot.count <= 0) {
+            const idx = player.inventory.indexOf(arrowSlot);
+            player.inventory[idx] = null;
+          }
+          const angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
+          projectiles.push(new Projectile(player.x, player.y + 0.8, Math.cos(angle) * 20, Math.sin(angle) * 20, 'player'));
+          audio.playBowShoot();
+          updateHotbarUI();
+          return;
+        }
+      }
+
+      // 5. Summon Boss (Eye of Ender)
+      if (held.id === ITEMS.EYE_OF_ENDER) {
+        held.count--;
+        if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
+        mobs.push(new Mob('boss', player.x + 8, player.y - 12));
+        audio.playExplosion();
+        showBannerNotification('ПРОБУЖДЕНИЕ ДРАКОНА-ВИТЕРА!');
+        updateHotbarUI();
+        return;
+      }
+
+      // 6. Place Block
+      if (ITEM_DATA[held.id] && ITEM_DATA[held.id].isBlock) {
+        if (targetBlock === BLOCKS.AIR || targetBlock === BLOCKS.WATER) {
+          // Check player not intersecting placement
+          const overlapsPlayer = (
+            bx >= Math.floor(player.x - player.w / 2) &&
+            bx <= Math.floor(player.x + player.w / 2) &&
+            by >= Math.floor(player.y) &&
+            by <= Math.floor(player.y + player.h)
+          );
+
+          if (!overlapsPlayer || held.id === BLOCKS.TORCH || held.id === BLOCKS.LADDER) {
+            world.setBlock(bx, by, held.id);
+            audio.playBlockPlace();
+            held.count--;
+            if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
+            updateHotbarUI();
+          }
+        }
+      }
+    }
+  }
+
+  function updateMining(delta) {
+    if (!mouse.leftDown || !miningTarget) return;
+
+    updateWorldMouse();
+    if (miningTarget.x !== mouse.worldX || miningTarget.y !== mouse.worldY) {
+      miningTarget = null;
       return;
     }
 
-    for (let i = 0; i < STATION_MAP.tasks.length; i++) {
-      const t = STATION_MAP.tasks[i];
-      if (Math.hypot(player.x - t.x, player.y - t.y) < 65) {
-        taskManager.openTask(t, () => {
-          player.completedTasks++;
-          updateTaskProgress();
+    const held = player.getHeldItem();
+    let speedMult = 1.0;
+    if (held && ITEM_DATA[held.id] && ITEM_DATA[held.id].speed) {
+      speedMult = ITEM_DATA[held.id].speed;
+    }
+
+    miningTarget.progress += delta * speedMult;
+
+    // Dig sound interval
+    if (Math.random() < 0.25) {
+      const b = world.getBlock(miningTarget.x, miningTarget.y);
+      const bDef = ITEM_DATA[b];
+      audio.playDig(bDef && bDef.reqTool === 'pickaxe' ? 'stone' : 'dirt');
+    }
+
+    if (miningTarget.progress >= miningTarget.hardness) {
+      // Block Broken!
+      const b = world.getBlock(miningTarget.x, miningTarget.y);
+      const bDef = ITEM_DATA[b];
+      const dropId = bDef && bDef.drop !== undefined ? bDef.drop : b;
+
+      world.setBlock(miningTarget.x, miningTarget.y, BLOCKS.AIR);
+      droppedItems.push(new DroppedItem(dropId, miningTarget.x + 0.5, miningTarget.y + 0.5, 1));
+      createHitParticles((miningTarget.x + 0.5) * TILE_SIZE, (miningTarget.y + 0.5) * TILE_SIZE, bDef ? bDef.color : '#888');
+
+      miningTarget = null;
+    }
+  }
+
+  function dropHeldItem() {
+    const held = player.getHeldItem();
+    if (!held) return;
+
+    droppedItems.push(new DroppedItem(held.id, player.x + player.facing * 0.8, player.y + 0.5, 1));
+    held.count--;
+    if (held.count <= 0) player.inventory[player.selectedHotbarSlot] = null;
+    audio.playPop();
+    updateHotbarUI();
+  }
+
+  function createHitParticles(px, py, color) {
+    for (let i = 0; i < 8; i++) {
+      particles.push({
+        x: px,
+        y: py,
+        vx: (Math.random() - 0.5) * 140,
+        vy: (Math.random() - 0.8) * 140,
+        color: color,
+        life: 0.4
+      });
+    }
+  }
+
+  // --- SPAWN MOBS AT NIGHT ---
+
+  let mobSpawnTimer = 0;
+  function updateMobSpawning(delta) {
+    mobSpawnTimer += delta;
+    if (mobSpawnTimer > 6.0 && mobs.length < 12) {
+      mobSpawnTimer = 0;
+      const isNight = (gameTime % 600) > 300;
+
+      // Spawn off-screen
+      const spawnX = Math.floor(player.x + (Math.random() > 0.5 ? 1 : -1) * (18 + Math.random() * 8));
+      if (spawnX > 4 && spawnX < world.width - 4) {
+        // Find top block
+        for (let y = 10; y < world.height - 10; y++) {
+          if (world.getBlock(spawnX, y) !== BLOCKS.AIR && world.getBlock(spawnX, y - 1) === BLOCKS.AIR) {
+            const types = isNight ? ['zombie', 'skeleton', 'creeper', 'spider'] : ['zombie'];
+            const chosen = types[Math.floor(Math.random() * types.length)];
+            mobs.push(new Mob(chosen, spawnX, y - 2));
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // --- INVENTORY & CRAFTING UI ---
+
+  const inventoryModal = document.getElementById('modal-inventory');
+  const craftingList = document.getElementById('crafting-recipes-list');
+
+  function toggleInventoryModal(forceState = null) {
+    const isVis = forceState !== null ? forceState : !inventoryModal.classList.contains('active');
+    if (isVis) {
+      renderInventoryGrid();
+      renderCraftingList(false);
+      inventoryModal.classList.add('active');
+    } else {
+      inventoryModal.classList.remove('active');
+    }
+  }
+
+  function openCraftingTableModal() {
+    renderInventoryGrid();
+    renderCraftingList(true); // 3x3 allowed
+    inventoryModal.classList.add('active');
+    showBannerNotification('ОТКРЫТ ВЕРСТАК (3x3)');
+  }
+
+  function renderInventoryGrid() {
+    const grid = document.getElementById('inventory-slots-grid');
+    grid.innerHTML = '';
+
+    for (let i = 0; i < 36; i++) {
+      const slot = document.createElement('div');
+      slot.className = `inv-slot ${i === player.selectedHotbarSlot ? 'selected' : ''}`;
+      const item = player.inventory[i];
+
+      if (item) {
+        const itemInfo = ITEM_DATA[item.id] || { name: 'Предмет', icon: '📦' };
+        slot.innerHTML = `
+          <div class="inv-item-icon">${itemInfo.icon || '🧱'}</div>
+          ${item.count > 1 ? `<span class="inv-item-count">${item.count}</span>` : ''}
+        `;
+        slot.title = itemInfo.name;
+      }
+
+      grid.appendChild(slot);
+    }
+  }
+
+  function renderCraftingList(hasTable = false) {
+    craftingList.innerHTML = '';
+
+    CRAFTING_RECIPES.forEach(recipe => {
+      if (recipe.reqTable && !hasTable) return;
+
+      const resultInfo = ITEM_DATA[recipe.result] || { name: 'Предмет', icon: '📦' };
+      const canCraft = canCraftRecipe(recipe);
+
+      const row = document.createElement('div');
+      row.className = `craft-recipe-row ${canCraft ? 'available' : 'disabled'}`;
+      row.innerHTML = `
+        <div class="craft-res-icon">${resultInfo.icon || '🧱'}</div>
+        <div class="craft-res-info">
+          <div class="craft-res-name">${resultInfo.name} x${recipe.count}</div>
+          <div class="craft-reqs">${getRecipeRequirementString(recipe)}</div>
+        </div>
+      `;
+
+      if (canCraft) {
+        row.addEventListener('click', () => {
+          craftRecipe(recipe);
+          renderInventoryGrid();
+          renderCraftingList(hasTable);
+          updateHotbarUI();
+          audio.playPop();
         });
-        return;
       }
-    }
+
+      craftingList.appendChild(row);
+    });
   }
 
-  function handleKill() {
-    if (gameState !== 'PLAYING' || !player.isImpostor || player.killCooldown > 0 || !player.isAlive) return;
+  function canCraftRecipe(recipe) {
+    const counts = {};
+    player.inventory.forEach(s => {
+      if (s) counts[s.id] = (counts[s.id] || 0) + s.count;
+    });
 
-    let nearestVictim = null;
-    let minDist = 75;
+    const needed = {};
+    recipe.inputs.forEach(id => needed[id] = (needed[id] || 0) + 1);
 
-    // Check bots
-    botManager.bots.forEach(bot => {
-      if (bot.isAlive) {
-        const dist = Math.hypot(player.x - bot.x, player.y - bot.y);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestVictim = bot;
+    for (const [id, reqCount] of Object.entries(needed)) {
+      if ((counts[id] || 0) < reqCount) return false;
+    }
+    return true;
+  }
+
+  function getRecipeRequirementString(recipe) {
+    const needed = {};
+    recipe.inputs.forEach(id => needed[id] = (needed[id] || 0) + 1);
+    return Object.entries(needed).map(([id, c]) => {
+      const info = ITEM_DATA[id] || { name: 'Предмет' };
+      return `${info.name} x${c}`;
+    }).join(', ');
+  }
+
+  function craftRecipe(recipe) {
+    recipe.inputs.forEach(id => {
+      for (let i = 0; i < 36; i++) {
+        const s = player.inventory[i];
+        if (s && s.id === id) {
+          s.count--;
+          if (s.count <= 0) player.inventory[i] = null;
+          break;
         }
       }
     });
 
-    // Check remote friend
-    network.remotePlayers.forEach(rp => {
-      if (rp.isAlive) {
-        const dist = Math.hypot(player.x - rp.x, player.y - rp.y);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestVictim = rp;
-        }
-      }
-    });
+    // Add result
+    new DroppedItem(recipe.result, 0, 0, recipe.count).giveToPlayer(player);
+  }
 
-    if (nearestVictim) {
-      nearestVictim.isAlive = false;
-      player.killCooldown = 22.0;
-      botManager.deadBodies.push({
-        x: nearestVictim.x,
-        y: nearestVictim.y,
-        color: nearestVictim.color,
-        name: nearestVictim.name,
-        reported: false
+  // --- FURNACE MODAL ---
+  function openFurnaceModal() {
+    toggleInventoryModal(true);
+    showBannerNotification('ПЕЧЬ: ПЕРЕПЛАВКА РУДЫ');
+  }
+
+  // --- HUD UPDATES ---
+
+  function updateHotbarUI() {
+    const bar = document.getElementById('hotbar-slots');
+    bar.innerHTML = '';
+
+    for (let i = 0; i < 9; i++) {
+      const slot = document.createElement('div');
+      slot.className = `hotbar-slot ${i === player.selectedHotbarSlot ? 'active' : ''}`;
+      const item = player.inventory[i];
+
+      if (item) {
+        const itemInfo = ITEM_DATA[item.id] || { name: 'Предмет', icon: '📦' };
+        slot.innerHTML = `
+          <div class="hotbar-icon">${itemInfo.icon || '🧱'}</div>
+          ${item.count > 1 ? `<span class="hotbar-count">${item.count}</span>` : ''}
+        `;
+      }
+
+      slot.addEventListener('click', () => {
+        player.selectedHotbarSlot = i;
+        updateHotbarUI();
       });
-      audio.playKill();
-      checkWinCondition();
+
+      bar.appendChild(slot);
     }
   }
 
-  function handleVentToggle() {
-    if (gameState !== 'PLAYING' || !player.isImpostor || !player.isAlive) return;
+  function updateStatusHUD() {
+    // Health (Hearts)
+    const heartsContainer = document.getElementById('hud-hearts');
+    heartsContainer.innerHTML = '❤️'.repeat(Math.ceil(player.health / 2));
 
-    if (!player.inVent) {
-      let nearestVentIdx = -1;
-      let minDist = 70;
-      STATION_MAP.vents.forEach((v, idx) => {
-        const dist = Math.hypot(player.x - v.x, player.y - v.y);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestVentIdx = idx;
-        }
-      });
+    // Hunger (Drumsticks)
+    const hungerContainer = document.getElementById('hud-hunger');
+    hungerContainer.innerHTML = '🍗'.repeat(Math.ceil(player.hunger / 2));
 
-      if (nearestVentIdx !== -1) {
-        player.inVent = true;
-        player.currentVentIdx = nearestVentIdx;
-        const v = STATION_MAP.vents[nearestVentIdx];
-        player.x = v.x;
-        player.y = v.y;
-        audio.playVent();
-      }
+    // Boss Bar
+    const boss = mobs.find(m => m.type === 'boss' && !m.isDead);
+    const bossHud = document.getElementById('hud-boss-bar');
+    if (boss) {
+      bossHud.classList.remove('hidden');
+      document.getElementById('boss-fill').style.width = `${(boss.health / boss.maxHealth) * 100}%`;
     } else {
-      const curVent = STATION_MAP.vents[player.currentVentIdx];
-      const nextVentId = curVent.connectsTo[0];
-      const nextVentIdx = STATION_MAP.vents.findIndex(v => v.id === nextVentId);
-
-      if (nextVentIdx !== -1) {
-        player.currentVentIdx = nextVentIdx;
-        const nv = STATION_MAP.vents[nextVentIdx];
-        player.x = nv.x;
-        player.y = nv.y;
-      }
-      player.inVent = false;
-      audio.playVent();
+      bossHud.classList.add('hidden');
     }
   }
 
-  function handleReport() {
-    if (gameState !== 'PLAYING' || !player.isAlive) return;
-
-    for (let i = 0; i < botManager.deadBodies.length; i++) {
-      const body = botManager.deadBodies[i];
-      if (!body.reported && Math.hypot(player.x - body.x, player.y - body.y) < 90) {
-        body.reported = true;
-        startEmergencyMeeting('body', { name: player.name }, body);
-        return;
-      }
-    }
+  function showBannerNotification(msg) {
+    const banner = document.getElementById('hud-notification');
+    banner.textContent = msg;
+    banner.classList.add('visible');
+    setTimeout(() => banner.classList.remove('visible'), 3000);
   }
 
-  // --- EMERGENCY MEETING & VOTING ---
-
-  const chatContainer = document.getElementById('meeting-chat-list');
-  const chatInput = document.getElementById('meeting-chat-input');
-  const btnSendChat = document.getElementById('btn-send-meeting-chat');
-
-  function startEmergencyMeeting(type, reporter, bodyInfo) {
-    if (gameState === 'MEETING') return;
-    gameState = 'MEETING';
-    hasPlayerVoted = false;
-    votes = {};
-
-    if (type === 'body') audio.playReport();
-    else audio.playEmergency();
-
-    const meetingModal = document.getElementById('modal-meeting');
-    const meetingTitle = document.getElementById('meeting-title');
-    const voteGrid = document.getElementById('voting-grid');
-
-    meetingTitle.textContent = type === 'body' 
-      ? `НАЙДЕНО ТЕЛО: ${bodyInfo.name}!` 
-      : `СРОЧНОЕ СОБРАНИЕ (${reporter.name})`;
-    
-    meetingModal.classList.add('active');
-
-    chatContainer.innerHTML = '';
-    const discussions = botManager.generateDiscussion(reporter, bodyInfo);
-    discussions.forEach(d => addMeetingChatMessage(d.sender, d.text));
-
-    voteGrid.innerHTML = '';
-    buildVoteCard(voteGrid, 'player', player.name, player.color, player.isAlive);
-    
-    network.remotePlayers.forEach(rp => {
-      buildVoteCard(voteGrid, rp.id, rp.name, rp.color, rp.isAlive);
-    });
-
-    botManager.bots.forEach(bot => {
-      buildVoteCard(voteGrid, bot.id, bot.name, bot.color, bot.isAlive);
-    });
-
-    const skipBtn = document.createElement('button');
-    skipBtn.className = 'btn-skip-vote';
-    skipBtn.textContent = 'ПРОПУСТИТЬ ГОЛОСОВАНИЕ (SKIP)';
-    skipBtn.addEventListener('click', () => castVote('skip'));
-    voteGrid.appendChild(skipBtn);
-
-    meetingTimer = 30;
-    const timerEl = document.getElementById('meeting-timer');
-    if (meetingInterval) clearInterval(meetingInterval);
-
-    meetingInterval = setInterval(() => {
-      meetingTimer--;
-      timerEl.textContent = `Голосование: ${meetingTimer}с`;
-      if (meetingTimer <= 0) {
-        clearInterval(meetingInterval);
-        resolveVoting();
-      }
-    }, 1000);
-  }
-
-  function addMeetingChatMessage(sender, text, isPlayer = false) {
-    const row = document.createElement('div');
-    row.className = 'meeting-chat-row';
-    row.innerHTML = `<strong style="color: ${isPlayer ? '#00f0ff' : '#ffdd00'};">${sender}:</strong> <span>${text}</span>`;
-    chatContainer.appendChild(row);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-  }
-
-  function sendPlayerMeetingChat() {
-    const text = chatInput.value.trim();
-    if (!text) return;
-    chatInput.value = '';
-    addMeetingChatMessage(player.name, text, true);
-
-    setTimeout(() => {
-      const reply = botManager.respondToPlayerChat(text);
-      if (reply) addMeetingChatMessage(reply.sender, reply.text);
-    }, 1000 + Math.random() * 800);
-  }
-
-  btnSendChat.addEventListener('click', sendPlayerMeetingChat);
-  chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendPlayerMeetingChat();
+  document.getElementById('btn-close-inv').addEventListener('click', () => toggleInventoryModal(false));
+  document.getElementById('btn-save-world').addEventListener('click', () => {
+    saveManager.saveGame(world, player, gameTime);
+    showBannerNotification('МИР УСПЕШНО СОХРАНЕН!');
   });
-
-  // HUD Quick Chat
-  const hudChatBox = document.getElementById('hud-chat-input-box');
-  const hudChatInput = document.getElementById('hud-chat-input');
-
-  function openHudChat() {
-    if (gameState !== 'PLAYING') return;
-    hudChatBox.classList.remove('hidden');
-    hudChatInput.focus();
-  }
-
-  hudChatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const text = hudChatInput.value.trim();
-      if (text) {
-        player.speechBubble = text;
-        player.speechTimer = 4.0;
-        hudChatInput.value = '';
-      }
-      hudChatBox.classList.add('hidden');
-      canvas.focus();
-    } else if (e.key === 'Escape') {
-      hudChatBox.classList.add('hidden');
-      canvas.focus();
-    }
-  });
-
-  function buildVoteCard(container, id, name, color, isAlive) {
-    const card = document.createElement('div');
-    card.className = `vote-card ${!isAlive ? 'dead' : ''}`;
-    card.innerHTML = `
-      <div class="vote-avatar" style="background: ${color};"></div>
-      <div class="vote-name">${name}</div>
-    `;
-
-    if (isAlive && player.isAlive) {
-      card.addEventListener('click', () => castVote(id));
-    }
-    container.appendChild(card);
-  }
-
-  function castVote(targetId) {
-    if (hasPlayerVoted) return;
-    hasPlayerVoted = true;
-    audio.playVoteTick();
-
-    votes[targetId] = (votes[targetId] || 0) + 1;
-
-    botManager.bots.forEach(b => {
-      if (b.isAlive) {
-        const targets = ['player', ...botManager.bots.filter(ob => ob.isAlive).map(ob => ob.id), 'skip'];
-        const rnd = targets[Math.floor(Math.random() * targets.length)];
-        votes[rnd] = (votes[rnd] || 0) + 1;
-      }
-    });
-
-    document.querySelectorAll('.vote-card, .btn-skip-vote').forEach(el => el.classList.add('voted'));
-    setTimeout(resolveVoting, 1500);
-  }
-
-  function resolveVoting() {
-    clearInterval(meetingInterval);
-    document.getElementById('modal-meeting').classList.remove('active');
-
-    let highestTarget = null;
-    let maxVotes = 0;
-    let tie = false;
-
-    Object.entries(votes).forEach(([target, count]) => {
-      if (count > maxVotes) {
-        maxVotes = count;
-        highestTarget = target;
-        tie = false;
-      } else if (count === maxVotes) {
-        tie = true;
-      }
-    });
-
-    showEjectionCinematic(tie || highestTarget === 'skip' ? null : highestTarget);
-  }
-
-  function showEjectionCinematic(ejectedId) {
-    gameState = 'EJECTION';
-    audio.playEjection();
-
-    const ejectionModal = document.getElementById('modal-ejection');
-    const ejectionText = document.getElementById('ejection-text');
-    ejectionModal.classList.add('active');
-
-    if (!ejectedId) {
-      ejectionText.textContent = 'Никто не был выброшен (Ничья или Пропуск).';
-    } else if (ejectedId === 'player') {
-      player.isAlive = false;
-      ejectionText.textContent = `${player.name} был выброшен в космос. ${player.isImpostor ? 'Он был Предателем.' : 'Он НЕ был Предателем.'}`;
-    } else {
-      const ejectedBot = botManager.bots.find(b => b.id === ejectedId);
-      if (ejectedBot) {
-        ejectedBot.isAlive = false;
-        ejectionText.textContent = `${ejectedBot.name} был выброшен в космос. ${ejectedBot.isImpostor ? 'Он был Предателем!' : 'Он НЕ был Предателем.'}`;
-      }
-    }
-
-    setTimeout(() => {
-      ejectionModal.classList.remove('active');
-      checkWinCondition();
-      if (gameState !== 'GAME_OVER') {
-        gameState = 'PLAYING';
-      }
-    }, 3800);
-  }
-
-  function updateTaskProgress() {
-    const totalCrewTasks = 7;
-    const progressPct = Math.min(100, Math.floor((player.completedTasks / totalCrewTasks) * 100));
-    document.getElementById('task-bar-fill').style.width = `${progressPct}%`;
-
-    if (progressPct >= 100) {
-      showGameOver('ПОБЕДА ЭКИПАЖА!', 'Все задания станции успешно выполнены!', '#00ffaa');
-    }
-  }
-
-  function checkWinCondition() {
-    const aliveImpostors = (player.isImpostor && player.isAlive ? 1 : 0) + botManager.bots.filter(b => b.isAlive && b.isImpostor).length;
-    const aliveCrew = (!player.isImpostor && player.isAlive ? 1 : 0) + botManager.bots.filter(b => b.isAlive && !b.isImpostor).length;
-
-    if (aliveImpostors === 0) {
-      showGameOver('ПОБЕДА ЭКИПАЖА!', 'Все предатели обнаружены и выброшены в космос!', '#00ffaa');
-    } else if (aliveImpostors >= aliveCrew) {
-      showGameOver('ПОБЕДА ПРЕДАТЕЛЯ!', 'Предатель захватил космическую станцию!', '#ff3333');
-    }
-  }
-
-  function showGameOver(title, desc, color) {
-    gameState = 'GAME_OVER';
-    const overModal = document.getElementById('modal-game-over');
-    document.getElementById('game-over-title').textContent = title;
-    document.getElementById('game-over-title').style.color = color;
-    document.getElementById('game-over-desc').textContent = desc;
-    overModal.classList.add('active');
-  }
-
-  document.getElementById('btn-play-again').addEventListener('click', () => {
-    document.getElementById('modal-game-over').classList.remove('active');
-    document.getElementById('screen-lobby').classList.remove('hidden');
-    gameState = 'LOBBY';
+  document.getElementById('btn-export-world').addEventListener('click', () => {
+    saveManager.exportSaveFile(world, player, gameTime);
   });
 
   // --- RENDER & PHYSICS LOOP ---
 
+  let lastSaveTime = 0;
   const clock = new THREE.Clock();
 
   function loop() {
     requestAnimationFrame(loop);
     const delta = Math.min(clock.getDelta(), 0.08);
+    gameTime += delta;
 
-    if (gameState === 'PLAYING') {
-      if (player.speechTimer > 0) {
-        player.speechTimer -= delta;
-        if (player.speechTimer <= 0) player.speechBubble = null;
-      }
-
-      // Player Movement Collision
-      if (player.isAlive && !player.inVent) {
-        let mx = 0, my = 0;
-        if (keys.w) my -= 1;
-        if (keys.s) my += 1;
-        if (keys.a) mx -= 1;
-        if (keys.d) mx += 1;
-
-        if (mx !== 0 || my !== 0) {
-          const len = Math.hypot(mx, my);
-          const stepX = (mx / len) * player.speed;
-          const stepY = (my / len) * player.speed;
-
-          if (STATION_MAP.isWalkable(player.x + stepX, player.y + stepY, player.radius)) {
-            player.x += stepX;
-            player.y += stepY;
-          } else if (STATION_MAP.isWalkable(player.x + stepX, player.y, player.radius)) {
-            player.x += stepX;
-          } else if (STATION_MAP.isWalkable(player.x, player.y + stepY, player.radius)) {
-            player.y += stepY;
-          }
-        }
-      }
-
-      // Broadcast Local Player Coordinates and Host Bots
-      network.broadcastPosition(
-        player.x, 
-        player.y, 
-        player.isAlive, 
-        network.isHost ? botManager.bots : null
-      );
-
-      if (player.isImpostor) {
-        player.killCooldown = Math.max(0, player.killCooldown - delta);
-        const cdText = document.getElementById('kill-cooldown-text');
-        if (cdText) cdText.textContent = player.killCooldown > 0 ? Math.ceil(player.killCooldown) : 'ГОТОВО';
-        btnKill.classList.toggle('ready', player.killCooldown <= 0);
-      }
-
-      // Nearby Prompts
-      let nearTask = false;
-      STATION_MAP.tasks.forEach(t => {
-        if (Math.hypot(player.x - t.x, player.y - t.y) < 65) nearTask = true;
-      });
-      if (Math.hypot(player.x - STATION_MAP.emergencyTable.x, player.y - STATION_MAP.emergencyTable.y) < 70) nearTask = true;
-      btnUse.classList.toggle('active-prompt', nearTask);
-
-      let nearBody = false;
-      botManager.deadBodies.forEach(b => {
-        if (!b.reported && Math.hypot(player.x - b.x, player.y - b.y) < 90) nearBody = true;
-      });
-      btnReport.classList.toggle('active-prompt', nearBody);
-
-      // Only Host runs bot simulation; Client receives synced bot positions
-      if (network.isHost) {
-        botManager.update(delta, player, (type, reporter, body) => {
-          startEmergencyMeeting(type, reporter, body);
-        });
-      } else if (network.remoteBots && network.remoteBots.length > 0) {
-        // Client mirrors host's bots
-        network.remoteBots.forEach((rb, idx) => {
-          if (botManager.bots[idx]) {
-            botManager.bots[idx].x += (rb.x - botManager.bots[idx].x) * 0.35;
-            botManager.bots[idx].y += (rb.y - botManager.bots[idx].y) * 0.35;
-            botManager.bots[idx].isAlive = rb.isAlive;
-            botManager.bots[idx].speechBubble = rb.speechBubble;
-          }
-        });
-      }
+    // 1. Auto-save every 30s
+    if (gameTime - lastSaveTime > 30) {
+      lastSaveTime = gameTime;
+      saveManager.saveGame(world, player, gameTime);
     }
 
-    renderCanvas();
-    renderMinimap();
+    // 2. Update Player & Camera
+    player.update(delta, world, keys, audio);
+    camera.x += ((player.x * TILE_SIZE) - camera.x) * 0.12;
+    camera.y += (((player.y + 0.8) * TILE_SIZE) - camera.y) * 0.12;
+
+    // 3. Mining
+    updateMining(delta);
+
+    // 4. Update Mobs
+    updateMobSpawning(delta);
+    mobs.forEach(mob => mob.update(delta, player, world, projectiles, droppedItems, audio));
+
+    // 5. Update Projectiles
+    projectiles.forEach(p => p.update(delta, world, player, mobs, audio));
+
+    // 6. Update Dropped Items
+    droppedItems.forEach(item => item.update(delta, world, player, audio));
+
+    // 7. Update Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      particles[i].life -= delta;
+      particles[i].x += particles[i].vx * delta;
+      particles[i].y += particles[i].vy * delta;
+      if (particles[i].life <= 0) particles.splice(i, 1);
+    }
+
+    // 8. Render Scene
+    renderGame();
+    updateStatusHUD();
   }
 
-  function renderCanvas() {
-    ctx.fillStyle = '#05070c';
+  function renderGame() {
+    // 1. Dynamic Sky Cycle
+    const cycleTime = (gameTime % 600) / 600; // 0..1 (Day -> Sunset -> Night -> Dawn)
+    let skyColor = '#80b5ff'; // Day
+    let sunIntensity = 1.0;
+
+    if (cycleTime > 0.45 && cycleTime < 0.55) {
+      skyColor = '#d97d43'; // Sunset
+      sunIntensity = 0.5;
+    } else if (cycleTime >= 0.55 && cycleTime <= 0.95) {
+      skyColor = '#0b0f19'; // Starry Night
+      sunIntensity = 0.15;
+    }
+
+    ctx.fillStyle = skyColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
-    ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
+    ctx.translate(canvas.width / 2 - camera.x, canvas.height / 2 - camera.y);
 
-    // 1. Spaceship Hull Background
-    ctx.fillStyle = '#0f141f';
-    STATION_MAP.rooms.forEach(r => ctx.fillRect(r.x - 12, r.y - 12, r.w + 24, r.h + 24));
-    STATION_MAP.corridors.forEach(c => ctx.fillRect(c.x - 12, c.y - 12, c.w + 24, c.h + 24));
+    const minX = Math.max(0, Math.floor((camera.x - canvas.width / 2) / TILE_SIZE) - 2);
+    const maxX = Math.min(world.width - 1, Math.ceil((camera.x + canvas.width / 2) / TILE_SIZE) + 2);
+    const minY = Math.max(0, Math.floor((camera.y - canvas.height / 2) / TILE_SIZE) - 2);
+    const maxY = Math.min(world.height - 1, Math.ceil((camera.y + canvas.height / 2) / TILE_SIZE) + 2);
 
-    // 2. Corridors
-    ctx.fillStyle = '#1c2433';
-    STATION_MAP.corridors.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h));
+    // Compute Dynamic Lighting
+    world.computeLighting(sunIntensity, minX, maxX, minY, maxY);
 
-    // 3. Rooms
-    STATION_MAP.rooms.forEach(r => {
-      ctx.fillStyle = r.color;
-      ctx.fillRect(r.x, r.y, r.w, r.h);
+    // 2. Draw World Blocks
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        const b = world.getBlock(x, y);
+        if (b === BLOCKS.AIR) continue;
 
-      ctx.strokeStyle = '#3d526e';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(r.x, r.y, r.w, r.h);
+        const bDef = ITEM_DATA[b] || { color: '#888888' };
+        const light = world.lightMap[world.getIndex(x, y)] || 1.0;
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(r.name, r.x + r.w / 2, r.y + 36);
-    });
+        ctx.fillStyle = bDef.color;
+        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 
-    // 4. Emergency Table
-    ctx.fillStyle = '#151b24';
-    ctx.beginPath();
-    ctx.arc(STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y, STATION_MAP.emergencyTable.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#ff3333';
-    ctx.lineWidth = 4;
-    ctx.stroke();
+        // Pixel block texture border
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+        ctx.fillRect(x * TILE_SIZE, (y + 0.9) * TILE_SIZE, TILE_SIZE, TILE_SIZE * 0.1);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE * 0.1);
 
-    ctx.fillStyle = '#ff2222';
-    ctx.beginPath();
-    ctx.arc(STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y, 16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px sans-serif';
-    ctx.fillText('SOS', STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y + 4);
+        // Torch Glow
+        if (b === BLOCKS.TORCH) {
+          ctx.fillStyle = '#ffeedd';
+          ctx.beginPath();
+          ctx.arc((x + 0.5) * TILE_SIZE, (y + 0.5) * TILE_SIZE, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
-    // 5. Vents
-    STATION_MAP.vents.forEach(v => {
-      ctx.fillStyle = '#111111';
-      ctx.fillRect(v.x - 20, v.y - 12, 40, 24);
-      ctx.strokeStyle = '#00f0ff';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(v.x - 20, v.y - 12, 40, 24);
-    });
-
-    // 6. Tasks
-    STATION_MAP.tasks.forEach(t => {
-      ctx.fillStyle = '#ffdd00';
-      ctx.shadowColor = '#ffdd00';
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('!', t.x, t.y + 5);
-
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(t.x - 70, t.y - 32, 140, 20);
-      ctx.fillStyle = '#ffdd00';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText(t.name, t.x, t.y - 18);
-    });
-
-    // 7. Dead Bodies
-    botManager.deadBodies.forEach(b => drawDeadBody(ctx, b.x, b.y, b.color));
-
-    // 8. Remote Real-Time Players (Friend!)
-    network.remotePlayers.forEach(rp => {
-      if (rp.isAlive) {
-        drawAstronaut(ctx, rp.x, rp.y, rp.color, rp.name, false, null);
+        // Apply Darkness / Cave shadow
+        if (light < 0.95 && b !== BLOCKS.TORCH) {
+          ctx.fillStyle = `rgba(0, 0, 0, ${1.0 - light})`;
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
       }
-    });
-
-    // 9. Bots
-    botManager.bots.forEach(bot => {
-      if (bot.isAlive) {
-        drawAstronaut(ctx, bot.x, bot.y, bot.color, bot.name, false, bot.speechBubble);
-      }
-    });
-
-    // 10. Local Player
-    if (player.isAlive && !player.inVent) {
-      drawAstronaut(ctx, player.x, player.y, player.color, player.name, true, player.speechBubble);
     }
+
+    // 3. Draw Mining Cracks
+    if (miningTarget) {
+      const crackStage = Math.floor((miningTarget.progress / miningTarget.hardness) * 5);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(miningTarget.x * TILE_SIZE, miningTarget.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      ctx.fillStyle = `rgba(0, 0, 0, ${crackStage * 0.15})`;
+      ctx.fillRect(miningTarget.x * TILE_SIZE, miningTarget.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+
+    // 4. Draw Dropped Items
+    droppedItems.forEach(item => {
+      if (!item.isDead) {
+        const itemInfo = ITEM_DATA[item.itemId] || { icon: '📦' };
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(itemInfo.icon || '🧱', item.x * TILE_SIZE, (item.y + Math.sin(item.floatTimer * 4) * 0.15) * TILE_SIZE);
+      }
+    });
+
+    // 5. Draw Projectiles
+    projectiles.forEach(p => {
+      if (!p.isDead) {
+        ctx.fillStyle = p.source === 'boss' ? '#8a2be2' : '#ffffff';
+        ctx.beginPath();
+        ctx.arc(p.x * TILE_SIZE, p.y * TILE_SIZE, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // 6. Draw Mobs
+    mobs.forEach(mob => {
+      if (!mob.isDead) drawMob(ctx, mob);
+    });
+
+    // 7. Draw Player
+    if (!player.isDead) {
+      drawPlayer(ctx, player);
+    }
+
+    // 8. Draw Particles
+    particles.forEach(p => {
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, 4, 4);
+    });
 
     ctx.restore();
   }
 
-  function drawAstronaut(c, x, y, color, name, isPlayer = false, speech = null) {
+  function drawPlayer(c, p) {
+    const px = p.x * TILE_SIZE;
+    const py = p.y * TILE_SIZE;
+
     c.save();
-    c.translate(x, y);
+    c.translate(px, py);
+    c.scale(p.facing, 1);
 
-    c.fillStyle = color;
-    c.fillRect(-22, -12, 10, 24);
-    c.strokeStyle = '#000';
-    c.lineWidth = 2;
-    c.strokeRect(-22, -12, 10, 24);
+    // Head
+    c.fillStyle = '#c68c53';
+    c.fillRect(-6, 0, 12, 12);
+    // Hair
+    c.fillStyle = '#4a2e18';
+    c.fillRect(-6, 0, 12, 4);
+    // Body (Cyan Shirt)
+    c.fillStyle = '#00aaaa';
+    c.fillRect(-8, 12, 16, 20);
+    // Legs (Blue Pants)
+    c.fillStyle = '#2b3990';
+    c.fillRect(-7, 32, 6, 22);
+    c.fillRect(1, 32, 6, 22);
 
-    c.fillStyle = color;
-    c.beginPath();
-    c.arc(0, -6, 16, Math.PI, 0);
-    c.lineTo(16, 12);
-    c.arc(8, 12, 8, 0, Math.PI);
-    c.arc(-8, 12, 8, 0, Math.PI);
-    c.lineTo(-16, -6);
-    c.closePath();
-    c.fill();
-    c.stroke();
-
-    c.fillStyle = '#66ccff';
-    c.beginPath();
-    c.ellipse(6, -6, 10, 6, 0, 0, Math.PI * 2);
-    c.fill();
-    c.strokeStyle = '#000';
-    c.lineWidth = 2;
-    c.stroke();
-
-    c.fillStyle = isPlayer ? '#ffff55' : '#ffffff';
-    c.font = 'bold 14px sans-serif';
-    c.textAlign = 'center';
-    c.fillText(name, 0, -26);
-
-    if (speech) {
-      c.fillStyle = 'rgba(0, 0, 0, 0.85)';
-      c.strokeStyle = '#00f0ff';
-      c.lineWidth = 2;
-      const textW = c.measureText(speech).width;
-      c.fillRect(-textW / 2 - 10, -60, textW + 20, 26);
-      c.strokeRect(-textW / 2 - 10, -60, textW + 20, 26);
-      c.fillStyle = '#ffffff';
-      c.font = 'bold 13px sans-serif';
-      c.fillText(speech, 0, -42);
+    // Tool/Weapon in Hand
+    const held = p.getHeldItem();
+    if (held) {
+      const itemInfo = ITEM_DATA[held.id] || { icon: '🗡️' };
+      c.save();
+      c.translate(8, 20);
+      c.rotate(p.swingProgress * Math.PI * 0.6);
+      c.font = '20px sans-serif';
+      c.fillText(itemInfo.icon || '🗡️', 0, 0);
+      c.restore();
     }
 
     c.restore();
   }
 
-  function drawDeadBody(c, x, y, color) {
+  function drawMob(c, m) {
+    const mx = m.x * TILE_SIZE;
+    const my = m.y * TILE_SIZE;
+
     c.save();
-    c.translate(x, y);
+    c.translate(mx, my);
+    c.scale(m.facing, 1);
 
-    c.fillStyle = 'rgba(180, 20, 20, 0.45)';
-    c.beginPath();
-    c.arc(0, 0, 26, 0, Math.PI * 2);
-    c.fill();
-
-    c.fillStyle = color;
-    c.fillRect(-14, -6, 28, 16);
-    c.strokeStyle = '#000';
-    c.lineWidth = 2;
-    c.strokeRect(-14, -6, 28, 16);
-
-    c.fillStyle = '#ffffff';
-    c.fillRect(-4, -14, 8, 10);
-    c.strokeRect(-4, -14, 8, 10);
+    if (m.type === 'zombie') {
+      c.fillStyle = '#497332'; // Green head
+      c.fillRect(-6, 0, 12, 12);
+      c.fillStyle = '#008888'; // Cyan shirt
+      c.fillRect(-8, 12, 16, 20);
+      c.fillStyle = '#2b3990';
+      c.fillRect(-7, 32, 6, 22);
+      c.fillRect(1, 32, 6, 22);
+    } else if (m.type === 'skeleton') {
+      c.fillStyle = '#d9d9d9'; // Bone head
+      c.fillRect(-6, 0, 12, 12);
+      c.fillRect(-6, 12, 12, 20);
+      c.fillRect(-5, 32, 4, 22);
+      c.fillRect(1, 32, 4, 22);
+    } else if (m.type === 'creeper') {
+      c.fillStyle = m.fuseTimer > 0 && Math.floor(Date.now() / 80) % 2 === 0 ? '#ffffff' : '#00aa00';
+      c.fillRect(-8, 0, 16, 16); // Head
+      c.fillRect(-7, 16, 14, 24); // Body
+      c.fillRect(-8, 40, 6, 10);
+      c.fillRect(2, 40, 6, 10);
+    } else if (m.type === 'spider') {
+      c.fillStyle = '#1c1108';
+      c.fillRect(-18, 0, 36, 16);
+      c.fillStyle = '#ff0000'; // Red eyes
+      c.fillRect(10, 4, 4, 4);
+    } else if (m.type === 'boss') {
+      // Giant Wither Dragon
+      c.fillStyle = '#140d1e';
+      c.fillRect(-36, -36, 72, 72);
+      c.fillStyle = '#ff00ff';
+      c.fillRect(-20, -10, 8, 8);
+      c.fillRect(12, -10, 8, 8);
+    }
 
     c.restore();
   }
 
-  // --- MINIMAP RADAR ---
-  const miniCanvas = document.getElementById('minimap-canvas');
-  const mctx = miniCanvas ? miniCanvas.getContext('2d') : null;
-
-  function renderMinimap() {
-    if (!mctx) return;
-    const mw = miniCanvas.width;
-    const mh = miniCanvas.height;
-    const sx = mw / STATION_MAP.width;
-    const sy = mh / STATION_MAP.height;
-
-    mctx.fillStyle = 'rgba(10, 15, 25, 0.85)';
-    mctx.fillRect(0, 0, mw, mh);
-
-    mctx.fillStyle = '#334460';
-    STATION_MAP.rooms.forEach(r => mctx.fillRect(r.x * sx, r.y * sy, r.w * sx, r.h * sy));
-
-    mctx.fillStyle = '#ffdd00';
-    STATION_MAP.tasks.forEach(t => {
-      mctx.beginPath();
-      mctx.arc(t.x * sx, t.y * sy, 3, 0, Math.PI * 2);
-      mctx.fill();
-    });
-
-    mctx.fillStyle = '#00f0ff';
-    mctx.beginPath();
-    mctx.arc(player.x * sx, player.y * sy, 4, 0, Math.PI * 2);
-    mctx.fill();
-  }
-
+  updateHotbarUI();
   loop();
 });

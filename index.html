@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AMONG US // CYBER STATION</title>
-  <meta name="description" content="Among Us с залом ожидания, кодами комнат, физикой коллизий стен, миникартой-радаром, ботами, заданиями и собраниями.">
+  <title>MINECRAFT 2D // ULTIMATE SANDBOX EDITION</title>
+  <meta name="description" content="Бесконечный 2D Minecraft с процедурным миром, пещерами, 60+ блоками, крафтом (верстак, печь, сундук), зомби, скелетами, криперами, боссом драконом и авто-сохранением.">
 
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -14,162 +14,60 @@
   <!-- Game Canvas -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- 1. MAIN MENU / LOBBY SCREEN -->
-  <div class="fullscreen-screen" id="screen-lobby">
-    <h1 class="game-logo">AMONG <span>US</span></h1>
-    <p class="game-sub">CYBER STATION // КОДЫ КОМНАТ, БОТЫ И ЗАДАНИЯ</p>
+  <!-- 1. IN-GAME HUD -->
+  <div class="mc-hud" id="mc-hud">
+    <!-- Top Bar -->
+    <div class="hud-top-bar">
+      <div class="hud-title-badge">MINECRAFT 2D // ВЫЖИВАНИЕ</div>
+      <div class="hud-save-group">
+        <button class="btn-mc" id="btn-save-world" title="Сохранить мир в браузере">💾 СОХРАНИТЬ</button>
+        <button class="btn-mc" id="btn-export-world" title="Скачать файл мира">📥 СКАЧАТЬ МИР</button>
+      </div>
+    </div>
 
-    <div class="lobby-card">
-      <!-- Player Name -->
-      <div class="lobby-group">
-        <label>ВАШ ПОЗЫВНОЙ:</label>
-        <input type="text" id="input-player-name" class="lobby-input" value="Оператор" maxlength="15">
+    <!-- Boss Health Bar -->
+    <div class="hud-boss-bar hidden" id="hud-boss-bar">
+      <div class="boss-title">⚡ ДРАКОН-ВИТЕР (БОСС) ⚡</div>
+      <div class="boss-track">
+        <div class="boss-fill" id="boss-fill"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Status & Hotbar -->
+    <div class="hud-bottom-center">
+      <div class="status-bars-row">
+        <div id="hud-hearts">❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️</div>
+        <div id="hud-hunger">🍗🍗🍗🍗🍗🍗🍗🍗🍗🍗</div>
       </div>
 
-      <!-- Color Picker -->
-      <div class="lobby-group">
-        <label>ЦВЕТ СКАФАНДРА:</label>
-        <div class="color-picker-row">
-          <div class="color-dot active" style="background: #c51111;" data-color="#c51111" title="Красный"></div>
-          <div class="color-dot" style="background: #132ed1;" data-color="#132ed1" title="Синий"></div>
-          <div class="color-dot" style="background: #117f2d;" data-color="#117f2d" title="Зеленый"></div>
-          <div class="color-dot" style="background: #ed54ba;" data-color="#ed54ba" title="Розовый"></div>
-          <div class="color-dot" style="background: #ef7d0d;" data-color="#ef7d0d" title="Оранжевый"></div>
-          <div class="color-dot" style="background: #f5f557;" data-color="#f5f557" title="Желтый"></div>
-          <div class="color-dot" style="background: #38fedc;" data-color="#38fedc" title="Голубой"></div>
-          <div class="color-dot" style="background: #6b2fbb;" data-color="#6b2fbb" title="Фиолетовый"></div>
+      <div class="hotbar-container">
+        <div class="hotbar-slots" id="hotbar-slots">
+          <!-- 9 Hotbar Slots -->
         </div>
       </div>
-
-      <hr style="border: 0; border-top: 1px solid #334460; margin: 6px 0;">
-
-      <!-- Host Action -->
-      <button class="btn-lobby-primary" id="btn-create-room">⚡ СОЗДАТЬ КОМНАТУ</button>
-
-      <!-- Join Action -->
-      <div class="join-row">
-        <input type="text" id="input-room-code" class="lobby-input" placeholder="КОД (НАПР. BCK4092)">
-        <button class="btn-lobby-secondary" id="btn-join-room">🔗 ВОЙТИ ПО КОДУ</button>
-      </div>
     </div>
   </div>
 
-  <!-- 2. WAITING ROOM (ЗАЛ ОЖИДАНИЯ ДРУГА) -->
-  <div class="fullscreen-screen hidden" id="screen-waiting-room">
-    <div class="waiting-room-card">
-      <div class="waiting-header">
-        <h2>ЗАЛ ОЖИДАНИЯ</h2>
-        <p>Отправьте этот код другу, чтобы он зашел к вам:</p>
-        <div class="big-room-code-badge" id="waiting-room-code" title="Нажмите, чтобы скопировать">BCK0000</div>
+  <!-- Notification Banner -->
+  <div class="hud-notification" id="hud-notification"></div>
+
+  <!-- 2. INVENTORY & CRAFTING MODAL (PRESS 'E') -->
+  <div class="mc-modal" id="modal-inventory">
+    <div class="inventory-box">
+      <!-- Left: Player Inventory Slots -->
+      <div>
+        <div class="inv-section-title">ИНВЕНТАРЬ ИГРОКА (36 СЛОТОВ)</div>
+        <div class="inventory-slots-grid" id="inventory-slots-grid"></div>
+        <button class="btn-mc" id="btn-close-inv" style="margin-top: 14px; width: 100%;">✕ ЗАКРЫТЬ [E]</button>
       </div>
 
-      <div class="waiting-player-list" id="waiting-player-list">
-        <!-- Live Players List -->
+      <!-- Right: Crafting Recipes Section -->
+      <div class="crafting-section">
+        <div class="inv-section-title">КРАФТ (РЕЦЕПТЫ)</div>
+        <div class="crafting-recipes-list" id="crafting-recipes-list">
+          <!-- Interactive Crafting Recipes -->
+        </div>
       </div>
-
-      <button class="btn-lobby-primary btn-start-game" id="btn-start-match">🚀 НАЧАТЬ ИГРУ СЕЙЧАС</button>
-      <button class="btn-lobby-secondary" id="btn-cancel-room" style="width: 100%;">✕ ВЫЙТИ В МЕНЮ</button>
-    </div>
-  </div>
-
-  <!-- 3. ROLE INTRO SPLASH MODAL -->
-  <div class="game-modal" id="modal-role-intro">
-    <div style="text-align: center; display: flex; flex-direction: column; gap: 16px;">
-      <h2 class="role-intro-title" id="intro-role-name">ЧЛЕН ЭКИПАЖА</h2>
-      <p style="font-size: 20px; color: #aaccff;" id="intro-role-desc">Среди нас 1 Предатель...</p>
-    </div>
-  </div>
-
-  <!-- 4. IN-GAME HUD -->
-  <div class="game-hud hidden" id="game-hud">
-    <div class="hud-top-progress">
-      <div class="task-bar-label">ОБЩИЙ ПРОГРЕСС ЗАДАНИЙ:</div>
-      <div class="task-bar-track">
-        <div class="task-bar-fill" id="task-bar-fill"></div>
-      </div>
-      <div class="room-code-badge" id="hud-room-code-tag" title="Нажмите, чтобы скопировать код">КОМНАТА: BCK0000</div>
-    </div>
-
-    <div class="hud-minimap-container">
-      <div class="minimap-title">РАДАР СТАНЦИИ</div>
-      <canvas id="minimap-canvas" width="160" height="110"></canvas>
-    </div>
-
-    <div class="hud-chat-input-box hidden" id="hud-chat-input-box">
-      <input class="hud-chat-input" id="hud-chat-input" type="text" placeholder="Сказать фразу... [Enter]">
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="hud-actions-group">
-      <button class="btn-action" id="btn-action-use" title="Использовать таск [E]">
-        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
-        <span>ТАСК [E]</span>
-      </button>
-
-      <button class="btn-action btn-kill hidden" id="btn-action-kill" title="Убить [Q]">
-        <svg viewBox="0 0 24 24"><path d="M19.48 12.35l-1.41-1.41L15 14l-2.07-2.07a4 4 0 0 0-5.66 0l-4.24 4.24 1.41 1.41 4.24-4.24a2 2 0 0 1 2.83 0L13.59 15.4l-1.41 1.41L15 19.64l4.48-4.48a2 2 0 0 0 0-2.81z"/></svg>
-        <span id="kill-cooldown-text">УБИТЬ [Q]</span>
-      </button>
-
-      <button class="btn-action hidden" id="btn-action-vent" title="Вентиляция [E]">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18"/></svg>
-        <span>ЛЮК [E]</span>
-      </button>
-
-      <button class="btn-action btn-report" id="btn-action-report" title="Репорт тела [R]">
-        <svg viewBox="0 0 24 24"><path d="M3 11v2h4l5 5V4L7 9H3zm13.5 1a4.5 4.5 0 0 0-2-3.72v7.44a4.5 4.5 0 0 0 2-3.72zm2.5 0a7 7 0 0 0-4.5-6.54v2.13a5 5 0 0 1 0 8.82v2.13A7 7 0 0 0 19 12z"/></svg>
-        <span>РЕПОРТ [R]</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Toast Notification -->
-  <div class="game-toast-notification" id="game-notification"></div>
-
-  <!-- 5. TASK MODAL POPUP -->
-  <div class="task-modal-container hidden" id="task-modal-container">
-    <div class="task-modal-box">
-      <div class="task-modal-header">
-        <h3 class="task-modal-title" id="task-modal-title">Соединить провода</h3>
-        <button class="btn-close-task" id="btn-close-task">✕ ЗАКРЫТЬ</button>
-      </div>
-      <div class="task-modal-content" id="task-modal-content"></div>
-    </div>
-  </div>
-
-  <!-- 6. EMERGENCY MEETING & VOTING MODAL -->
-  <div class="game-modal" id="modal-meeting">
-    <div class="meeting-box">
-      <div class="meeting-header">
-        <h2 class="meeting-title" id="meeting-title">СРОЧНОЕ СОБРАНИЕ</h2>
-        <span class="meeting-timer" id="meeting-timer">Голосование: 20с</span>
-      </div>
-
-      <div class="meeting-chat-list" id="meeting-chat-list"></div>
-
-      <div class="meeting-chat-input-bar">
-        <input class="meeting-chat-input" id="meeting-chat-input" type="text" placeholder="Напишите алиби или обвините кого-то... (напр. 'Синий', 'Скип', 'Я чинил провода')">
-        <button class="btn-send-chat" id="btn-send-meeting-chat">ОТПРАВИТЬ</button>
-      </div>
-
-      <div class="voting-grid" id="voting-grid"></div>
-    </div>
-  </div>
-
-  <!-- 7. EJECTION CINEMATIC MODAL -->
-  <div class="game-modal" id="modal-ejection">
-    <div class="ejection-box">
-      <div style="font-size: 64px;">🌌 🧑‍🚀 ...</div>
-      <h2 class="ejection-text" id="ejection-text">Красный был выброшен в космос...</h2>
-    </div>
-  </div>
-
-  <!-- 8. GAME OVER MODAL -->
-  <div class="game-modal" id="modal-game-over">
-    <div style="text-align: center; display: flex; flex-direction: column; gap: 20px; align-items: center;">
-      <h2 style="font-size: 48px; font-weight: 900;" id="game-over-title">ПОБЕДА ЭКИПАЖА!</h2>
-      <p style="font-size: 20px; color: #aaccff;" id="game-over-desc">Все предатели найдены!</p>
-      <button class="btn-lobby-primary" id="btn-play-again" style="width: 220px; padding: 14px; font-weight: 800; font-size: 18px; margin-top: 10px;">В ЛОББИ</button>
     </div>
   </div>
 
