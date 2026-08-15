@@ -1,10 +1,10 @@
 /**
  * NEO-CLICKER ONLINE // MASTER SOCIAL MMO CLICKER ENGINE
- * 1. Clean, High-Contrast Cyber-Fintech UI.
- * 2. 10-Tier Hardware Upgrades list.
- * 3. 3 Chat Channels: Global, Dedicated Clan HQ, and Private PMs.
- * 4. Active Online Players Panel with Player Action Inspector.
- * 5. Marketplace 2.0 with Category and Rarity filters.
+ * 1. Clean, High-Contrast Cyber-Fintech UI with Sound Engine.
+ * 2. Interactive AI Bot Chat that argues, roasts, trades, and replies to player messages.
+ * 3. 30-Player Dynamic Live Leaderboard.
+ * 4. PvP Click Duels Mini-Game.
+ * 5. 10-Tier Hardware Upgrades and Marketplace 2.0.
  */
 
 import { ClickerCore } from "./clicker-core.js";
@@ -12,25 +12,35 @@ import { ClanSystem } from "./clan-system.js";
 import { SocialChatEngine } from "./social-chat.js";
 import { TradeMarketEngine } from "./trade-market.js";
 import { LeaderboardAndEventsEngine } from "./leaderboard-events.js";
+import { SoundEngine } from "./sound-engine.js";
 import { ITEMS_DATABASE, RARITY_CONFIG } from "./items-collectibles.js";
 
 // Global Singletons
-let core, clans, chat, market, events;
+let core, clans, chat, market, events, audio;
 let activeTab = 'clicker';
 let activeMarketCategory = 'all';
-let activeMarketRarity = 'all';
 let selectedTradePartner = 'Alex_Pro';
+
+// PvP Duel State
+let duelTimer = null;
+let duelTimeLeft = 0;
+let duelPlayerClicks = 0;
+let duelOpponentClicks = 0;
+let duelOpponentName = '';
+let duelBet = 1000;
 
 function initGame() {
   core = new ClickerCore();
   clans = new ClanSystem();
   market = new TradeMarketEngine();
+  audio = new SoundEngine();
 
   chat = new SocialChatEngine((channel, msg, engineInstance) => {
     const currentActiveChannel = engineInstance ? engineInstance.activeChannel : (chat ? chat.activeChannel : 'global');
     if (channel === currentActiveChannel) {
       renderChatFeed();
     }
+    if (audio) audio.playChatSound();
   });
 
   events = new LeaderboardAndEventsEngine((action, data) => {
@@ -48,14 +58,25 @@ function initGame() {
   setupProfileTab();
   setupChatChannelTabs();
   setupOnlinePlayersList();
+  setupSoundToggle();
+  setupPvPDuel();
 
   // 10 FPS Loop
   setInterval(tick, 100);
   renderAll();
 }
 
+function setupSoundToggle() {
+  const btn = document.getElementById('btn-toggle-sound');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const isMuted = audio.toggleMute();
+    btn.textContent = isMuted ? '🔇 ЗВУК: ВЫКЛ' : '🔊 ЗВУК: ВКЛ';
+  });
+}
+
 // ----------------------------------------------------------------------------
-// 1. CLEAN CLICKER ORB & NUMBERS
+// 1. CLEAN CLICKER ORB & NUMBERS WITH SOUNDS
 // ----------------------------------------------------------------------------
 function setupClickerOrb() {
   const orb = document.getElementById('clicker-main-orb');
@@ -73,6 +94,14 @@ function setupClickerOrb() {
 
     if (events.activeEvent && events.activeEvent.type === 'world_boss') {
       events.damageBoss(earned);
+    }
+
+    if (audio) {
+      if (core.inventory.includes('golden_touch') && Math.random() < 0.12) {
+        audio.playCritSound();
+      } else {
+        audio.playClickSound();
+      }
     }
 
     const rect = orb.getBoundingClientRect();
@@ -129,6 +158,7 @@ function setupUpgradesTab() {
   if (btnUpClick) {
     btnUpClick.addEventListener('click', () => {
       if (core.upgradeClick()) {
+        if (audio) audio.playCoinSound();
         renderUpgrades();
         updateStatsHUD();
       }
@@ -141,6 +171,7 @@ function setupUpgradesTab() {
       if (core.canPrestige()) {
         if (confirm(`Совершить Квантовое Перерождение? Вы получите +50% постоянного дохода и ${75 * (core.prestigeLevel + 1)} Квантовых Кристаллов!`)) {
           core.doPrestige();
+          if (audio) audio.playCritSound();
           chat.addSystemMessage(`👑 Игрок ${core.name} совершил Квантовое Перерождение #${core.prestigeLevel}!`);
           renderAll();
         }
@@ -183,6 +214,7 @@ function renderUpgrades() {
 
       card.querySelector('.buy-hw-btn').addEventListener('click', () => {
         if (core.buyHardwareTier(h.id)) {
+          if (audio) audio.playCoinSound();
           renderUpgrades();
           updateStatsHUD();
         }
@@ -218,6 +250,7 @@ function setupClansTab() {
       const newClan = clans.createClan(name, tag, '🛡️', 'Гильдия сервера', core.name);
       core.clanId = newClan.id;
       core.saveToStorage();
+      if (audio) audio.playCoinSound();
       chat.addSystemMessage(`🛡️ Создан новый клан [${newClan.tag}] "${newClan.name}"!`);
       renderClans();
       updateStatsHUD();
@@ -234,6 +267,7 @@ function setupClansTab() {
       if (val > 0 && core.neoCoins >= val) {
         core.neoCoins -= val;
         clans.donateToBank(clan.id, core.name, val);
+        if (audio) audio.playCoinSound();
         chat.addChatMessage('clan', core.name, clan.tag, core.equippedTitle, `Внёс в казну клана $${formatNumber(val)} NC! 💰`);
         renderClans();
         updateStatsHUD();
@@ -245,6 +279,7 @@ function setupClansTab() {
   if (btnUpgradeClickPerk) {
     btnUpgradeClickPerk.addEventListener('click', () => {
       if (clans.upgradePerk(core.clanId, 'clickBoostLevel')) {
+        if (audio) audio.playCritSound();
         renderClans();
       } else {
         alert('Недостаточно средств в казне клана!');
@@ -342,6 +377,7 @@ function setupMarketTab() {
         if (price > 0) {
           core.removeItem(itemId);
           market.createListing(core.name, itemId, price);
+          if (audio) audio.playCoinSound();
           chat.addSystemMessage(`🏪 ${core.name} выставил на рынок "${ITEMS_DATABASE.find(i => i.id === itemId)?.name}" за $${formatNumber(price)} NC!`);
           renderMarket();
           renderInventory();
@@ -392,6 +428,7 @@ function renderMarket() {
     card.querySelector('.buy-listing-btn').addEventListener('click', () => {
       const res = market.buyListing(l.id, core);
       if (res.success) {
+        if (audio) audio.playCoinSound();
         chat.addSystemMessage(`💸 ${core.name} купил "${item.name}" у ${l.seller} за $${formatNumber(l.price)} NC!`);
         renderMarket();
         renderInventory();
@@ -406,7 +443,7 @@ function renderMarket() {
 }
 
 // ----------------------------------------------------------------------------
-// 6. MULTI-CHANNEL CHAT & CLAN HQ CHAT
+// 6. MULTI-CHANNEL CHAT & INTERACTIVE AI REPLIES
 // ----------------------------------------------------------------------------
 function setupChatChannelTabs() {
   document.querySelectorAll('.chat-channel-btn').forEach(btn => {
@@ -423,7 +460,7 @@ function setupChatChannelTabs() {
         input.placeholder = `Написать личное сообщение ${chat.activePMTarget}...`;
         input.disabled = false;
       } else {
-        input.placeholder = 'Написать в общий чат (клик по нику для @тега)...';
+        input.placeholder = 'Написать в общий чат (боты ответят вам!)...';
         input.disabled = false;
       }
 
@@ -449,6 +486,8 @@ function setupChatChannelTabs() {
         chat.sendPrivateMessage(core.name, chat.activePMTarget, text);
       } else {
         chat.addChatMessage(chat.activeChannel, core.name, clanTag, titleText, text);
+        // Trigger Smart Bot Reply
+        chat.handlePlayerInput(chat.activeChannel, core, text);
       }
       renderChatFeed();
     });
@@ -460,7 +499,7 @@ function renderChatFeed() {
   if (!feed || !chat) return;
   feed.innerHTML = '';
 
-  const messages = chat.getMessages(chat.activeChannel, core.clanId);
+  const messages = chat.getMessages(chat.activeChannel);
   messages.forEach(msg => {
     const el = document.createElement('div');
     el.className = `chat-row ${msg.isSystem ? 'system-msg' : ''}`;
@@ -488,7 +527,7 @@ function renderChatFeed() {
 }
 
 // ----------------------------------------------------------------------------
-// 7. ACTIVE ONLINE PLAYERS LIST & INSPECTOR
+// 7. ACTIVE ONLINE PLAYERS LIST & PVP DUELS
 // ----------------------------------------------------------------------------
 function setupOnlinePlayersList() {
   const list = document.getElementById('online-players-scroll');
@@ -519,20 +558,84 @@ function setupOnlinePlayersList() {
 function openPlayerInspector(playerName) {
   if (playerName === core.name) return;
 
-  const action = prompt(`Игрок: ${playerName}\n\n1. 💬 Написать в ЛС\n2. 🤝 Предложить Трейд\n3. 🛡️ Пригласить в Клан\n\nВведите номер действия (1-3):`, '1');
+  const action = prompt(`Игрок: ${playerName}\n\n1. ⚔️ ВЫЗВАТЬ НА PvP ДУЭЛЬ ($1,000 NC)\n2. 💬 Написать в ЛС\n3. 🤝 Предложить Трейд\n4. 🛡️ Пригласить в Клан\n\nВведите номер действия (1-4):`, '1');
   if (action === '1') {
+    startPvPDuel(playerName, 1000);
+  } else if (action === '2') {
     chat.activePMTarget = playerName;
     const pmTab = document.querySelector('[data-channel="pm"]');
     if (pmTab) pmTab.click();
-  } else if (action === '2') {
+  } else if (action === '3') {
     selectedTradePartner = playerName;
     const tradeTab = document.querySelector('[data-tab="trades"]');
     if (tradeTab) tradeTab.click();
     startTradeSession();
-  } else if (action === '3') {
+  } else if (action === '4') {
     if (!core.clanId) return alert('Вы должны состоять в клане, чтобы приглашать игроков!');
     alert(`Приглашение в клан отправлено игроку ${playerName}!`);
   }
+}
+
+// ----------------------------------------------------------------------------
+// PvP CLICK DUEL SYSTEM
+// ----------------------------------------------------------------------------
+function setupPvPDuel() {
+  const btnClick = document.getElementById('duel-click-btn');
+  if (btnClick) {
+    btnClick.addEventListener('pointerdown', () => {
+      if (duelTimeLeft > 0) {
+        duelPlayerClicks++;
+        if (audio) audio.playClickSound();
+        document.getElementById('duel-player-score').textContent = duelPlayerClicks;
+      }
+    });
+  }
+}
+
+function startPvPDuel(opponentName, bet = 1000) {
+  if (core.neoCoins < bet) return alert(`У вас недостаточно монет для ставки в $${bet} NC!`);
+
+  duelOpponentName = opponentName;
+  duelBet = bet;
+  duelPlayerClicks = 0;
+  duelOpponentClicks = 0;
+  duelTimeLeft = 8;
+
+  const modal = document.getElementById('modal-pvp-duel');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  document.getElementById('duel-opponent-name').textContent = opponentName;
+  document.getElementById('duel-player-score').textContent = '0';
+  document.getElementById('duel-opponent-score').textContent = '0';
+  document.getElementById('duel-timer-val').textContent = duelTimeLeft;
+
+  if (duelTimer) clearInterval(duelTimer);
+  duelTimer = setInterval(() => {
+    duelTimeLeft--;
+    document.getElementById('duel-timer-val').textContent = duelTimeLeft;
+
+    // AI Clicks
+    duelOpponentClicks += Math.floor(2 + Math.random() * 4);
+    document.getElementById('duel-opponent-score').textContent = duelOpponentClicks;
+
+    if (duelTimeLeft <= 0) {
+      clearInterval(duelTimer);
+      modal.classList.add('hidden');
+
+      if (duelPlayerClicks > duelOpponentClicks) {
+        core.neoCoins += duelBet;
+        if (audio) audio.playCritSound();
+        chat.addSystemMessage(`⚔️ ${core.name} победил ${duelOpponentName} в PvP дуэли (${duelPlayerClicks} vs ${duelOpponentClicks}) и забрал +$${duelBet * 2} NC!`);
+        alert(`🏆 ПОБЕДА! Вы сделали ${duelPlayerClicks} кликов против ${duelOpponentClicks} и выиграли $${duelBet * 2} NC!`);
+      } else {
+        core.neoCoins = Math.max(0, core.neoCoins - duelBet);
+        chat.addSystemMessage(`💀 ${duelOpponentName} победил ${core.name} в PvP дуэли (${duelOpponentClicks} vs ${duelPlayerClicks})!`);
+        alert(`💀 ПОРАЖЕНИЕ! ${duelOpponentName} обогнал вас (${duelOpponentClicks} vs ${duelPlayerClicks})!`);
+      }
+      updateStatsHUD();
+    }
+  }, 1000);
 }
 
 // ----------------------------------------------------------------------------
@@ -559,6 +662,7 @@ function setupTradeTab() {
   if (btnTradeConfirm) {
     btnTradeConfirm.addEventListener('click', () => {
       if (market.confirmTrade(true, core)) {
+        if (audio) audio.playCoinSound();
         chat.addSystemMessage(`🤝 Трейд между ${core.name} и ${selectedTradePartner} успешно завершен!`);
         alert('🎉 Сделка успешно состоялась! Предметы и валюта получены.');
         renderTradeWindow();
@@ -573,7 +677,7 @@ function setupTradeTab() {
 
 function startTradeSession() {
   market.startTrade(core.name, selectedTradePartner);
-  market.setOffer(false, 2500, ['gpu_rtx', 'chip_v1']);
+  market.setOffer(false, 3500, ['gpu_rtx', 'chip_v1']);
   market.activeTrade.partyB.ready = true;
   renderTradeWindow();
 }
@@ -752,6 +856,7 @@ function handleServerEvent(type, data) {
   if (type === 'start' && data.type === 'rush_hour') {
     banner.textContent = data.title;
     banner.classList.add('visible', 'rush-active');
+    if (audio) audio.playCritSound();
   } else if (type === 'end') {
     banner.classList.remove('visible', 'rush-active');
   } else if (type === 'meteor') {
@@ -759,8 +864,10 @@ function handleServerEvent(type, data) {
   } else if (type === 'boss_spawn') {
     banner.textContent = `${data.title} (Кликайте для атаки!)`;
     banner.classList.add('visible', 'boss-active');
+    if (audio) audio.playCritSound();
   } else if (type === 'boss_defeat') {
     core.neoCoins += data.reward;
+    if (audio) audio.playCoinSound();
     banner.textContent = `🎉 МИРОВОЙ БОСС ПОВЕРЖЕН! ВСЕМ ВЫДАНА НАГРАДА +$${formatNumber(data.reward)} NC!`;
     setTimeout(() => banner.classList.remove('visible', 'boss-active'), 5000);
   }
@@ -776,6 +883,7 @@ function spawnMeteorDrop(reward) {
 
   met.addEventListener('click', () => {
     core.neoCoins += reward;
+    if (audio) audio.playCoinSound();
     chat.addSystemMessage(`☄️ ${core.name} поймал Золотой Метеор и получил $${formatNumber(reward)} NC!`);
     met.remove();
     updateStatsHUD();

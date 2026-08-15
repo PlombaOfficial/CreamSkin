@@ -1,41 +1,57 @@
 /**
- * NEO-CLICKER ONLINE // LEADERBOARDS, ACHIEVEMENTS & LIVE SERVER EVENTS
- * 4 Leaderboard ranks, achievement badges, Golden Meteors, x5 Rush Hour, and World Boss raids.
+ * NEO-CLICKER ONLINE // DYNAMIC 30-PLAYER LEADERBOARD & PVP DUEL ENGINE
+ * 30 active simulated players dynamically mining coins and climbing ranks.
+ * Live takeover alerts, Golden Meteors, x5 Rush Hour, and PvP Click Duels!
  */
-
-export const ACHIEVEMENTS_LIST = [
-  { id: 'first_click', name: 'Первый Кибер-Импульс', desc: 'Сделайте ваш самый первый клик.', icon: '👆', reward: 50 },
-  { id: 'click_100', name: 'Мастер Мышки', desc: 'Совершите 100 кликов.', icon: '🖱️', reward: 250 },
-  { id: 'click_1000', name: 'Нейронный Автоклик', desc: 'Совершите 1,000 кликов.', icon: '⚡', reward: 1500 },
-  { id: 'coins_10k', name: 'Первый Капитал', desc: 'Заработайте 10,000 Нео-Коинов.', icon: '💰', reward: 1000 },
-  { id: 'coins_1m', name: 'Крипто-Миллионер', desc: 'Заработайте 1,000,000 Нео-Коинов.', icon: '💎', reward: 25000 },
-  { id: 'first_clan', name: 'Братство Синдиката', desc: 'Вступите в клан или создайте свой.', icon: '🛡️', reward: 500 },
-  { id: 'prestige_1', name: 'Квантовое Перерождение', desc: 'Совершите 1-й Престиж.', icon: '🔮', reward: 5000 },
-  { id: 'market_trader', name: 'Акула Рынка', desc: 'Купите или продайте предмет на рынке.', icon: '🏪', reward: 800 }
-];
 
 export class LeaderboardAndEventsEngine {
   constructor(onEventTriggerCallback) {
     this.onEventTrigger = onEventTriggerCallback;
-    this.activeEvent = null; // null | { type: 'rush_hour' | 'meteor' | 'world_boss', duration: number, ... }
+    this.activeEvent = null;
     this.bossHP = 0;
-    this.bossMaxHP = 25000;
+    this.bossMaxHP = 35000;
 
-    this.simulatedLeaderboard = [
-      { name: 'Alex_Pro', clan: 'CYBER', coins: 14500000, clicks: 42500, prestige: 5, title: 'МАГНАТ' },
-      { name: 'FlameMaster', clan: 'FIRE', coins: 9800000, clicks: 38200, prestige: 4, title: 'ВЛАСТЕЛИН' },
-      { name: 'SunGoddess', clan: 'FIRE', coins: 6200000, clicks: 29400, prestige: 3, title: 'ЛЕГЕНДА' },
-      { name: 'Matrix_King', clan: 'CYBER', coins: 4100000, clicks: 21000, prestige: 2, title: null },
-      { name: 'ByteHunter', clan: 'WOLF', coins: 1850000, clicks: 14200, prestige: 1, title: null }
+    // 30 Dynamic Server Players
+    this.leaderboardPool = [
+      { name: 'Crypto_Whale', clan: 'CYBER', coins: 94000000, clicks: 125000, prestige: 8, title: 'МАГНАТ', rate: 25000 },
+      { name: 'Alex_Pro', clan: 'CYBER', coins: 48000000, clicks: 92000, prestige: 6, title: 'МАГНАТ', rate: 12000 },
+      { name: 'FlameMaster', clan: 'FIRE', coins: 31000000, clicks: 84000, prestige: 5, title: 'ВЛАСТЕЛИН', rate: 8500 },
+      { name: 'SunGoddess', clan: 'FIRE', coins: 21000000, clicks: 68000, prestige: 4, title: 'ЛЕГЕНДА', rate: 5200 },
+      { name: 'Neon_Waifu', clan: 'FIRE', coins: 16000000, clicks: 54000, prestige: 4, title: 'ЛЕГЕНДА', rate: 4100 },
+      { name: 'Viper_Zero', clan: 'WOLF', coins: 13500000, clicks: 46000, prestige: 3, title: 'МАГНАТ', rate: 3200 },
+      { name: 'Toxic_Gamer', clan: 'CYBER', coins: 9200000, clicks: 39000, prestige: 3, title: null, rate: 2100 },
+      { name: 'Matrix_King', clan: 'CYBER', coins: 6800000, clicks: 31000, prestige: 2, title: null, rate: 1400 },
+      { name: 'NoobSlayer_99', clan: 'WOLF', coins: 4500000, clicks: 24000, prestige: 2, title: null, rate: 950 },
+      { name: 'ByteHunter', clan: 'WOLF', coins: 3600000, clicks: 19000, prestige: 1, title: null, rate: 750 },
+      { name: 'Shadow_Ninja', clan: 'WOLF', coins: 2800000, clicks: 16000, prestige: 1, title: null, rate: 550 },
+      { name: 'Quantum_Dev', clan: 'CYBER', coins: 2100000, clicks: 13000, prestige: 1, title: 'МАГНАТ', rate: 420 },
+      { name: 'Cyber_Fox', clan: 'FIRE', coins: 1500000, clicks: 9500, prestige: 1, title: null, rate: 310 },
+      { name: 'Glitch_Runner', clan: null, coins: 980000, clicks: 7200, prestige: 0, title: null, rate: 180 },
+      { name: 'Pixel_Lord', clan: null, coins: 620000, clicks: 5100, prestige: 0, title: null, rate: 110 },
+      { name: 'NeoMiner_01', clan: null, coins: 350000, clicks: 3200, prestige: 0, title: null, rate: 65 },
+      { name: 'Kvant_Master', clan: null, coins: 180000, clicks: 1900, prestige: 0, title: null, rate: 35 },
+      { name: 'Zero_One', clan: null, coins: 95000, clicks: 1100, prestige: 0, title: null, rate: 18 },
+      { name: 'SpeedClicker', clan: null, coins: 45000, clicks: 650, prestige: 0, title: null, rate: 8 },
+      { name: 'Novice_Bot', clan: null, coins: 15000, clicks: 250, prestige: 0, title: null, rate: 3 }
     ];
 
+    this.startDynamicSimulation();
     this.startEventTimer();
   }
 
-  getRankings(category = 'coins', localPlayer) {
-    const list = [...this.simulatedLeaderboard];
+  startDynamicSimulation() {
+    // Dynamic background tick: bots earn coins and increase clicks
+    setInterval(() => {
+      this.leaderboardPool.forEach(p => {
+        p.coins += p.rate;
+        p.clicks += Math.floor(Math.random() * 3);
+      });
+    }, 2000);
+  }
 
-    // Include local player
+  getRankings(category = 'coins', localPlayer) {
+    const list = this.leaderboardPool.map(p => ({ ...p }));
+
     if (localPlayer) {
       list.push({
         name: localPlayer.name + ' (Вы)',
@@ -56,13 +72,12 @@ export class LeaderboardAndEventsEngine {
       list.sort((a, b) => b.prestige - a.prestige);
     }
 
-    return list.slice(0, 10);
+    return list;
   }
 
   // --- SERVER EVENTS CYCLE ---
 
   startEventTimer() {
-    // Check for random server event every 35 seconds
     setInterval(() => {
       if (this.activeEvent) return;
 
@@ -74,7 +89,7 @@ export class LeaderboardAndEventsEngine {
       } else {
         this.triggerWorldBossEvent();
       }
-    }, 38000);
+    }, 35000);
   }
 
   triggerRushHourEvent() {
@@ -104,13 +119,13 @@ export class LeaderboardAndEventsEngine {
     this.activeEvent = {
       type: 'meteor',
       title: '☄️ ЗОЛОТОЙ МЕТЕОР УПАЛ НА СЕРВЕР!',
-      reward: 5000 + Math.round(Math.random() * 15000)
+      reward: 15000 + Math.round(Math.random() * 35000)
     };
     if (this.onEventTrigger) this.onEventTrigger('meteor', this.activeEvent);
   }
 
   triggerWorldBossEvent() {
-    this.bossMaxHP = 25000;
+    this.bossMaxHP = 35000;
     this.bossHP = this.bossMaxHP;
     this.activeEvent = {
       type: 'world_boss',
@@ -127,7 +142,7 @@ export class LeaderboardAndEventsEngine {
     this.activeEvent.hp = this.bossHP;
 
     if (this.bossHP <= 0) {
-      const reward = 30000;
+      const reward = 50000;
       this.activeEvent = null;
       if (this.onEventTrigger) this.onEventTrigger('boss_defeat', { reward });
       return { defeated: true, reward };

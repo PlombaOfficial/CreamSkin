@@ -17,7 +17,7 @@
   <!-- Main Game Shell -->
   <div class="app-layout">
 
-    <!-- Top Header: Currency Balances & Stats -->
+    <!-- Top Header: Currency Balances, Stats & Sound Toggle -->
     <header class="app-header">
       <div class="header-brand">
         <div class="brand-logo">⚡ NEO-CLICKER</div>
@@ -25,6 +25,7 @@
       </div>
 
       <div class="header-stats-row">
+        <button class="btn-sound-toggle" id="btn-toggle-sound">🔊 ЗВУК: ВКЛ</button>
         <div class="stat-pill balance-pill">
           <span class="pill-label">БАЛАНС:</span>
           <span class="pill-val nc-val" id="hud-balance-nc">$0</span>
@@ -206,7 +207,7 @@
           </div>
         </section>
 
-        <!-- 5. TAB: LEADERBOARDS -->
+        <!-- 5. TAB: LEADERBOARDS (30 PLAYERS) -->
         <section class="app-tab-view hidden" id="tab-view-leaderboard">
           <div class="lb-header-tabs">
             <button class="lb-category-btn active" data-cat="coins">💰 ПО БАЛАНСУ</button>
@@ -275,20 +276,42 @@
         <div class="global-chat-feed" id="global-chat-feed"></div>
 
         <form class="chat-send-form" id="chat-send-form">
-          <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Написать в чат..." maxlength="120">
+          <input type="text" id="chat-input-text" class="chat-input-text" placeholder="Написать в чат (боты ответят вам!)..." maxlength="120">
           <button type="submit" class="btn-chat-send">➤</button>
         </form>
 
         <!-- Active Online Players Section -->
         <div class="online-players-sidebar-section">
           <div class="online-section-header">
-            <span>ИГРОКИ ОНЛАЙН (Клик для действий)</span>
+            <span>ИГРОКИ ОНЛАЙН (Клик для дуэли / трейда)</span>
             <span class="live-dot">● LIVE</span>
           </div>
           <div class="online-players-scroll" id="online-players-scroll"></div>
         </div>
       </aside>
 
+    </div>
+  </div>
+
+  <!-- PvP CLICK DUEL MODAL -->
+  <div class="modal-backdrop hidden" id="modal-pvp-duel">
+    <div class="pvp-duel-card">
+      <div class="duel-title">⚔️ СКОРОСТНАЯ PvP ДУЭЛЬ КЛИКОВ</div>
+      <div class="duel-timer">ОСТАЛОСЬ: <b id="duel-timer-val">8</b> сек</div>
+
+      <div class="duel-vs-row">
+        <div class="duel-player-box">
+          <span class="name">ВЫ</span>
+          <span class="score" id="duel-player-score">0</span>
+        </div>
+        <div class="duel-vs-tag">VS</div>
+        <div class="duel-player-box">
+          <span class="name" id="duel-opponent-name">Оппонент</span>
+          <span class="score" id="duel-opponent-score">0</span>
+        </div>
+      </div>
+
+      <button class="duel-click-btn" id="duel-click-btn">⚡ КЛИКАЙ ИЗО ВСЕХ СИЛ! ⚡</button>
     </div>
   </div>
 

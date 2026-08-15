@@ -114,8 +114,22 @@ button {
 
 .header-stats-row {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
+
+.btn-sound-toggle {
+  background: #182847;
+  color: #00ffcc;
+  border: 1px solid #00ffcc;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-sound-toggle:hover { background: #00ffcc; color: #000; }
 
 .stat-pill {
   background: #141e33;
@@ -702,3 +716,98 @@ button {
 }
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* --------------------------------------------------------------------------
+   PvP DUEL MODAL
+   -------------------------------------------------------------------------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.pvp-duel-card {
+  background: radial-gradient(circle at center, #1b2b4d 0%, #0c1424 100%);
+  border: 2px solid var(--color-cyan);
+  border-radius: 14px;
+  padding: 24px;
+  width: 440px;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.duel-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--color-gold);
+}
+
+.duel-timer {
+  font-size: 14px;
+  font-weight: 800;
+  color: #88a0c8;
+}
+
+.duel-timer b {
+  font-size: 20px;
+  color: #ff0077;
+  font-family: var(--font-mono);
+}
+
+.duel-vs-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: #080d17;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.duel-player-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.duel-player-box .name {
+  font-size: 12px;
+  font-weight: 800;
+  color: #7b93b8;
+}
+
+.duel-player-box .score {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+}
+
+.duel-vs-tag {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--color-pink);
+}
+
+.duel-click-btn {
+  background: linear-gradient(90deg, #ff0077, #00f0ff);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(255, 0, 119, 0.6);
+  transition: transform 0.05s ease;
+}
+
+.duel-click-btn:active {
+  transform: scale(0.95);
+}
