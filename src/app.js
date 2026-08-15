@@ -4,12 +4,12 @@
  * Audio Engine, AI Entities, Level Transitions, and VHS Horror UI.
  */
 
-import { BackroomsTextures } from "./textures.js?v=2.0";
-import { BackroomsAudioEngine } from "./audio-engine.js?v=2.0";
-import { BackroomsWorld } from "./backrooms-world.js?v=2.0";
-import { BackroomsEntity } from "./entity-ai.js?v=2.0";
-import { PlayerController } from "./player-controller.js?v=2.0";
-import { MultiplayerManager } from "./multiplayer-manager.js?v=2.0";
+import { BackroomsTextures } from "./textures.js?v=3.0";
+import { BackroomsAudioEngine } from "./audio-engine.js?v=3.0";
+import { BackroomsWorld } from "./backrooms-world.js?v=3.0";
+import { BackroomsEntity } from "./entity-ai.js?v=3.0";
+import { PlayerController } from "./player-controller.js?v=3.0";
+import { MultiplayerManager } from "./multiplayer-manager.js?v=3.0";
 
 document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('game-canvas');
