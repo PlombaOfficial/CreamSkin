@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MINECRAFT 3D // СЕТЕВОЙ ВОКСЕЛЬНЫЙ МИР</title>
-  <meta name="description" content="3D Minecraft с созданием сетевого мира, входом по коду комнаты, 60 FPS, мобами, крафтом и строительством.">
+  <title>MINECRAFT 3D // СЕТЕВОЙ МИР</title>
+  <meta name="description" content="3D Minecraft с созданием сетевого мира, входом по коду, 60 FPS, мобами, крафтом и строительством.">
 
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -21,7 +21,7 @@
   <div class="mc-lobby-screen" id="screen-mc-lobby">
     <div class="mc-menu-panel">
       <div class="mc-logo-title">MINECRAFT 3D</div>
-      <div class="mc-logo-sub">СЕТЕВОЙ МИР ДЛЯ ТЕБЯ И ТВОИХ ДРУЗЕЙ</div>
+      <div class="mc-logo-sub">СЕТЕВОЕ ВЫЖИВАНИЕ ДЛЯ ДРУЗЕЙ</div>
 
       <!-- Player Profile Setup -->
       <div class="profile-setup-box">
@@ -44,7 +44,7 @@
         <button class="tab-btn" id="tab-btn-single">🕹 ОДИНОЧНЫЙ МИР</button>
       </div>
 
-      <!-- TAB 1: MULTIPLAYER (DEFAULT) -->
+      <!-- TAB 1: MULTIPLAYER -->
       <div class="tab-content" id="tab-view-multi">
         <div class="create-server-box">
           <input type="text" id="mc-online-world-name" class="mc-input" placeholder="Название мира..." value="3D Мир Стива" maxlength="20">
@@ -68,7 +68,7 @@
 
       <!-- TAB 2: SINGLEPLAYER -->
       <div class="tab-content hidden" id="tab-view-single">
-        <button class="btn-mc-primary" id="btn-create-single-world">➕ СОЗДАТЬ НОВЫЙ 3D МИР</button>
+        <button class="btn-mc-primary" id="btn-create-single-world">➕ СОЗДАТЬ ОДИНОЧНЫЙ 3D МИР</button>
         <div class="worlds-scroll-list" id="local-worlds-list"></div>
       </div>
 
