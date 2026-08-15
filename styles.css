@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AMONG US // CYBER STATION ARCADE DESIGN SYSTEM (WITH FULL CHAT)
+   AMONG US // CYBER STATION ARCADE DESIGN SYSTEM (COMPLETE)
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;900&family=VT323&display=swap');
@@ -42,7 +42,7 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   ROLE SELECTION SCREEN
+   MULTIPLAYER LOBBY SCREEN
    -------------------------------------------------------------------------- */
 
 .fullscreen-screen {
@@ -54,17 +54,18 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
   transition: opacity 0.3s ease;
 }
 
 .fullscreen-screen.hidden {
   opacity: 0;
   pointer-events: none;
+  display: none;
 }
 
 .game-logo {
-  font-size: clamp(48px, 8vw, 84px);
+  font-size: clamp(42px, 7vw, 76px);
   font-weight: 900;
   color: #ffffff;
   letter-spacing: 4px;
@@ -78,69 +79,242 @@ html, body {
 }
 
 .game-sub {
-  font-size: 16px;
+  font-size: 14px;
   color: #8fa0b5;
   letter-spacing: 3px;
   text-transform: uppercase;
-  margin-top: 6px;
-  margin-bottom: 40px;
+  margin-top: 4px;
+  margin-bottom: 24px;
 }
 
-.role-select-box {
-  display: flex;
-  gap: 30px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.role-card {
-  width: 260px;
-  background: rgba(20, 28, 45, 0.9);
-  border: 3px solid #334460;
+.lobby-card {
+  width: 440px;
+  max-width: 95%;
+  background: rgba(18, 26, 42, 0.95);
+  border: 3px solid #3d526e;
   border-radius: 16px;
-  padding: 30px 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 16px;
-  cursor: pointer;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
 }
 
-.role-card:hover {
-  transform: translateY(-8px) scale(1.04);
+.lobby-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.role-card.crew:hover {
-  border-color: var(--color-crew);
-  box-shadow: 0 0 35px var(--color-crew);
-}
-
-.role-card.imp:hover {
-  border-color: var(--color-impostor);
-  box-shadow: 0 0 35px var(--color-impostor);
-}
-
-.role-icon {
-  font-size: 56px;
-}
-
-.role-title {
-  font-size: 22px;
+.lobby-group label {
+  font-size: 12px;
   font-weight: 800;
-  text-transform: uppercase;
+  color: #8fa0b5;
+  letter-spacing: 1px;
 }
 
-.role-desc {
+.lobby-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: #0b111c;
+  border: 2px solid #334460;
+  color: #ffffff;
+  border-radius: 8px;
+  font-family: var(--font-game);
+  font-size: 15px;
+  font-weight: 700;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.lobby-input:focus {
+  border-color: var(--color-crew);
+}
+
+.color-picker-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.color-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: transform 0.15s ease;
+}
+
+.color-dot:hover {
+  transform: scale(1.15);
+}
+
+.color-dot.active {
+  border-color: #ffffff;
+  transform: scale(1.2);
+  box-shadow: 0 0 12px #fff;
+}
+
+.role-picker-row {
+  display: flex;
+  gap: 10px;
+}
+
+.role-pick-btn {
+  flex: 1;
+  padding: 12px;
+  background: #151f30;
+  border: 2px solid #334460;
+  color: #8fa0b5;
+  border-radius: 8px;
+  font-family: var(--font-game);
   font-size: 13px;
-  color: #9ab0c8;
-  text-align: center;
-  line-height: 1.4;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.role-pick-btn.active[data-role="crew"] {
+  border-color: var(--color-crew);
+  background: rgba(0, 240, 255, 0.15);
+  color: var(--color-crew);
+}
+
+.role-pick-btn.active[data-role="impostor"] {
+  border-color: var(--color-impostor);
+  background: rgba(255, 51, 51, 0.15);
+  color: var(--color-impostor);
+}
+
+.btn-lobby-primary {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #00bb44, var(--color-task-green));
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-game);
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 255, 102, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.btn-lobby-primary:hover {
+  transform: translateY(-2px);
+}
+
+.join-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-lobby-secondary {
+  padding: 12px 18px;
+  background: #22324b;
+  border: 2px solid #4a638a;
+  color: #ffffff;
+  border-radius: 8px;
+  font-family: var(--font-game);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-lobby-secondary:hover {
+  background: #334a6e;
 }
 
 /* --------------------------------------------------------------------------
-   IN-GAME HUD & QUICK CHAT
+   WAITING ROOM SCREEN
+   -------------------------------------------------------------------------- */
+
+.waiting-room-card {
+  width: 480px;
+  max-width: 95%;
+  background: rgba(18, 26, 42, 0.95);
+  border: 3px solid var(--color-crew);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 0 50px rgba(0, 240, 255, 0.3);
+}
+
+.waiting-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.waiting-header h2 {
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.waiting-header p {
+  font-size: 13px;
+  color: #8fa0b5;
+}
+
+.big-room-code-badge {
+  font-family: var(--font-mono);
+  font-size: 38px;
+  letter-spacing: 4px;
+  color: var(--color-yellow);
+  background: #0b111c;
+  padding: 8px 24px;
+  border: 2px dashed var(--color-yellow);
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: transform 0.15s ease;
+}
+
+.big-room-code-badge:hover {
+  transform: scale(1.05);
+}
+
+.waiting-player-list {
+  width: 100%;
+  background: #0b111c;
+  border: 2px solid #233147;
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.waiting-player-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #151f30;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.waiting-player-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #000;
+}
+
+/* --------------------------------------------------------------------------
+   IN-GAME HUD & MINIMAP RADAR
    -------------------------------------------------------------------------- */
 
 .game-hud {
@@ -152,6 +326,10 @@ html, body {
   flex-direction: column;
   justify-content: space-between;
   padding: 24px;
+}
+
+.game-hud.hidden {
+  display: none;
 }
 
 .hud-top-progress {
@@ -184,6 +362,73 @@ html, body {
   text-shadow: 0 2px 4px #000;
 }
 
+.room-code-badge {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--color-crew);
+  color: var(--color-crew);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Minimap Radar */
+.hud-minimap-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  background: rgba(10, 16, 26, 0.85);
+  border: 2px solid #3d526e;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.minimap-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #8fa0b5;
+  letter-spacing: 1px;
+}
+
+#minimap-canvas {
+  border-radius: 4px;
+  border: 1px solid #233147;
+}
+
+/* Toast Notification */
+.game-toast-notification {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(0, 240, 255, 0.95);
+  color: #000;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-weight: 900;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.game-toast-notification.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* HUD Quick Chat */
 .hud-chat-input-box {
   position: fixed;
   bottom: 120px;
@@ -254,6 +499,18 @@ html, body {
 .btn-action:hover {
   transform: scale(1.1);
   background: rgba(40, 60, 90, 0.95);
+}
+
+.btn-action.active-prompt {
+  border-color: var(--color-yellow);
+  color: var(--color-yellow);
+  box-shadow: 0 0 25px var(--color-yellow);
+  animation: pulse-prompt 1s infinite alternate;
+}
+
+@keyframes pulse-prompt {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
 }
 
 .btn-kill {

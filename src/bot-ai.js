@@ -1,6 +1,7 @@
 /**
- * AMONG US // SMART BOT AI & DYNAMIC CHAT RESPONSE ENGINE
- * Generates initial debates AND intelligently responds to what the player writes in chat!
+ * AMONG US // SMART BOT AI WITH STRICT MAP NAVIGATION
+ * Bots strictly stay inside rooms and corridors, perform simulated tasks,
+ * stalk victims when Impostor, report bodies, and engage in debate.
  */
 
 export class BotManager {
@@ -11,7 +12,6 @@ export class BotManager {
     this.deadBodies = [];
     
     this.botColors = [
-      { id: 'red', name: 'Красный', hex: '#c51111' },
       { id: 'blue', name: 'Синий', hex: '#132ed1' },
       { id: 'green', name: 'Зеленый', hex: '#117f2d' },
       { id: 'pink', name: 'Розовый', hex: '#ed54ba' },
@@ -23,18 +23,16 @@ export class BotManager {
       { id: 'cyan', name: 'Голубой', hex: '#38fedc' }
     ];
 
-    this.initBots(7);
+    this.initBots(6);
   }
 
-  initBots(count = 7) {
+  initBots(count = 6) {
     this.bots = [];
     this.deadBodies = [];
 
-    const availableColors = [...this.botColors.slice(1)];
-
     for (let i = 0; i < count; i++) {
-      const col = availableColors[i % availableColors.length];
-      const startRoom = this.map.rooms[0];
+      const col = this.botColors[i % this.botColors.length];
+      const startRoom = this.map.rooms[0]; // Cafeteria
 
       this.bots.push({
         id: 'bot_' + i,
@@ -42,11 +40,11 @@ export class BotManager {
         color: col.hex,
         isImpostor: false,
         isAlive: true,
-        x: startRoom.x + 80 + Math.random() * 200,
-        y: startRoom.y + 80 + Math.random() * 150,
-        speed: 2.4,
-        targetX: 1200,
-        targetY: 460,
+        x: startRoom.x + 60 + Math.random() * (startRoom.w - 120),
+        y: startRoom.y + 60 + Math.random() * (startRoom.h - 120),
+        speed: 2.2,
+        targetX: 1000,
+        targetY: 290,
         state: 'IDLE',
         taskTimer: 0,
         killCooldown: 15.0,
@@ -69,8 +67,9 @@ export class BotManager {
         bot.killCooldown = Math.max(0, bot.killCooldown - delta);
       }
 
+      // Check dead bodies nearby
       this.deadBodies.forEach(body => {
-        if (!body.reported && Math.hypot(bot.x - body.x, bot.y - body.y) < 90) {
+        if (!body.reported && Math.hypot(bot.x - body.x, bot.y - body.y) < 80) {
           body.reported = true;
           if (onEmergencyMeeting) {
             onEmergencyMeeting('body', bot, body);
@@ -78,7 +77,9 @@ export class BotManager {
         }
       });
 
+      // AI State Machine
       if (bot.state === 'IDLE') {
+        // Pick a random room or task as next destination
         const targetRoom = this.map.rooms[Math.floor(Math.random() * this.map.rooms.length)];
         bot.targetX = targetRoom.x + 40 + Math.random() * (targetRoom.w - 80);
         bot.targetY = targetRoom.y + 40 + Math.random() * (targetRoom.h - 80);
@@ -89,9 +90,22 @@ export class BotManager {
         const dy = bot.targetY - bot.y;
         const dist = Math.hypot(dx, dy);
 
-        if (dist > 10) {
-          bot.x += (dx / dist) * bot.speed;
-          bot.y += (dy / dist) * bot.speed;
+        if (dist > 12) {
+          const stepX = (dx / dist) * bot.speed;
+          const stepY = (dy / dist) * bot.speed;
+
+          // Strict collision checking for bots
+          if (this.map.isWalkable(bot.x + stepX, bot.y + stepY, 14)) {
+            bot.x += stepX;
+            bot.y += stepY;
+          } else if (this.map.isWalkable(bot.x + stepX, bot.y, 14)) {
+            bot.x += stepX;
+          } else if (this.map.isWalkable(bot.x, bot.y + stepY, 14)) {
+            bot.y += stepY;
+          } else {
+            // Reroute if stuck
+            bot.state = 'IDLE';
+          }
         } else {
           bot.state = 'TASK';
           bot.taskTimer = 4.0 + Math.random() * 4.0;
@@ -100,8 +114,9 @@ export class BotManager {
       else if (bot.state === 'TASK') {
         bot.taskTimer -= delta;
 
+        // Impostor Kill Logic
         if (bot.isImpostor && bot.killCooldown <= 0) {
-          const victims = this.bots.filter(b => b.isAlive && b.id !== bot.id && Math.hypot(b.x - bot.x, b.y - bot.y) < 70);
+          const victims = this.bots.filter(b => b.isAlive && b.id !== bot.id && Math.hypot(b.x - bot.x, b.y - bot.y) < 65);
           if (victims.length === 1) {
             const vic = victims[0];
             vic.isAlive = false;
@@ -122,7 +137,7 @@ export class BotManager {
     const messages = [];
 
     if (bodyInfo) {
-      messages.push({ sender: reporterBot.name, text: `Я нашел тело ${bodyInfo.name}! Оно лежало прямо здесь.` });
+      messages.push({ sender: reporterBot.name, text: `Я нашел тело ${bodyInfo.name}!` });
     } else {
       messages.push({ sender: reporterBot.name, text: 'Срочное собрание! Кто-то ведет себя подозрительно.' });
     }
@@ -146,7 +161,6 @@ export class BotManager {
     return messages;
   }
 
-  // Smart AI response to what the player types!
   respondToPlayerChat(playerText) {
     const aliveBots = this.bots.filter(b => b.isAlive);
     if (aliveBots.length === 0) return null;
@@ -166,8 +180,6 @@ export class BotManager {
       response = 'Зеленый был со мной в Столовой, он чист!';
     } else if (lower.includes('люк') || lower.includes('вент') || lower.includes('vent')) {
       response = 'Кто-то прыгнул в люк?! Тогда точно голосуем за него!';
-    } else if (lower.includes('где') || lower.includes('кто')) {
-      response = 'Тело нашли в коридоре! Кто был рядом?';
     } else {
       const genericResponses = [
         'Звучит убедительно, голосую с тобой.',

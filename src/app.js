@@ -1,13 +1,14 @@
 /**
- * AMONG US // CYBER STATION PRIMARY GAME ENGINE (WITH FULL CHAT)
- * Coordinates Canvas 2D rendering, Player Movement, Impostor Kills/Vents,
- * Tasks, Bot AI, Emergency Meetings with Live Chat, and Speech Bubbles.
+ * AMONG US // CYBER STATION COMPLETE ENGINE
+ * Strict Wall Collisions, Minimap Radar, Room Code Multiplayer + Bots,
+ * Tasks, Kill/Vent Actions, and Dynamic Emergency Meetings.
  */
 
 import { STATION_MAP } from "./station-map.js";
 import { AmongUsAudioEngine } from "./audio-engine.js";
 import { BotManager } from "./bot-ai.js";
 import { TaskManager } from "./tasks.js";
+import { MultiplayerManager } from "./multiplayer-manager.js";
 
 document.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('game-canvas');
@@ -20,19 +21,20 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', resize);
   resize();
 
-  // 1. Audio, Bot, and Task Engines
+  // 1. Audio, Bot, Task & Network Managers
   const audio = new AmongUsAudioEngine();
   const taskManager = new TaskManager(audio);
   const botManager = new BotManager(STATION_MAP, audio);
+  const network = new MultiplayerManager(null);
 
   // 2. Player State
   const player = {
-    x: 1225,
-    y: 460,
-    radius: 24,
+    x: 1000,
+    y: 290,
+    radius: 18,
     speed: 4.8,
     color: '#c51111',
-    name: 'Вы (Красный)',
+    name: 'Оператор',
     isImpostor: false,
     isAlive: true,
     inVent: false,
@@ -45,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Game Status
-  let gameState = 'ROLE_INTRO';
+  let gameState = 'LOBBY'; // 'LOBBY' | 'ROLE_INTRO' | 'PLAYING' | 'MEETING' | 'EJECTION' | 'GAME_OVER'
   let meetingTimer = 30;
   let meetingInterval = null;
   let votes = {};
@@ -55,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const keys = { w: false, a: false, s: false, d: false };
 
   window.addEventListener('keydown', (e) => {
-    // If typing in chat, don't trigger game hotkeys
     if (document.activeElement.tagName === 'INPUT') return;
 
     if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
@@ -87,31 +88,146 @@ document.addEventListener('DOMContentLoaded', () => {
   btnVent.addEventListener('click', handleVentToggle);
   btnReport.addEventListener('click', handleReport);
 
-  // Role Selection
-  document.getElementById('btn-select-crew').addEventListener('click', () => startGame(false));
-  document.getElementById('btn-select-impostor').addEventListener('click', () => startGame(true));
+  // --------------------------------------------------------------------------
+  // LOBBY SETUP & MULTIPLAYER WAITING ROOM
+  // --------------------------------------------------------------------------
+  const inputPlayerName = document.getElementById('input-player-name');
+  const inputRoomCode = document.getElementById('input-room-code');
+  const btnCreateRoom = document.getElementById('btn-create-room');
+  const btnJoinRoom = document.getElementById('btn-join-room');
+  const screenWaiting = document.getElementById('screen-waiting-room');
+  const waitingCodeBadge = document.getElementById('waiting-room-code');
+  const waitingPlayerList = document.getElementById('waiting-player-list');
+  const btnStartMatch = document.getElementById('btn-start-match');
+  const btnCancelRoom = document.getElementById('btn-cancel-room');
 
-  function startGame(asImpostor) {
+  let selectedRole = 'crew';
+  let activeRoomCode = null;
+
+  document.querySelectorAll('.role-pick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.role-pick-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedRole = btn.dataset.role;
+    });
+  });
+
+  document.querySelectorAll('.color-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+      dot.classList.add('active');
+      player.color = dot.dataset.color;
+    });
+  });
+
+  // Create Room -> Open Waiting Room Screen
+  btnCreateRoom.addEventListener('click', async () => {
+    player.name = inputPlayerName.value.trim() || 'Оператор';
+    player.isImpostor = (selectedRole === 'impostor');
+    try {
+      btnCreateRoom.disabled = true;
+      btnCreateRoom.textContent = 'Создание...';
+      const code = await network.createRoom(player.name);
+      openWaitingRoom(code);
+    } catch (e) {
+      // Offline fallback
+      openWaitingRoom('BCK' + Math.floor(1000 + Math.random() * 9000));
+    } finally {
+      btnCreateRoom.disabled = false;
+      btnCreateRoom.textContent = '⚡ СОЗДАТЬ КОМНАТУ';
+    }
+  });
+
+  // Join Room -> Open Waiting Room or Start
+  btnJoinRoom.addEventListener('click', async () => {
+    player.name = inputPlayerName.value.trim() || 'Оператор';
+    player.isImpostor = (selectedRole === 'impostor');
+    const code = inputRoomCode.value.trim();
+    if (!code) {
+      alert('Введите код комнаты (например, BCK4092)!');
+      return;
+    }
+    try {
+      btnJoinRoom.disabled = true;
+      btnJoinRoom.textContent = 'Вход...';
+      const joinedCode = await network.joinRoom(code, player.name);
+      openWaitingRoom(joinedCode);
+    } catch (e) {
+      alert(e.message || 'Комната не найдена');
+    } finally {
+      btnJoinRoom.disabled = false;
+      btnJoinRoom.textContent = '🔗 ВОЙТИ ПО КОДУ';
+    }
+  });
+
+  function openWaitingRoom(code) {
+    activeRoomCode = code;
+    document.getElementById('screen-lobby').classList.add('hidden');
+    screenWaiting.classList.remove('hidden');
+    waitingCodeBadge.textContent = code;
+
+    // Render Lobby Players
+    waitingPlayerList.innerHTML = `
+      <div class="waiting-player-slot">
+        <div class="waiting-player-dot" style="background: ${player.color};"></div>
+        <span>${player.name} (Вы - Хост)</span>
+      </div>
+      <div class="waiting-player-slot" style="color: #8fa0b5;">
+        <div class="waiting-player-dot" style="background: #555;"></div>
+        <span>Ожидание подключения друга...</span>
+      </div>
+      <div class="waiting-player-slot" style="color: #5a759e;">
+        <div class="waiting-player-dot" style="background: #132ed1;"></div>
+        <span>+ 6 Умных AI-Ботов (Заполнят экипаж)</span>
+      </div>
+    `;
+  }
+
+  // Click Big Code to Copy
+  waitingCodeBadge.addEventListener('click', () => {
+    navigator.clipboard.writeText(activeRoomCode).then(() => {
+      showFloatingNotif(`Код ${activeRoomCode} скопирован в буфер!`);
+    }).catch(() => {});
+  });
+
+  // Start Match
+  btnStartMatch.addEventListener('click', () => {
+    screenWaiting.classList.add('hidden');
+    startMatch(activeRoomCode);
+  });
+
+  // Cancel Room
+  btnCancelRoom.addEventListener('click', () => {
+    screenWaiting.classList.add('hidden');
+    document.getElementById('screen-lobby').classList.remove('hidden');
+  });
+
+  function startMatch(roomCode) {
     audio.init();
-    player.isImpostor = asImpostor;
+    document.getElementById('screen-lobby').classList.add('hidden');
+    document.getElementById('game-hud').classList.remove('hidden');
+    document.getElementById('hud-room-code-tag').textContent = `КОМНАТА: ${roomCode}`;
+
+    // Reset Player
+    player.x = 1000;
+    player.y = 290;
     player.isAlive = true;
-    player.x = 1225;
-    player.y = 460;
     player.inVent = false;
     player.killCooldown = 12.0;
 
-    botManager.initBots(7);
-    if (!asImpostor) {
+    // Init 6 Bots
+    botManager.initBots(6);
+    if (!player.isImpostor) {
       const impBot = botManager.bots[Math.floor(Math.random() * botManager.bots.length)];
       impBot.isImpostor = true;
     }
 
-    document.getElementById('screen-role-select').classList.add('hidden');
+    // Role Intro Splash
     const introModal = document.getElementById('modal-role-intro');
     const roleText = document.getElementById('intro-role-name');
     const roleDesc = document.getElementById('intro-role-desc');
 
-    if (asImpostor) {
+    if (player.isImpostor) {
       roleText.textContent = 'ПРЕДАТЕЛЬ (IMPOSTOR)';
       roleText.style.color = '#ff3333';
       roleDesc.textContent = 'Устраняйте членов экипажа, используйте вентиляцию и не дайте завершить задания!';
@@ -132,20 +248,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2800);
   }
 
+  // Click Room Code to Copy
+  document.getElementById('hud-room-code-tag').addEventListener('click', () => {
+    const text = document.getElementById('hud-room-code-tag').textContent.replace('КОМНАТА: ', '');
+    navigator.clipboard.writeText(text).then(() => {
+      showFloatingNotif(`Код ${text} скопирован в буфер!`);
+    }).catch(() => {});
+  });
+
+  function showFloatingNotif(msg) {
+    const notif = document.getElementById('game-notification');
+    notif.textContent = msg;
+    notif.classList.add('visible');
+    setTimeout(() => notif.classList.remove('visible'), 2500);
+  }
+
   // --- ACTIONS ---
 
   function handleUseOrVent() {
     if (gameState !== 'PLAYING' || !player.isAlive) return;
 
+    // 1. Emergency Table
     const distToTable = Math.hypot(player.x - STATION_MAP.emergencyTable.x, player.y - STATION_MAP.emergencyTable.y);
     if (distToTable < 70) {
       startEmergencyMeeting('emergency', { name: player.name });
       return;
     }
 
+    // 2. Task Consoles
     for (let i = 0; i < STATION_MAP.tasks.length; i++) {
       const t = STATION_MAP.tasks[i];
-      if (Math.hypot(player.x - t.x, player.y - t.y) < 60) {
+      if (Math.hypot(player.x - t.x, player.y - t.y) < 65) {
         taskManager.openTask(t, () => {
           player.completedTasks++;
           updateTaskProgress();
@@ -237,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- EMERGENCY MEETING, LIVE CHAT & VOTING ---
+  // --- EMERGENCY MEETING & VOTING ---
 
   const chatContainer = document.getElementById('meeting-chat-list');
   const chatInput = document.getElementById('meeting-chat-input');
@@ -262,12 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     meetingModal.classList.add('active');
 
-    // 1. Initial Bot Discussion
     chatContainer.innerHTML = '';
     const discussions = botManager.generateDiscussion(reporter, bodyInfo);
     discussions.forEach(d => addMeetingChatMessage(d.sender, d.text));
 
-    // 2. Build Voting Cards
     voteGrid.innerHTML = '';
     buildVoteCard(voteGrid, 'player', player.name, player.color, player.isAlive);
     botManager.bots.forEach(bot => {
@@ -280,8 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
     skipBtn.addEventListener('click', () => castVote('skip'));
     voteGrid.appendChild(skipBtn);
 
-    // 3. Timer Countdown
-    meetingTimer = 35;
+    meetingTimer = 30;
     const timerEl = document.getElementById('meeting-timer');
     if (meetingInterval) clearInterval(meetingInterval);
 
@@ -303,21 +433,16 @@ document.addEventListener('DOMContentLoaded', () => {
     chatContainer.scrollTop = chatContainer.scrollHeight;
   }
 
-  // Handle Player Sending Chat in Meeting
   function sendPlayerMeetingChat() {
     const text = chatInput.value.trim();
     if (!text) return;
     chatInput.value = '';
-
     addMeetingChatMessage(player.name, text, true);
 
-    // Smart Bot AI reaction
     setTimeout(() => {
       const reply = botManager.respondToPlayerChat(text);
-      if (reply) {
-        addMeetingChatMessage(reply.sender, reply.text);
-      }
-    }, 1200 + Math.random() * 1000);
+      if (reply) addMeetingChatMessage(reply.sender, reply.text);
+    }, 1000 + Math.random() * 800);
   }
 
   btnSendChat.addEventListener('click', sendPlayerMeetingChat);
@@ -325,13 +450,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') sendPlayerMeetingChat();
   });
 
-  // HUD Chat Input during normal gameplay
-  const hudChatInputContainer = document.getElementById('hud-chat-input-box');
+  // HUD Chat Input on key T
+  const hudChatBox = document.getElementById('hud-chat-input-box');
   const hudChatInput = document.getElementById('hud-chat-input');
 
   function openHudChat() {
     if (gameState !== 'PLAYING') return;
-    hudChatInputContainer.classList.remove('hidden');
+    hudChatBox.classList.remove('hidden');
     hudChatInput.focus();
   }
 
@@ -343,10 +468,10 @@ document.addEventListener('DOMContentLoaded', () => {
         player.speechTimer = 4.0;
         hudChatInput.value = '';
       }
-      hudChatInputContainer.classList.add('hidden');
+      hudChatBox.classList.add('hidden');
       canvas.focus();
     } else if (e.key === 'Escape') {
-      hudChatInputContainer.classList.add('hidden');
+      hudChatBox.classList.add('hidden');
       canvas.focus();
     }
   });
@@ -374,9 +499,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     botManager.bots.forEach(b => {
       if (b.isAlive) {
-        const aliveTargets = ['player', ...botManager.bots.filter(ob => ob.isAlive).map(ob => ob.id), 'skip'];
-        const randomTarget = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
-        votes[randomTarget] = (votes[randomTarget] || 0) + 1;
+        const targets = ['player', ...botManager.bots.filter(ob => ob.isAlive).map(ob => ob.id), 'skip'];
+        const rnd = targets[Math.floor(Math.random() * targets.length)];
+        votes[rnd] = (votes[rnd] || 0) + 1;
       }
     });
 
@@ -436,7 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateTaskProgress() {
-    const totalCrewTasks = 8;
+    const totalCrewTasks = 7;
     const progressPct = Math.min(100, Math.floor((player.completedTasks / totalCrewTasks) * 100));
     document.getElementById('task-bar-fill').style.width = `${progressPct}%`;
 
@@ -459,22 +584,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function showGameOver(title, desc, color) {
     gameState = 'GAME_OVER';
     const overModal = document.getElementById('modal-game-over');
-    const titleEl = document.getElementById('game-over-title');
-    const descEl = document.getElementById('game-over-desc');
-
-    titleEl.textContent = title;
-    titleEl.style.color = color;
-    descEl.textContent = desc;
+    document.getElementById('game-over-title').textContent = title;
+    document.getElementById('game-over-title').style.color = color;
+    document.getElementById('game-over-desc').textContent = desc;
     overModal.classList.add('active');
   }
 
   document.getElementById('btn-play-again').addEventListener('click', () => {
     document.getElementById('modal-game-over').classList.remove('active');
-    document.getElementById('screen-role-select').classList.remove('hidden');
-    gameState = 'ROLE_INTRO';
+    document.getElementById('screen-lobby').classList.remove('hidden');
+    gameState = 'LOBBY';
   });
 
-  // --- RENDER LOOP ---
+  // --- RENDER & PHYSICS LOOP ---
 
   const clock = new THREE.Clock();
 
@@ -488,6 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (player.speechTimer <= 0) player.speechBubble = null;
       }
 
+      // Strict Player Movement Collision
       if (player.isAlive && !player.inVent) {
         let mx = 0, my = 0;
         if (keys.w) my -= 1;
@@ -497,8 +620,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (mx !== 0 || my !== 0) {
           const len = Math.hypot(mx, my);
-          player.x = Math.max(80, Math.min(STATION_MAP.width - 80, player.x + (mx / len) * player.speed));
-          player.y = Math.max(80, Math.min(STATION_MAP.height - 80, player.y + (my / len) * player.speed));
+          const stepX = (mx / len) * player.speed;
+          const stepY = (my / len) * player.speed;
+
+          // Check if next coordinate is strictly walkable
+          if (STATION_MAP.isWalkable(player.x + stepX, player.y + stepY, player.radius)) {
+            player.x += stepX;
+            player.y += stepY;
+          } else if (STATION_MAP.isWalkable(player.x + stepX, player.y, player.radius)) {
+            player.x += stepX;
+          } else if (STATION_MAP.isWalkable(player.x, player.y + stepY, player.radius)) {
+            player.y += stepY;
+          }
         }
       }
 
@@ -509,41 +642,65 @@ document.addEventListener('DOMContentLoaded', () => {
         btnKill.classList.toggle('ready', player.killCooldown <= 0);
       }
 
+      // Check nearby tasks for USE button prompt
+      let nearTask = false;
+      STATION_MAP.tasks.forEach(t => {
+        if (Math.hypot(player.x - t.x, player.y - t.y) < 65) nearTask = true;
+      });
+      if (Math.hypot(player.x - STATION_MAP.emergencyTable.x, player.y - STATION_MAP.emergencyTable.y) < 70) nearTask = true;
+      btnUse.classList.toggle('active-prompt', nearTask);
+
+      // Check nearby dead body for REPORT button
+      let nearBody = false;
+      botManager.deadBodies.forEach(b => {
+        if (!b.reported && Math.hypot(player.x - b.x, player.y - b.y) < 90) nearBody = true;
+      });
+      btnReport.classList.toggle('active-prompt', nearBody);
+
+      // Update Bot AI
       botManager.update(delta, player, (type, reporter, body) => {
         startEmergencyMeeting(type, reporter, body);
       });
     }
 
     renderCanvas();
+    renderMinimap();
   }
 
   function renderCanvas() {
-    ctx.fillStyle = '#0a0d14';
+    ctx.fillStyle = '#05070c';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
     ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
 
-    // 1. Draw Corridors
-    ctx.fillStyle = '#222938';
+    // 1. Draw Spaceship Outer Hull Shadow
+    ctx.fillStyle = '#0f141f';
+    STATION_MAP.rooms.forEach(r => ctx.fillRect(r.x - 12, r.y - 12, r.w + 24, r.h + 24));
+    STATION_MAP.corridors.forEach(c => ctx.fillRect(c.x - 12, c.y - 12, c.w + 24, c.h + 24));
+
+    // 2. Draw Walkable Corridors
+    ctx.fillStyle = '#1c2433';
     STATION_MAP.corridors.forEach(c => ctx.fillRect(c.x, c.y, c.w, c.h));
 
-    // 2. Draw Rooms
+    // 3. Draw Walkable Rooms with Metal Borders
     STATION_MAP.rooms.forEach(r => {
       ctx.fillStyle = r.color;
       ctx.fillRect(r.x, r.y, r.w, r.h);
-      ctx.strokeStyle = '#4f627a';
+
+      ctx.strokeStyle = '#3d526e';
       ctx.lineWidth = 6;
       ctx.strokeRect(r.x, r.y, r.w, r.h);
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.font = 'bold 22px sans-serif';
+      // Room Name Header
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.font = 'bold 20px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(r.name, r.x + r.w / 2, r.y + r.h / 2);
+      ctx.fillText(r.name, r.x + r.w / 2, r.y + 36);
     });
 
-    // 3. Draw Emergency Table
-    ctx.fillStyle = '#1c2430';
+    // 4. Draw Emergency Table with Big Red Button
+    ctx.fillStyle = '#151b24';
     ctx.beginPath();
     ctx.arc(STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y, STATION_MAP.emergencyTable.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -555,38 +712,53 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.beginPath();
     ctx.arc(STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y, 16, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('SOS', STATION_MAP.emergencyTable.x, STATION_MAP.emergencyTable.y + 4);
 
-    // 4. Draw Vents
+    // 5. Draw Vents
     STATION_MAP.vents.forEach(v => {
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(v.x - 18, v.y - 12, 36, 24);
-      ctx.strokeStyle = '#555555';
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(v.x - 20, v.y - 12, 40, 24);
+      ctx.strokeStyle = '#00f0ff';
       ctx.lineWidth = 2;
-      ctx.strokeRect(v.x - 18, v.y - 12, 36, 24);
+      ctx.strokeRect(v.x - 20, v.y - 12, 40, 24);
     });
 
-    // 5. Draw Task Consoles
+    // 6. Draw Task Consoles (Glowing Yellow with Icon)
     STATION_MAP.tasks.forEach(t => {
       ctx.fillStyle = '#ffdd00';
+      ctx.shadowColor = '#ffdd00';
+      ctx.shadowBlur = 12;
       ctx.beginPath();
-      ctx.arc(t.x, t.y, 12, 0, Math.PI * 2);
+      ctx.arc(t.x, t.y, 14, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', t.x, t.y + 5);
+
+      // Task Name floating tag
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(t.x - 70, t.y - 32, 140, 20);
+      ctx.fillStyle = '#ffdd00';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(t.name, t.x, t.y - 18);
     });
 
-    // 6. Draw Dead Bodies
+    // 7. Draw Dead Bodies
     botManager.deadBodies.forEach(b => drawDeadBody(ctx, b.x, b.y, b.color));
 
-    // 7. Draw Bots
+    // 8. Draw Bots
     botManager.bots.forEach(bot => {
       if (bot.isAlive) {
         drawAstronaut(ctx, bot.x, bot.y, bot.color, bot.name, false, bot.speechBubble);
       }
     });
 
-    // 8. Draw Player
+    // 9. Draw Player
     if (player.isAlive && !player.inVent) {
       drawAstronaut(ctx, player.x, player.y, player.color, player.name, true, player.speechBubble);
     }
@@ -598,12 +770,14 @@ document.addEventListener('DOMContentLoaded', () => {
     c.save();
     c.translate(x, y);
 
+    // Backpack
     c.fillStyle = color;
     c.fillRect(-22, -12, 10, 24);
     c.strokeStyle = '#000';
     c.lineWidth = 2;
     c.strokeRect(-22, -12, 10, 24);
 
+    // Main Body
     c.fillStyle = color;
     c.beginPath();
     c.arc(0, -6, 16, Math.PI, 0);
@@ -615,6 +789,7 @@ document.addEventListener('DOMContentLoaded', () => {
     c.fill();
     c.stroke();
 
+    // Visor Glass
     c.fillStyle = '#66ccff';
     c.beginPath();
     c.ellipse(6, -6, 10, 6, 0, 0, Math.PI * 2);
@@ -623,6 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
     c.lineWidth = 2;
     c.stroke();
 
+    // Name Label
     c.fillStyle = isPlayer ? '#ffff55' : '#ffffff';
     c.font = 'bold 14px sans-serif';
     c.textAlign = 'center';
@@ -664,6 +840,41 @@ document.addEventListener('DOMContentLoaded', () => {
     c.strokeRect(-4, -14, 8, 10);
 
     c.restore();
+  }
+
+  // --- MINIMAP RADAR ---
+  const miniCanvas = document.getElementById('minimap-canvas');
+  const mctx = miniCanvas ? miniCanvas.getContext('2d') : null;
+
+  function renderMinimap() {
+    if (!mctx) return;
+    const mw = miniCanvas.width;
+    const mh = miniCanvas.height;
+    const sx = mw / STATION_MAP.width;
+    const sy = mh / STATION_MAP.height;
+
+    mctx.fillStyle = 'rgba(10, 15, 25, 0.85)';
+    mctx.fillRect(0, 0, mw, mh);
+
+    // Draw rooms
+    mctx.fillStyle = '#334460';
+    STATION_MAP.rooms.forEach(r => {
+      mctx.fillRect(r.x * sx, r.y * sy, r.w * sx, r.h * sy);
+    });
+
+    // Draw tasks (yellow blinking dots)
+    mctx.fillStyle = '#ffdd00';
+    STATION_MAP.tasks.forEach(t => {
+      mctx.beginPath();
+      mctx.arc(t.x * sx, t.y * sy, 3, 0, Math.PI * 2);
+      mctx.fill();
+    });
+
+    // Draw player dot (cyan)
+    mctx.fillStyle = '#00f0ff';
+    mctx.beginPath();
+    mctx.arc(player.x * sx, player.y * sy, 4, 0, Math.PI * 2);
+    mctx.fill();
   }
 
   loop();

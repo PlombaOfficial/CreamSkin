@@ -1,63 +1,96 @@
 /**
- * AMONG US // CYBER STATION MAP ENGINE
- * Defines rooms, corridors, collision walls, task consoles, and vent networks.
+ * AMONG US // CYBER STATION MAP WITH STRICT WALL COLLISIONS
+ * Defines rooms, strict walkable corridors, solid impenetrable walls,
+ * task stations, and vents.
  */
 
 export const STATION_MAP = {
-  width: 2400,
-  height: 1600,
+  width: 2000,
+  height: 1400,
 
+  // Walkable Rooms (X, Y, W, H, Color, Name)
   rooms: [
-    { id: 'cafeteria', name: 'Столовая', x: 1000, y: 300, w: 450, h: 320, color: '#3a4f66' },
-    { id: 'weapons', name: 'Оружейная', x: 1650, y: 250, w: 320, h: 260, color: '#4a3f55' },
-    { id: 'navigation', name: 'Навигация', x: 2000, y: 650, w: 280, h: 280, color: '#3a5a55' },
-    { id: 'shields', name: 'Щиты', x: 1650, y: 1050, w: 300, h: 260, color: '#554f3a' },
-    { id: 'o2', name: 'Кислород (O2)', x: 1500, y: 650, w: 240, h: 200, color: '#3a664a' },
-    { id: 'admin', name: 'Управление', x: 1200, y: 750, w: 260, h: 240, color: '#4a4a55' },
-    { id: 'storage', name: 'Склад', x: 950, y: 1050, w: 400, h: 320, color: '#444444' },
-    { id: 'electrical', name: 'Электрика', x: 600, y: 700, w: 300, h: 260, color: '#554a3a' },
-    { id: 'medbay', name: 'Медпункт', x: 650, y: 400, w: 280, h: 220, color: '#3a5566' },
-    { id: 'reactor', name: 'Реактор', x: 150, y: 650, w: 280, h: 300, color: '#553a3a' },
-    { id: 'upper_engine', name: 'Верхний Двигатель', x: 400, y: 320, w: 240, h: 220, color: '#3a3a44' },
-    { id: 'lower_engine', name: 'Нижний Двигатель', x: 400, y: 1050, w: 240, h: 220, color: '#3a3a44' }
+    { id: 'cafeteria', name: 'СТОЛОВАЯ', x: 800, y: 150, w: 400, h: 280, color: '#1e2b3d' },
+    { id: 'weapons', name: 'ОРУЖЕЙНАЯ', x: 1350, y: 120, w: 260, h: 220, color: '#2d2238' },
+    { id: 'navigation', name: 'НАВИГАЦИЯ', x: 1650, y: 500, w: 240, h: 240, color: '#1d3330' },
+    { id: 'o2', name: 'КИСЛОРОД (O2)', x: 1250, y: 480, w: 200, h: 180, color: '#1e382b' },
+    { id: 'shields', name: 'ЩИТЫ', x: 1350, y: 850, w: 260, h: 220, color: '#332b1e' },
+    { id: 'admin', name: 'УПРАВЛЕНИЕ', x: 950, y: 580, w: 220, h: 200, color: '#2b2b38' },
+    { id: 'storage', name: 'СКЛАД', x: 750, y: 850, w: 350, h: 280, color: '#262626' },
+    { id: 'electrical', name: 'ЭЛЕКТРИКА', x: 450, y: 550, w: 240, h: 220, color: '#332b1e' },
+    { id: 'medbay', name: 'МЕДПУНКТ', x: 480, y: 250, w: 220, h: 180, color: '#1e303d' },
+    { id: 'reactor', name: 'РЕАКТОР', x: 100, y: 500, w: 240, h: 260, color: '#331e1e' },
+    { id: 'upper_engine', name: 'ВЕРХНИЙ ДВИГАТЕЛЬ', x: 280, y: 200, w: 200, h: 180, color: '#22222b' },
+    { id: 'lower_engine', name: 'НИЖНИЙ ДВИГАТЕЛЬ', x: 280, y: 850, w: 200, h: 180, color: '#22222b' }
   ],
 
+  // Walkable Corridors connecting the rooms
   corridors: [
-    { x: 700, y: 350, w: 350, h: 80 },
-    { x: 1400, y: 350, w: 300, h: 80 },
-    { x: 1800, y: 450, w: 100, h: 250 },
-    { x: 1800, y: 850, w: 100, h: 250 },
-    { x: 1300, y: 600, w: 80, h: 200 },
-    { x: 1100, y: 600, w: 80, h: 500 },
-    { x: 1300, y: 950, w: 80, h: 150 },
-    { x: 850, y: 800, w: 150, h: 80 },
-    { x: 400, y: 500, w: 80, h: 600 },
-    { x: 250, y: 750, w: 200, h: 80 }
+    { x: 680, y: 250, w: 140, h: 80 },   // Medbay -> Cafeteria
+    { x: 1180, y: 250, w: 190, h: 80 },  // Cafeteria -> Weapons
+    { x: 1450, y: 320, w: 80, h: 200 },  // Weapons -> O2
+    { x: 1430, y: 550, w: 240, h: 80 },  // O2 -> Navigation
+    { x: 1450, y: 640, w: 80, h: 230 },  // O2 -> Shields
+    { x: 1080, y: 760, w: 80, h: 110 },  // Admin -> Storage
+    { x: 880, y: 410, w: 80, h: 200 },   // Cafeteria -> Admin
+    { x: 670, y: 620, w: 300, h: 80 },   // Electrical -> Admin
+    { x: 320, y: 590, w: 150, h: 80 },   // Reactor -> Electrical
+    { x: 180, y: 360, w: 80, h: 160 },   // Upper Engine -> Reactor
+    { x: 180, y: 740, w: 80, h: 130 },   // Lower Engine -> Reactor
+    { x: 460, y: 880, w: 310, h: 80 }    // Lower Engine -> Storage
   ],
 
-  emergencyTable: { x: 1225, y: 460, radius: 45 },
+  emergencyTable: { x: 1000, y: 290, radius: 45 },
 
   vents: [
-    { id: 'v_cafeteria', room: 'cafeteria', x: 1400, y: 330, connectsTo: ['v_admin'] },
-    { id: 'v_admin', room: 'admin', x: 1240, y: 780, connectsTo: ['v_cafeteria'] },
-    { id: 'v_electrical', room: 'electrical', x: 640, y: 730, connectsTo: ['v_medbay'] },
-    { id: 'v_medbay', room: 'medbay', x: 680, y: 430, connectsTo: ['v_electrical'] },
-    { id: 'v_weapons', room: 'weapons', x: 1900, y: 280, connectsTo: ['v_navigation', 'v_shields'] },
-    { id: 'v_navigation', room: 'navigation', x: 2220, y: 680, connectsTo: ['v_weapons', 'v_shields'] },
-    { id: 'v_shields', room: 'shields', x: 1900, y: 1250, connectsTo: ['v_weapons', 'v_navigation'] },
-    { id: 'v_reactor', room: 'reactor', x: 200, y: 680, connectsTo: ['v_upper_engine', 'v_lower_engine'] },
-    { id: 'v_upper_engine', room: 'upper_engine', x: 440, y: 350, connectsTo: ['v_reactor'] },
-    { id: 'v_lower_engine', room: 'lower_engine', x: 440, y: 1220, connectsTo: ['v_reactor'] }
+    { id: 'v1', x: 1160, y: 200, room: 'cafeteria', connectsTo: ['v2'] },
+    { id: 'v2', x: 1000, y: 620, room: 'admin', connectsTo: ['v1'] },
+    { id: 'v3', x: 490, y: 590, room: 'electrical', connectsTo: ['v4'] },
+    { id: 'v4', x: 520, y: 290, room: 'medbay', connectsTo: ['v3'] },
+    { id: 'v5', x: 1540, y: 170, room: 'weapons', connectsTo: ['v6', 'v7'] },
+    { id: 'v6', x: 1800, y: 540, room: 'navigation', connectsTo: ['v5', 'v7'] },
+    { id: 'v7', x: 1540, y: 1000, room: 'shields', connectsTo: ['v5', 'v6'] }
   ],
 
+  // Interactive Task Stations with Big Visible Markers
   tasks: [
-    { id: 'task_wires_elec', type: 'wires', room: 'electrical', name: 'Соединить провода', x: 840, y: 730 },
-    { id: 'task_wires_caf', type: 'wires', room: 'cafeteria', name: 'Соединить провода', x: 1040, y: 340 },
-    { id: 'task_wires_nav', type: 'wires', room: 'navigation', name: 'Соединить провода', x: 2150, y: 880 },
-    { id: 'task_card_admin', type: 'card_swipe', room: 'admin', name: 'Провести картой', x: 1400, y: 880 },
-    { id: 'task_asteroids_wep', type: 'asteroids', room: 'weapons', name: 'Уничтожить астероиды', x: 1900, y: 360 },
-    { id: 'task_memory_reactor', type: 'reactor_memory', room: 'reactor', name: 'Запустить реактор', x: 200, y: 780 },
-    { id: 'task_o2_filter', type: 'o2_filter', room: 'o2', name: 'Очистить фильтр O2', x: 1680, y: 740 },
-    { id: 'task_scan_medbay', type: 'scan', room: 'medbay', name: 'Био-сканирование', x: 880, y: 460 }
-  ]
+    { id: 't_wires_elec', type: 'wires', name: 'Соединить провода', room: 'electrical', x: 620, y: 590 },
+    { id: 't_wires_caf', type: 'wires', name: 'Соединить провода', room: 'cafeteria', x: 840, y: 200 },
+    { id: 't_wires_nav', type: 'wires', name: 'Соединить провода', room: 'navigation', x: 1820, y: 680 },
+    { id: 't_card_admin', type: 'card_swipe', name: 'Провести картой', room: 'admin', x: 1110, y: 720 },
+    { id: 't_asteroids_wep', type: 'asteroids', name: 'Стрельба по астероидам', room: 'weapons', x: 1550, y: 220 },
+    { id: 't_memory_reactor', type: 'reactor_memory', name: 'Запуск реактора', room: 'reactor', x: 160, y: 620 },
+    { id: 't_o2_filter', type: 'o2_filter', name: 'Очистить фильтр O2', room: 'o2', x: 1390, y: 560 }
+  ],
+
+  // Strict Collision Check: Is (x, y) inside ANY walkable room or corridor?
+  isWalkable(x, y, radius = 18) {
+    // Check inside any room
+    for (let i = 0; i < this.rooms.length; i++) {
+      const r = this.rooms[i];
+      if (
+        x - radius >= r.x &&
+        x + radius <= r.x + r.w &&
+        y - radius >= r.y &&
+        y + radius <= r.y + r.h
+      ) {
+        return true;
+      }
+    }
+
+    // Check inside any corridor
+    for (let i = 0; i < this.corridors.length; i++) {
+      const c = this.corridors[i];
+      if (
+        x - radius >= c.x &&
+        x + radius <= c.x + c.w &&
+        y - radius >= c.y &&
+        y + radius <= c.y + c.h
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 };
