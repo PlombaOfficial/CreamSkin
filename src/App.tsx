@@ -60,6 +60,9 @@ export const App: React.FC = () => {
   const handleEditSkin = async (skin: SkinMetadata) => {
     history.pushSnapshot(buffer);
     await buffer.loadFromBase64PNG(skin.base64Png);
+    try {
+      localStorage.setItem('creamskin_draft_skin_v2', buffer.toBase64PNG());
+    } catch {}
     setModelType(skin.modelType);
     setSelectedSkin(null);
     setActiveTab('editor');
@@ -71,6 +74,9 @@ export const App: React.FC = () => {
     history.pushSnapshot(buffer);
     const newBuf = t.generate();
     buffer.copyFrom(newBuf);
+    try {
+      localStorage.setItem('creamskin_draft_skin_v2', buffer.toBase64PNG());
+    } catch {}
     setModelType(t.modelType);
     setActiveTab('editor');
   };

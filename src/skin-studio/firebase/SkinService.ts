@@ -238,6 +238,20 @@ export class SkinService {
     return skinId;
   }
 
+  public async deleteSkin(skinId: string): Promise<boolean> {
+    try {
+      await deleteDoc(doc(firestore, 'skins', skinId));
+    } catch {}
+
+    try {
+      let saved = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
+      saved = saved.filter((s: SkinMetadata) => s.id !== skinId);
+      localStorage.setItem('local_published_skins', JSON.stringify(saved));
+    } catch {}
+
+    return true;
+  }
+
   public async getPublicSkins(
     category: string = 'All',
     sortBy: 'popular' | 'recent' | 'downloads' | 'trending' = 'recent',

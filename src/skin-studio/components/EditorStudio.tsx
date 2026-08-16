@@ -9,6 +9,7 @@ import { ColorPicker } from '../colors/ColorPicker';
 import { LanguageCode, getTranslation } from '../i18n/translations';
 import { AvatarModal } from './AvatarModal';
 import { ShortcutsModal } from './ShortcutsModal';
+import { SKIN_TEMPLATES } from '../templates/SkinTemplates';
 
 interface EditorStudioProps {
   buffer: SkinTextureBuffer;
@@ -33,6 +34,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
   const [textureVersion, setTextureVersion] = useState(0);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showNewSkinModal, setShowNewSkinModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<'canvas' | '3d' | 'colors'>('canvas');
   const [eyedropperPickedHex, setEyedropperPickedHex] = useState<string | null>(null);
 
@@ -103,6 +105,27 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleLoadTemplate = (templateId: string) => {
+    const template = SKIN_TEMPLATES.find((x) => x.id === templateId);
+    if (!template) return;
+    history.pushSnapshot(buffer);
+    const newBuf = template.generate();
+    buffer.copyFrom(newBuf);
+    onModelTypeChange(template.modelType);
+    setTextureVersion((v) => v + 1);
+    saveDraft();
+    setShowNewSkinModal(false);
+  };
+
+  const handleClearCanvas = () => {
+    if (!confirm(lang === 'ru' ? 'Очистить холст и начать с чистого листа?' : 'Clear canvas and start fresh?')) return;
+    history.pushSnapshot(buffer);
+    buffer.clear();
+    setTextureVersion((v) => v + 1);
+    saveDraft();
+    setShowNewSkinModal(false);
   };
 
   useEffect(() => {
@@ -320,6 +343,15 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
 
       <main className="editor-main-canvas-area">
         <div className="canvas-header-strip">
+          <button
+            className="mc-btn-primary"
+            style={{ fontSize: '11px', padding: '4px 10px' }}
+            onClick={() => setShowNewSkinModal(true)}
+            title="Create new skin or switch template"
+          >
+            📄 {lang === 'ru' ? 'Новый / Сменить скин' : 'New / Change Skin'}
+          </button>
+
           <div className="segmented-control">
             <button
               className={`seg-btn ${toolConfig.activeLayer === 'base' ? 'active' : ''}`}
@@ -394,7 +426,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '5px', marginLeft: 'auto', alignItems: 'center' }}>
             <button
               className="mc-btn-secondary"
               style={{ fontSize: '11px', padding: '4px 8px' }}
@@ -498,7 +530,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
       </main>
 
       <aside className="editor-sidebar-clean-right">
-        <div style={{ height: '320px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--cs-border)' }}>
+        <div style={{ height: '320px', borderRadius: '4px', overflow: 'hidden' }}>
           <ModelViewer3D
             buffer={buffer}
             modelType={modelType}
@@ -516,6 +548,63 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           />
         </div>
       </aside>
+
+      {showNewSkinModal && (
+        <div className="modal-overlay" onClick={() => setShowNewSkinModal(false)}>
+          <div className="modal-dialog" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#fff', margin: 0 }}>
+                📄 {lang === 'ru' ? 'Создать новый скин или выбрать шаблон' : 'Create New Skin or Select Template'}
+              </h2>
+              <button className="tool-btn-sm" onClick={() => setShowNewSkinModal(false)}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+              <button
+                className="mc-btn-danger"
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                onClick={handleClearCanvas}
+              >
+                🧹 {lang === 'ru' ? 'Очистить холст' : 'Clear Canvas'}
+              </button>
+            </div>
+
+            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--mc-diamond)', marginTop: '8px' }}>
+              {lang === 'ru' ? 'Доступные шаблоны и основы:' : 'Available Templates & Bases:'}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px', maxHeight: '380px', overflowY: 'auto' }}>
+              {SKIN_TEMPLATES.map((tmpl) => {
+                const previewBuf = tmpl.generate();
+                const previewImg = previewBuf.toBase64PNG();
+                return (
+                  <div
+                    key={tmpl.id}
+                    className="skin-card"
+                    style={{ cursor: 'pointer', padding: '8px', alignItems: 'center', textAlign: 'center' }}
+                    onClick={() => handleLoadTemplate(tmpl.id)}
+                  >
+                    <img
+                      src={previewImg}
+                      alt={tmpl.name}
+                      style={{ width: '80px', height: '80px', imageRendering: 'pixelated', margin: '0 auto 6px auto' }}
+                    />
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{tmpl.name}</div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>{tmpl.modelType.toUpperCase()}</div>
+                    <button
+                      className="mc-btn-primary"
+                      style={{ marginTop: '8px', width: '100%', fontSize: '11px', padding: '4px' }}
+                      onClick={() => handleLoadTemplate(tmpl.id)}
+                    >
+                      {lang === 'ru' ? 'Выбрать' : 'Select'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAvatarModal && (
         <AvatarModal

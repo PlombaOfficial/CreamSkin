@@ -63,12 +63,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   }, [isSuperAdmin]);
 
   const handleDeleteSkin = async (skinId: string) => {
-    if (!confirm(`Permanently delete skin ID: ${skinId}?`)) return;
-    try {
-      await deleteDoc(doc(firestore, 'skins', skinId));
-      setSkins((list) => list.filter((s) => s.id !== skinId));
-      alert('Skin deleted.');
-    } catch {}
+    if (!confirm(`Permanently delete skin: ${skinId}?`)) return;
+    await skinService.deleteSkin(skinId);
+    setSkins((list) => list.filter((s) => s.id !== skinId));
   };
 
   const handleDismissReport = async (repId: string) => {

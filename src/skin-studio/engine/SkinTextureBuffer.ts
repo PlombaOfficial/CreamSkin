@@ -68,6 +68,10 @@ export class SkinTextureBuffer {
     this.data.set(other.data);
   }
 
+  public clear() {
+    this.data.fill(0);
+  }
+
   public toBase64PNG(): string {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
