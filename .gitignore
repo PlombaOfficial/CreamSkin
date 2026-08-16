@@ -1,15 +1,12 @@
-# Dependencies
 node_modules/
 .pnp
 .pnp.js
 
-# Production build artifacts
 dist/
 dist-ssr/
 build/
 *.local
 
-# Environment variables and secrets (NEVER commit private keys!)
 .env
 .env.local
 .env.development.local
@@ -19,7 +16,6 @@ build/
 *credentials*.json
 *.pem
 
-# Editor & OS files
 .vscode/*
 !.vscode/extensions.json
 .idea/
@@ -31,7 +27,6 @@ build/
 .DS_Store
 Thumbs.db
 
-# Archives & Logs
 *.log
 *.zip
 *.tar.gz

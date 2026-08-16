@@ -1,8 +1,3 @@
-/**
- * Real Minecraft Java Edition Player API Service.
- * Fetches real public player skin data, textures, and UUIDs.
- */
-
 export interface MinecraftPlayerProfile {
   uuid: string;
   username: string;
@@ -11,7 +6,6 @@ export interface MinecraftPlayerProfile {
   modelType: 'classic' | 'slim';
 }
 
-// Curated list of well-known real Minecraft players for initial community showcase
 export const FEATURED_REAL_PLAYERS = [
   'Notch',
   'jeb_',
@@ -28,9 +22,6 @@ export const FEATURED_REAL_PLAYERS = [
 export class MinecraftApiService {
   private static skinCache = new Map<string, MinecraftPlayerProfile>();
 
-  /**
-   * Fetch player profile and real skin texture by Minecraft Java username
-   */
   public static async getPlayerProfile(username: string): Promise<MinecraftPlayerProfile | null> {
     const cleanUsername = username.trim();
     if (!cleanUsername || cleanUsername.length > 16) return null;
@@ -40,19 +31,17 @@ export class MinecraftApiService {
     }
 
     try {
-      // 1. Try Ashcon Mojang API (CORS friendly, full texture data)
       const res = await fetch(`https://api.ashcon.app/mojang/v2/user/${encodeURIComponent(cleanUsername)}`);
       if (res.ok) {
         const data = await res.json();
         const profile: MinecraftPlayerProfile = {
           uuid: data.uuid,
           username: data.username,
-          skinUrl: data.textures?.skin?.url || `https://crafatar.com/skins/${data.uuid}`,
+          skinUrl: data.textures?.skin?.url || `https://mc-heads.net/skin/${cleanUsername}`,
           modelType: data.textures?.skin?.slim ? 'slim' : 'classic',
           base64Png: data.textures?.skin?.data ? `data:image/png;base64,${data.textures.skin.data}` : undefined,
         };
 
-        // If base64 data not in payload, fetch raw image
         if (!profile.base64Png && profile.skinUrl) {
           profile.base64Png = await this.fetchImageAsBase64(profile.skinUrl);
         }
@@ -60,13 +49,10 @@ export class MinecraftApiService {
         this.skinCache.set(cleanUsername.toLowerCase(), profile);
         return profile;
       }
-    } catch {
-      // Fallback
-    }
+    } catch {}
 
     try {
-      // 2. Fallback: Minotar / Crafatar direct texture url
-      const fallbackUrl = `https://minotar.net/skin/${encodeURIComponent(cleanUsername)}`;
+      const fallbackUrl = `https://mc-heads.net/skin/${encodeURIComponent(cleanUsername)}`;
       const base64 = await this.fetchImageAsBase64(fallbackUrl);
 
       if (base64) {
@@ -85,9 +71,6 @@ export class MinecraftApiService {
     return null;
   }
 
-  /**
-   * Convert image URL to base64 Data URL for Three.js and Canvas editing
-   */
   public static async fetchImageAsBase64(url: string): Promise<string> {
     return new Promise((resolve) => {
       const img = new Image();

@@ -11,7 +11,6 @@ export interface SkinTemplate {
 }
 
 export const SKIN_TEMPLATES: SkinTemplate[] = [
-  // 1. Blank Classic
   {
     id: 'blank_classic',
     name: 'Blank Base (Classic)',
@@ -20,7 +19,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
     description: 'Clean blank 64x64 skin template with base skin tone ready for painting.',
     generate: () => {
       const buf = new SkinTextureBuffer();
-      // Fill base skin tone for head and hands
       const skinColor = { r: 242, g: 193, b: 153, a: 255 };
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 32; x++) {
@@ -30,8 +28,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       return buf;
     },
   },
-
-  // 2. Blank Slim (Alex)
   {
     id: 'blank_slim',
     name: 'Blank Base (Slim 3px)',
@@ -49,8 +45,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       return buf;
     },
   },
-
-  // 3. Classic Steve
   {
     id: 'classic_steve',
     name: 'Classic Steve',
@@ -65,26 +59,22 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       const blueJeans = { r: 43, g: 59, b: 122, a: 255 };
       const shoes = { r: 110, g: 110, b: 110, a: 255 };
 
-      // Head
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 32; x++) {
           buf.setPixel(x, y, y < 4 ? hair : skin);
         }
       }
-      // Eyes
       buf.setPixel(10, 10, { r: 255, g: 255, b: 255, a: 255 });
       buf.setPixel(11, 10, { r: 40, g: 40, b: 180, a: 255 });
       buf.setPixel(13, 10, { r: 255, g: 255, b: 255, a: 255 });
       buf.setPixel(14, 10, { r: 40, g: 40, b: 180, a: 255 });
 
-      // Torso
       for (let y = 16; y < 32; y++) {
         for (let x = 16; x < 40; x++) {
           buf.setPixel(x, y, cyanShirt);
         }
       }
 
-      // Arms
       for (let y = 16; y < 32; y++) {
         for (let x = 40; x < 56; x++) {
           buf.setPixel(x, y, y < 20 ? cyanShirt : skin);
@@ -94,7 +84,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
         }
       }
 
-      // Legs
       for (let y = 16; y < 32; y++) {
         for (let x = 0; x < 16; x++) {
           buf.setPixel(x, y, y > 28 ? shoes : blueJeans);
@@ -107,8 +96,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       return buf;
     },
   },
-
-  // 4. Cyberpunk Neon Ninja
   {
     id: 'cyber_ninja',
     name: 'Cyberpunk Neon Ninja',
@@ -121,19 +108,16 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       const neonCyan = { r: 0, g: 240, b: 255, a: 255 };
       const armorPlate = { r: 45, g: 49, b: 64, a: 255 };
 
-      // Fill base dark
       for (let y = 0; y < 64; y++) {
         for (let x = 0; x < 64; x++) {
           buf.setPixel(x, y, darkSuit);
         }
       }
 
-      // Glowing visor on Head Front (8, 8) to (15, 15)
       for (let x = 9; x <= 14; x++) {
         buf.setPixel(x, 10, neonCyan);
       }
 
-      // Cyber lines on Torso
       for (let y = 20; y <= 30; y += 2) {
         buf.setPixel(23, y, neonCyan);
         buf.setPixel(24, y, neonCyan);
@@ -142,7 +126,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
         buf.setPixel(x, 22, armorPlate);
       }
 
-      // Neon arm gauntlets
       for (let x = 44; x <= 47; x++) {
         buf.setPixel(x, 26, neonCyan);
       }
@@ -153,8 +136,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       return buf;
     },
   },
-
-  // 5. Golden Knight
   {
     id: 'golden_knight',
     name: 'Royal Golden Knight',
@@ -168,31 +149,26 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       const steel = { r: 120, g: 125, b: 140, a: 255 };
       const crimson = { r: 180, g: 30, b: 40, a: 255 };
 
-      // Head Helmet (Steel with Gold Crown on Overlay)
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 32; x++) {
           buf.setPixel(x, y, steel);
         }
       }
-      // Eye slit
       for (let x = 9; x <= 14; x++) {
         buf.setPixel(x, 10, { r: 20, g: 20, b: 25, a: 255 });
       }
 
-      // Crown on Layer 2 (32 to 64, 0 to 16)
       for (let x = 32; x < 64; x++) {
         buf.setPixel(x, 7, gold);
         if (x % 2 === 0) buf.setPixel(x, 6, darkGold);
       }
 
-      // Torso Armor & Cape
       for (let y = 16; y < 32; y++) {
         for (let x = 16; x < 40; x++) {
           buf.setPixel(x, y, x >= 32 ? crimson : gold);
         }
       }
 
-      // Arms & Legs
       for (let y = 16; y < 32; y++) {
         for (let x = 40; x < 56; x++) buf.setPixel(x, y, steel);
         for (let x = 0; x < 16; x++) buf.setPixel(x, y, steel);
@@ -203,8 +179,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       return buf;
     },
   },
-
-  // 6. Mystic Wizard
   {
     id: 'mystic_wizard',
     name: 'Mystic Arcane Wizard',
@@ -218,22 +192,18 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
       const skin = { r: 240, g: 195, b: 160, a: 255 };
       const beard = { r: 220, g: 220, b: 230, a: 255 };
 
-      // Head
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 32; x++) buf.setPixel(x, y, skin);
       }
-      // White Wizard Beard
       for (let y = 11; y <= 15; y++) {
         for (let x = 8; x <= 15; x++) buf.setPixel(x, y, beard);
       }
-      // Wizard Hood on Layer 2
       for (let y = 0; y < 16; y++) {
         for (let x = 32; x < 64; x++) {
           if (y < 9 || x < 40 || x > 47) buf.setPixel(x, y, purple);
         }
       }
 
-      // Robes (Torso & Legs)
       for (let y = 16; y < 32; y++) {
         for (let x = 16; x < 40; x++) buf.setPixel(x, y, purple);
         for (let x = 0; x < 16; x++) buf.setPixel(x, y, purple);
@@ -242,7 +212,6 @@ export const SKIN_TEMPLATES: SkinTemplate[] = [
         for (let x = 32; x < 48; x++) buf.setPixel(x, y + 32, purple);
       }
 
-      // Gold Trim
       for (let y = 16; y < 32; y++) {
         buf.setPixel(23, y, goldTrim);
         buf.setPixel(24, y, goldTrim);

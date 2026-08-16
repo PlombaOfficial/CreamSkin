@@ -51,26 +51,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 800 }}>Account & Multiplayer</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: 800 }}>Account & Community</h2>
           <button className="tool-btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        {/* Mode Switcher */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
           <button
-            className={`tool-btn-sm ${mode === 'guest' ? 'active' : ''}`}
+            className={`mc-btn-secondary ${mode === 'guest' ? 'active' : ''}`}
             onClick={() => setMode('guest')}
           >
-            ⚡ Instant Guest
+            ⚡ Guest
           </button>
           <button
-            className={`tool-btn-sm ${mode === 'login' ? 'active' : ''}`}
+            className={`mc-btn-secondary ${mode === 'login' ? 'active' : ''}`}
             onClick={() => setMode('login')}
           >
             🔑 Log In
           </button>
           <button
-            className={`tool-btn-sm ${mode === 'register' ? 'active' : ''}`}
+            className={`mc-btn-secondary ${mode === 'register' ? 'active' : ''}`}
             onClick={() => setMode('register')}
           >
             📝 Register
@@ -86,14 +85,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
         {mode === 'guest' ? (
           <form onSubmit={handleGuestLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p style={{ fontSize: '12px', color: '#94a3b8' }}>
-              Jump straight into Skin Studio without an email or password.
+              Jump straight into CreamSkin Studio without an email or password.
             </p>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>Your Display Name</label>
               <input
                 type="text"
-                className="color-hex-input"
-                style={{ marginTop: '4px' }}
+                style={{ marginTop: '4px', width: '100%' }}
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 placeholder="e.g. DiamondMiner99"
@@ -102,8 +100,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={loading}
-              className="tool-btn-sm"
-              style={{ background: '#10b981', color: '#fff', padding: '10px', marginTop: '6px' }}
+              className="mc-btn-primary"
+              style={{ padding: '10px', marginTop: '6px' }}
             >
               {loading ? 'Entering...' : '⚡ Play as Guest'}
             </button>
@@ -116,8 +114,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
                 <input
                   type="text"
                   required
-                  className="color-hex-input"
-                  style={{ marginTop: '4px' }}
+                  style={{ marginTop: '4px', width: '100%' }}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="e.g. EnderKnight"
@@ -129,8 +126,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
               <input
                 type="email"
                 required
-                className="color-hex-input"
-                style={{ marginTop: '4px' }}
+                style={{ marginTop: '4px', width: '100%' }}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@domain.com"
@@ -141,8 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
               <input
                 type="password"
                 required
-                className="color-hex-input"
-                style={{ marginTop: '4px' }}
+                style={{ marginTop: '4px', width: '100%' }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -151,8 +146,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onSuccess }) => {
             <button
               type="submit"
               disabled={loading}
-              className="tool-btn-sm"
-              style={{ background: '#3b82f6', color: '#fff', padding: '10px', marginTop: '6px' }}
+              className="mc-btn-primary"
+              style={{ padding: '10px', marginTop: '6px' }}
             >
               {loading ? 'Processing...' : mode === 'login' ? '🔑 Sign In' : '📝 Create Account'}
             </button>

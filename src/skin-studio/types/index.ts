@@ -58,7 +58,7 @@ export interface RatingItem {
   id: string;
   skinId: string;
   userId: string;
-  stars: number; // 1 to 5
+  stars: number;
   timestamp: number;
 }
 
@@ -108,7 +108,7 @@ export interface DirectMessage {
 
 export interface Conversation {
   id: string;
-  participants: string[]; // [uid1, uid2]
+  participants: string[];
   participantNames: Record<string, string>;
   lastMessageText: string;
   lastMessageTimestamp: number;

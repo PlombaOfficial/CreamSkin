@@ -10,16 +10,12 @@ export class HistoryManager {
     if (this.undoStack.length > this.maxSteps) {
       this.undoStack.shift();
     }
-    this.redoStack = []; // Clear redo on new action
+    this.redoStack = [];
   }
 
   public undo(currentBuffer: SkinTextureBuffer): boolean {
     if (this.undoStack.length === 0) return false;
-
-    // Push current to redo
     this.redoStack.push(new Uint8ClampedArray(currentBuffer.data));
-
-    // Pop from undo
     const prevState = this.undoStack.pop()!;
     currentBuffer.data.set(prevState);
     return true;
@@ -27,11 +23,7 @@ export class HistoryManager {
 
   public redo(currentBuffer: SkinTextureBuffer): boolean {
     if (this.redoStack.length === 0) return false;
-
-    // Push current to undo
     this.undoStack.push(new Uint8ClampedArray(currentBuffer.data));
-
-    // Pop from redo
     const nextState = this.redoStack.pop()!;
     currentBuffer.data.set(nextState);
     return true;

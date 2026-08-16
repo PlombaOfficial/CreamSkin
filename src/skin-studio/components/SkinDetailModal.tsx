@@ -38,7 +38,6 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
   const [copiedCmd, setCopiedCmd] = useState(false);
   const [guestNotice, setGuestNotice] = useState<string | null>(null);
 
-  // Ratings
   const [userRating, setUserRating] = useState(0);
   const [hoverStar, setHoverStar] = useState(0);
   const [ratingAvg, setRatingAvg] = useState(skin.ratingAverage || 5.0);
@@ -131,7 +130,6 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ fontSize: '18px', fontWeight: 700 }}>{skin.title}</h2>
@@ -168,7 +166,6 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
           <button className="tool-btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        {/* Guest Warning Banner if action attempted */}
         {guestNotice && (
           <div style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#93c5fd', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>🔒 {guestNotice}</span>
@@ -178,9 +175,7 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
           </div>
         )}
 
-        {/* Main Content */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', minHeight: '360px' }}>
-          {/* 3D Model Viewport */}
           <div style={{ height: '360px', borderRadius: '8px', overflow: 'hidden' }}>
             <ModelViewer3D
               buffer={buffer}
@@ -189,13 +184,11 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
             />
           </div>
 
-          {/* Details & Community Stats */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <p style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
               {skin.description}
             </p>
 
-            {/* Ratings & Likes */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#121722', padding: '8px 12px', borderRadius: '6px' }}>
               <div>
                 <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>{t('modal.rating')}</div>
@@ -237,18 +230,17 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Actions */}
             <div style={{ display: 'flex', gap: '6px' }}>
               <button
-                className="tool-btn-sm"
-                style={{ flex: 1, background: '#10b981', color: '#fff', padding: '8px' }}
+                className="mc-btn-primary"
+                style={{ flex: 1, padding: '8px' }}
                 onClick={handleDownload}
               >
                 📥 {t('modal.download')}
               </button>
               <button
-                className="tool-btn-sm"
-                style={{ flex: 1, background: '#2563eb', color: '#fff', padding: '8px' }}
+                className="mc-btn-secondary"
+                style={{ flex: 1, padding: '8px' }}
                 onClick={() => {
                   onEditInStudio(skin);
                   onClose();
@@ -258,7 +250,6 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
               </button>
             </div>
 
-            {/* In-Game Minecraft Server Command */}
             <div className="panel-box" style={{ background: '#0a0d14' }}>
               <div style={{ fontSize: '10px', fontWeight: 700, color: '#f59e0b', marginBottom: '2px' }}>
                 ⚡ {t('modal.serverCmd').toUpperCase()}
@@ -285,7 +276,6 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Comments Stream */}
             <div className="panel-box" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div className="panel-header">
                 <span>💬 {t('modal.comments')} ({comments.length})</span>
@@ -325,7 +315,7 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
                   style={{
                     flex: 1,
                     background: '#111622',
-                    border: '1px solid var(--border-subtle)',
+                    border: '1px solid var(--cs-border-subtle)',
                     color: '#fff',
                     padding: '5px 8px',
                     borderRadius: '5px',
@@ -333,7 +323,7 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
                     outline: 'none',
                   }}
                 />
-                <button type="submit" className="tool-btn-sm" style={{ background: '#3b82f6', color: '#fff' }}>
+                <button type="submit" className="mc-btn-primary" style={{ padding: '4px 10px', fontSize: '11px' }}>
                   {t('modal.post')}
                 </button>
               </form>

@@ -16,7 +16,7 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
   initialRecipientName,
   lang: _lang,
   onClose,
-  onOpenAuth,
+  onOpenAuth: _onOpenAuth,
 }) => {
   const user = skinService.currentUser;
 
@@ -25,10 +25,8 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
   const [recipientName] = useState(initialRecipientName || 'CreamSkin Team');
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  const [guestNotice, setGuestNotice] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Subscribe to Global Chat or Direct Messages
   useEffect(() => {
     let unsub: () => void;
     if (chatMode === 'global') {
@@ -46,7 +44,6 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
     };
   }, [chatMode, recipientUid, user]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -55,12 +52,6 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
     e.preventDefault();
     if (!inputText.trim()) return;
 
-    if (!user) {
-      setGuestNotice(true);
-      return;
-    }
-
-    setGuestNotice(false);
     if (chatMode === 'global') {
       await skinService.sendGlobalChatMessage(inputText);
     } else {
@@ -72,17 +63,16 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" style={{ maxWidth: '520px', height: '560px' }} onClick={(e) => e.stopPropagation()}>
-        {/* Header with Global / DM Tabs */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cs-border-subtle)', paddingBottom: '10px' }}>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button
-              className={`tool-btn-sm ${chatMode === 'global' ? 'active' : ''}`}
+              className={`mc-btn-secondary ${chatMode === 'global' ? 'active' : ''}`}
               onClick={() => setChatMode('global')}
             >
               🌍 Global Chat
             </button>
             <button
-              className={`tool-btn-sm ${chatMode === 'dm' ? 'active' : ''}`}
+              className={`mc-btn-secondary ${chatMode === 'dm' ? 'active' : ''}`}
               onClick={() => setChatMode('dm')}
             >
               💬 Direct Messages ({recipientName})
@@ -91,19 +81,6 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
           <button className="tool-btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        {/* Guest Warning */}
-        {guestNotice && (
-          <div style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#93c5fd', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>🔒 Please sign in to send messages.</span>
-            {onOpenAuth && (
-              <button className="tool-btn-sm" style={{ background: '#3b82f6', color: '#fff', padding: '2px 8px' }} onClick={onOpenAuth}>
-                Sign In
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Message Stream */}
         <div style={{
           flex: 1,
           overflowY: 'auto',
@@ -120,7 +97,7 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
             </div>
           ) : (
             messages.map((m) => {
-              const isMe = m.senderUid === user?.uid;
+              const isMe = m.senderUid === user?.uid || m.senderName === skinService.userProfile?.username;
               return (
                 <div
                   key={m.id}
@@ -146,17 +123,15 @@ export const DirectMessagesModal: React.FC<DirectMessagesModalProps> = ({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Message Input Box */}
-        <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '6px', borderTop: '1px solid var(--border-subtle)', paddingTop: '10px' }}>
+        <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '6px', borderTop: '1px solid var(--cs-border-subtle)', paddingTop: '10px' }}>
           <input
             type="text"
-            className="color-hex-input"
             style={{ flex: 1 }}
-            placeholder={user ? (chatMode === 'global' ? 'Message global chat...' : `Message ${recipientName}...`) : 'Sign in to send messages...'}
+            placeholder={chatMode === 'global' ? 'Message global chat...' : `Message ${recipientName}...`}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
           />
-          <button type="submit" className="tool-btn-sm" style={{ background: '#2563eb', color: '#fff', padding: '8px 16px' }}>
+          <button type="submit" className="mc-btn-primary" style={{ padding: '6px 14px' }}>
             Send
           </button>
         </form>

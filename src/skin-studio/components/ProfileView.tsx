@@ -45,7 +45,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         setProfile(p);
       }
 
-      // Load skins by author
       const allSkins = await skinService.getPublicSkins('All', 'recent');
       const authorSkins = allSkins.filter((s) => s.authorUid === effectiveUid);
       setPublishedSkins(authorSkins);
@@ -90,14 +89,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   return (
     <div className="gallery-container">
-      {/* Profile Header Banner */}
-      <div className="panel-box" style={{ padding: '20px', background: '#1b1f28', marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+      <div className="panel-box" style={{ padding: '20px', background: '#17202c', marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
         {avatarSrc ? (
           <div style={{
             width: '76px',
             height: '76px',
             borderRadius: '10px',
-            border: '2px solid #2ce0d6',
+            border: '2px solid #38bdf8',
             overflow: 'hidden',
             background: '#12151d',
           }}>
@@ -108,7 +106,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             width: '76px',
             height: '76px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #52962f, #2ce0d6)',
+            background: 'linear-gradient(135deg, #5ba337, #38bdf8)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -150,7 +148,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
       </div>
 
-      {/* Creator Works Grid */}
       <div style={{ marginBottom: '12px', fontSize: '15px', fontWeight: 700, color: '#fff' }}>
         Published Skins ({publishedSkins.length})
       </div>
@@ -177,7 +174,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
               <div className="skin-card-body">
                 <div className="skin-card-title">{skin.title}</div>
-                <div style={{ fontSize: '11px', color: '#2ce0d6' }}>
+                <div style={{ fontSize: '11px', color: '#38bdf8' }}>
                   {skin.category} • <span style={{ textTransform: 'capitalize' }}>{skin.modelType}</span>
                 </div>
 

@@ -17,7 +17,6 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
 }) => {
   const user = skinService.currentUser;
 
-  // Extract head avatar from 64x64 skin
   const generateHeadAvatarFromBuffer = (): string => {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
@@ -27,7 +26,6 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
 
     ctx.imageSmoothingEnabled = false;
 
-    // Draw full skin to temporary canvas
     const temp = document.createElement('canvas');
     temp.width = 64;
     temp.height = 64;
@@ -37,10 +35,7 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
     imgData.data.set(currentBuffer.data);
     tempCtx.putImageData(imgData, 0, 0);
 
-    // Draw Head Base (8x8 at x:8, y:8) scaled to 64x64
     ctx.drawImage(temp, 8, 8, 8, 8, 0, 0, 64, 64);
-
-    // Draw Head Outer Layer (8x8 at x:40, y:8) over Base
     ctx.drawImage(temp, 40, 8, 8, 8, 0, 0, 64, 64);
 
     return canvas.toDataURL('image/png');
@@ -83,7 +78,6 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
       onAvatarSaved(previewAvatar);
       onClose();
     } catch {
-      // Local fallback
       try {
         localStorage.setItem(`avatar_${user.uid}`, previewAvatar);
       } catch {}
@@ -95,12 +89,11 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" style={{ maxWidth: '440px' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cs-border-subtle)', paddingBottom: '8px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 800 }}>👤 Profile Avatar</h2>
           <button className="tool-btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        {/* Avatar Preview */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '14px 0', gap: '10px' }}>
           <div style={{
             width: '96px',
@@ -122,7 +115,6 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
           <span style={{ fontSize: '11px', color: '#94a3b8' }}>Avatar 64×64 Pixel Preview</span>
         </div>
 
-        {/* Options */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button
             className="mc-btn-secondary"
@@ -142,8 +134,7 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
           </label>
         </div>
 
-        {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '12px', borderTop: '1px solid var(--border-subtle)', paddingTop: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginTop: '12px', borderTop: '1px solid var(--cs-border-subtle)', paddingTop: '10px' }}>
           <button className="tool-btn-sm" onClick={onClose}>
             Cancel
           </button>

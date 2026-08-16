@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { skinService } from '../firebase/SkinService';
-import { SkinMetadata, ReportItem } from '../types';
-import { collection, getDocs, deleteDoc, doc, limit, query } from 'firebase/firestore';
+import { SkinMetadata, ReportItem, DirectMessage } from '../types';
+import { collection, getDocs, deleteDoc, doc, limit, query, orderBy } from 'firebase/firestore';
 import { firestore } from '../firebase/FirebaseConfig';
 
 export const ADMIN_EMAIL = 'PlombaIGuess@gmail.com';
@@ -18,9 +18,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     userProfile?.username?.toLowerCase() === 'plombaiguess' ||
     user?.email?.toLowerCase().startsWith('plombaiguess');
 
-  const [activeTab, setActiveTab] = useState<'reports' | 'skins' | 'contests'>('reports');
+  const [activeTab, setActiveTab] = useState<'reports' | 'skins' | 'categories' | 'chat'>('reports');
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [skins, setSkins] = useState<SkinMetadata[]>([]);
+  const [chatMessages, setChatMessages] = useState<DirectMessage[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCatName, setNewCatName] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +41,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
       const allSkins = await skinService.getPublicSkins('All', 'recent');
       setSkins(allSkins);
+
+      setCategories(skinService.getCategories());
+
+      try {
+        const chatCol = collection(firestore, 'global_chat');
+        const chatSnap = await getDocs(query(chatCol, orderBy('timestamp', 'desc'), limit(50)));
+        const msgList: DirectMessage[] = [];
+        chatSnap.forEach((d) => {
+          const msg = d.data() as DirectMessage;
+          msg.id = d.id;
+          msgList.push(msg);
+        });
+        setChatMessages(msgList);
+      } catch {}
+
       setLoading(false);
     };
 
@@ -45,10 +63,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   }, [isSuperAdmin]);
 
   const handleDeleteSkin = async (skinId: string) => {
-    if (!confirm(`Are you sure you want to permanently delete skin ID: ${skinId}?`)) return;
+    if (!confirm(`Permanently delete skin ID: ${skinId}?`)) return;
     try {
       await deleteDoc(doc(firestore, 'skins', skinId));
       setSkins((list) => list.filter((s) => s.id !== skinId));
+      alert('Skin deleted.');
     } catch {}
   };
 
@@ -59,6 +78,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     } catch {
       setReports((list) => list.filter((r) => r.id !== repId));
     }
+  };
+
+  const handleDeleteChatMessage = async (msgId: string) => {
+    await skinService.deleteGlobalChatMessage(msgId);
+    setChatMessages((list) => list.filter((m) => m.id !== msgId));
+  };
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+    const updated = skinService.addCustomCategory(newCatName.trim());
+    setCategories(updated);
+    setNewCatName('');
+  };
+
+  const handleDeleteCategory = (cat: string) => {
+    const updated = skinService.deleteCustomCategory(cat);
+    setCategories(updated);
   };
 
   if (!isSuperAdmin) {
@@ -80,8 +117,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog" style={{ maxWidth: '850px', height: '620px' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
+      <div className="modal-dialog" style={{ maxWidth: '900px', height: '640px' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--cs-border-subtle)', paddingBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="mc-badge gold">SUPER ADMIN</span>
             <h2 style={{ fontSize: '17px', fontWeight: 800, color: '#fff' }}>CreamSkin Master Control</h2>
@@ -89,7 +126,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           <button className="tool-btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           <button
             className={`mc-btn-secondary ${activeTab === 'reports' ? 'active' : ''}`}
             onClick={() => setActiveTab('reports')}
@@ -100,7 +137,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             className={`mc-btn-secondary ${activeTab === 'skins' ? 'active' : ''}`}
             onClick={() => setActiveTab('skins')}
           >
-            🎨 Manage Skins ({skins.length})
+            🎨 Skins ({skins.length})
+          </button>
+          <button
+            className={`mc-btn-secondary ${activeTab === 'categories' ? 'active' : ''}`}
+            onClick={() => setActiveTab('categories')}
+          >
+            🏷️ Genres & Categories ({categories.length})
+          </button>
+          <button
+            className={`mc-btn-secondary ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            💬 Chat Moderation ({chatMessages.length})
           </button>
         </div>
 
@@ -151,7 +200,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'skins' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {skins.map((s) => (
                 <div key={s.id} className="panel-box" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -160,7 +209,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                     <div>
                       <strong style={{ fontSize: '13px', color: '#fff' }}>{s.title}</strong>
                       <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                        by {s.authorName} ({s.authorUid}) • ❤️ {s.likesCount} • 📥 {s.downloadsCount}
+                        Genre: <span style={{ color: '#38bdf8' }}>{s.category}</span> • by {s.authorName} • ❤️ {s.likesCount} • 📥 {s.downloadsCount}
                       </div>
                     </div>
                   </div>
@@ -173,6 +222,64 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                   </button>
                 </div>
               ))}
+            </div>
+          ) : activeTab === 'categories' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Enter new genre name (e.g. Cyberpunk, Steampunk, Animals)..."
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button type="submit" className="mc-btn-primary">
+                  + Add Genre
+                </button>
+              </form>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+                {categories.map((cat) => (
+                  <div key={cat} className="panel-box" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{cat}</span>
+                    {cat !== 'All' && (
+                      <button
+                        className="tool-btn-sm"
+                        style={{ padding: '2px 6px', color: '#ef4444' }}
+                        onClick={() => handleDeleteCategory(cat)}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {chatMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No chat messages recorded.</div>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className="panel-box" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
+                    <div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '11px', color: '#38bdf8' }}>
+                        <strong>{msg.senderName}</strong>
+                        <span style={{ color: '#64748b' }}>({msg.senderUid})</span>
+                        <span style={{ color: '#64748b' }}>{new Date(msg.timestamp).toLocaleString()}</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#f8fafc', marginTop: '2px' }}>{msg.text}</div>
+                    </div>
+                    <button
+                      className="mc-btn-danger"
+                      style={{ padding: '3px 8px', fontSize: '10px' }}
+                      onClick={() => handleDeleteChatMessage(msg.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

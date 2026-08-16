@@ -35,7 +35,6 @@ export class ToolEngine {
           buffer.setPixel(px, py, finalColor, config.activeLayer, config.activePart);
         }
 
-        // Apply Symmetry X if within a UV region
         if (config.symmetryX) {
           const region = findUVRegion(px, py);
           if (region) {
@@ -173,7 +172,6 @@ export class ToolEngine {
             const idx = ny * 64 + nx;
             if (!visited[idx]) {
               visited[idx] = 1;
-              // Stay within same UV bounding region for clean fills
               if (startRegion) {
                 const nRegion = findUVRegion(nx, ny);
                 if (nRegion !== startRegion) continue;

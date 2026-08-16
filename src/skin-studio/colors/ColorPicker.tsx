@@ -59,7 +59,6 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
 
   return (
     <div className="color-picker-box">
-      {/* Color Preview & Native Picker */}
       <div className="color-preview-row">
         <label
           className="color-preview-swatch"
@@ -67,7 +66,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
             background: color.a === 0 ? 'repeating-conic-gradient(#334155 0% 25%, #1e293b 0% 50%) 50% / 10px 10px' : hexValue,
             opacity: color.a === 0 ? 0.7 : 1,
           }}
-          title={color.a === 0 ? 'Transparent (Alpha 0)' : `Color: ${hexValue}`}
+          title={color.a === 0 ? 'Transparent' : `Color: ${hexValue}`}
         >
           <input
             type="color"
@@ -90,7 +89,6 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
         </button>
       </div>
 
-      {/* Quick Opacity / Transparency Buttons */}
       <div>
         <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase' }}>
           Opacity / Transparency
@@ -100,7 +98,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
             className={`tool-btn-sm ${color.a === 0 ? 'active' : ''}`}
             style={{ padding: '4px 2px', fontSize: '9px', background: color.a === 0 ? '#ef4444' : undefined }}
             onClick={() => onChange({ ...color, a: 0 })}
-            title="100% Transparent (Alpha 0)"
+            title="Transparent"
           >
             0% Clear
           </button>
@@ -135,7 +133,6 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
         </div>
       </div>
 
-      {/* RGB Sliders */}
       <div className="slider-group">
         <div className="slider-row">
           <span style={{ color: '#ff5555' }}>R</span>
@@ -186,7 +183,6 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
         </div>
       </div>
 
-      {/* Preset Palettes Tabs */}
       <div className="palette-section">
         <div className="palette-tabs">
           {PRESET_PALETTES.map((p, idx) => (
@@ -212,7 +208,6 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
         </div>
       </div>
 
-      {/* Custom Saved Swatches */}
       <div className="custom-swatches-section">
         <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '3px' }}>My Saved Swatches:</div>
         <div className="swatches-grid">
