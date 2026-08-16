@@ -49,6 +49,15 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const pixelSize = (BASE_PIXEL_SIZE * zoomPercent) / 100;
   const canvasDisplaySize = 64 * pixelSize;
 
+  const clampPan = (px: number, py: number, currentZoom: number) => {
+    const currentDisplaySize = 64 * ((BASE_PIXEL_SIZE * currentZoom) / 100);
+    const maxPan = Math.max(120, currentDisplaySize * 0.6);
+    return {
+      x: Math.max(-maxPan, Math.min(maxPan, px)),
+      y: Math.max(-maxPan, Math.min(maxPan, py)),
+    };
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -66,6 +75,39 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.deltaY < 0) {
+        setZoomPercent((curr) => {
+          const next = ZOOM_STEPS.find((s) => s > curr);
+          const newZ = next !== undefined ? next : curr;
+          setPanX((prev) => clampPan(prev, 0, newZ).x);
+          setPanY((prev) => clampPan(0, prev, newZ).y);
+          return newZ;
+        });
+      } else {
+        setZoomPercent((curr) => {
+          const prevStep = [...ZOOM_STEPS].reverse().find((s) => s < curr);
+          const newZ = prevStep !== undefined ? prevStep : curr;
+          setPanX((prev) => clampPan(prev, 0, newZ).x);
+          setPanY((prev) => clampPan(0, prev, newZ).y);
+          return newZ;
+        });
+      }
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', onWheel);
     };
   }, []);
 
@@ -115,7 +157,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
           const ry = r.y * pixelSize;
           const rw = r.w * pixelSize;
           const rh = r.h * pixelSize;
-          ctx.fillStyle = 'rgba(10, 14, 22, 0.65)';
+          ctx.fillStyle = 'rgba(10, 14, 22, 0.7)';
           ctx.fillRect(rx, ry, rw, rh);
         }
       }
@@ -189,14 +231,20 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const handleZoomIn = () => {
     setZoomPercent((curr) => {
       const next = ZOOM_STEPS.find((s) => s > curr);
-      return next !== undefined ? next : curr;
+      const newZ = next !== undefined ? next : curr;
+      setPanX((prev) => clampPan(prev, 0, newZ).x);
+      setPanY((prev) => clampPan(0, prev, newZ).y);
+      return newZ;
     });
   };
 
   const handleZoomOut = () => {
     setZoomPercent((curr) => {
       const prev = [...ZOOM_STEPS].reverse().find((s) => s < curr);
-      return prev !== undefined ? prev : curr;
+      const newZ = prev !== undefined ? prev : curr;
+      setPanX((prev) => clampPan(prev, 0, newZ).x);
+      setPanY((prev) => clampPan(0, prev, newZ).y);
+      return newZ;
     });
   };
 
@@ -204,15 +252,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     setZoomPercent(100);
     setPanX(0);
     setPanY(0);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    if (e.deltaY < 0) {
-      handleZoomIn();
-    } else {
-      handleZoomOut();
-    }
   };
 
   const getCanvasCoords = (clientX: number, clientY: number): { x: number; y: number } | null => {
@@ -275,8 +314,11 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isPanning) {
-      setPanX(e.clientX - panStart.x);
-      setPanY(e.clientY - panStart.y);
+      const rawX = e.clientX - panStart.x;
+      const rawY = e.clientY - panStart.y;
+      const clamped = clampPan(rawX, rawY, zoomPercent);
+      setPanX(clamped.x);
+      setPanY(clamped.y);
       return;
     }
 
@@ -331,7 +373,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     <div
       ref={containerRef}
       className="canvas2d-viewport"
-      onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -345,13 +386,21 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
           <button
             className="tool-btn-sm"
             onClick={handleResetZoom}
-            title="Reset to 100% (0)"
-            style={{ minWidth: '54px', fontWeight: 700, fontSize: '11px', color: '#38bdf8' }}
+            title="Reset Zoom to 100% and Center (0)"
+            style={{ minWidth: '56px', fontWeight: 700, fontSize: '11px', color: 'var(--mc-diamond)' }}
           >
             {zoomPercent}%
           </button>
           <button className="tool-btn-sm" onClick={handleZoomIn} title="Zoom In (+)">
             ➕
+          </button>
+          <button
+            className="tool-btn-sm"
+            onClick={handleResetZoom}
+            title="Center Canvas"
+            style={{ background: '#2e384c' }}
+          >
+            🎯 Center
           </button>
         </div>
 
@@ -369,13 +418,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
             title="Toggle UV Outlines"
           >
             🏷️ UV
-          </button>
-          <button
-            className="tool-btn-sm"
-            onClick={handleResetZoom}
-            title="Reset Pan & Zoom"
-          >
-            🎯
           </button>
         </div>
 
