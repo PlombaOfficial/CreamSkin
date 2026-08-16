@@ -19,7 +19,13 @@ import './skin-studio/ui/SkinStudio.css';
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'players' | 'trending' | 'templates' | 'profile' | 'plugin'>('editor');
   const [modelType, setModelType] = useState<ModelType>('classic');
-  const [lang, setLang] = useState<LanguageCode>('ru');
+  const [lang, setLang] = useState<LanguageCode>(() => {
+    try {
+      const saved = localStorage.getItem('creamskin_lang');
+      if (saved) return saved as LanguageCode;
+    } catch {}
+    return 'ru';
+  });
 
   // Core Skin Buffer & Undo/Redo Engine
   const buffer = useMemo(() => {
@@ -225,9 +231,11 @@ export const App: React.FC = () => {
 
       {showDMsModal && (
         <DirectMessagesModal
-          initialRecipientUid={dmRecipient?.uid || 'official'}
-          initialRecipientName={dmRecipient?.name || 'CreamSkin Team'}
+          initialRecipientUid={dmRecipient?.uid}
+          initialRecipientName={dmRecipient?.name}
+          lang={lang}
           onClose={() => setShowDMsModal(false)}
+          onOpenAuth={() => setShowAuthModal(true)}
         />
       )}
 

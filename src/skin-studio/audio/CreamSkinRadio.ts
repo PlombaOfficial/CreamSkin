@@ -2,41 +2,30 @@ export interface PlaylistItem {
   id: string;
   title: string;
   artist: string;
-  src: string; // Path relative to public folder, e.g. './audio/music.mp3'
+  src: string;
 }
 
-/**
- * 🎵 CUSTOM MUSIC PLAYLIST
- * You can add as many tracks as you want here!
- * Just put your MP3 files in public/audio/ (e.g. music.mp3, track1.mp3, track2.mp3)
- */
 export const PLAYLIST: PlaylistItem[] = [
   {
-    id: 'track1',
-    title: 'Custom Track 1',
+    id: 'track_custom',
+    title: 'Custom Track (public/audio/music.mp3)',
     artist: 'CreamSkin Radio',
     src: './audio/music.mp3',
   },
   {
-    id: 'track2',
-    title: 'Custom Track 2',
+    id: 'track_custom_alt',
+    title: 'Track 1 (public/audio/track1.mp3)',
     artist: 'CreamSkin Radio',
-    src: './audio/track2.mp3',
+    src: './audio/track1.mp3',
   },
   {
-    id: 'track3',
-    title: 'Custom Track 3',
-    artist: 'CreamSkin Radio',
-    src: './audio/track3.mp3',
-  },
-  {
-    id: 'ambient1',
+    id: 'synth_subwoofer',
     title: 'Subwoofer Lullaby (Ambient)',
     artist: 'CreamSkin Ambient',
-    src: '', // empty = uses procedural synth
+    src: '',
   },
   {
-    id: 'ambient2',
+    id: 'synth_sunrise',
     title: 'Cubic Sunrise (Ambient)',
     artist: 'CreamSkin Ambient',
     src: '',
@@ -54,6 +43,7 @@ export class CreamSkinRadio {
   private intervalId: any = null;
   private noteStep = 0;
   private isAudioFileActive = false;
+  private customBlobUrl: string | null = null;
 
   constructor() {
     try {
@@ -75,11 +65,15 @@ export class CreamSkinRadio {
 
       this.audioElement.addEventListener('error', () => {
         this.isAudioFileActive = false;
-        this.startProceduralSynth();
+        // Fallback to procedural synth if file path 404s
+        if (this.isPlaying) {
+          this.startProceduralSynth();
+        }
       });
 
-      this.audioElement.addEventListener('canplaythrough', () => {
+      this.audioElement.addEventListener('playing', () => {
         this.isAudioFileActive = true;
+        this.stopProceduralSynth();
       });
     }
   }
@@ -110,10 +104,12 @@ export class CreamSkinRadio {
   public play() {
     this.isPlaying = true;
     const track = PLAYLIST[this.currentTrackIdx];
+    const targetSrc = this.customBlobUrl || track.src;
 
-    if (track.src && this.audioElement) {
-      this.audioElement.src = track.src;
+    if (targetSrc && this.audioElement) {
+      this.audioElement.src = targetSrc;
       this.audioElement.volume = this.isMuted ? 0 : this.volume;
+
       const playPromise = this.audioElement.play();
       if (playPromise !== undefined) {
         playPromise
@@ -138,6 +134,25 @@ export class CreamSkinRadio {
       this.audioElement.pause();
     }
     this.stopProceduralSynth();
+  }
+
+  /**
+   * Load any local MP3/WAV/OGG directly from user's disk
+   */
+  public loadCustomFile(file: File) {
+    if (this.customBlobUrl) {
+      URL.revokeObjectURL(this.customBlobUrl);
+    }
+    this.customBlobUrl = URL.createObjectURL(file);
+    PLAYLIST[0].title = file.name.replace(/\.[^/.]+$/, '');
+    this.currentTrackIdx = 0;
+
+    if (this.audioElement) {
+      this.audioElement.src = this.customBlobUrl;
+      if (this.isPlaying) {
+        this.play();
+      }
+    }
   }
 
   public nextTrack(): PlaylistItem {
@@ -185,10 +200,6 @@ export class CreamSkinRadio {
 
   public getCurrentTrack(): PlaylistItem {
     return PLAYLIST[this.currentTrackIdx];
-  }
-
-  public getPlaylist(): PlaylistItem[] {
-    return PLAYLIST;
   }
 
   public getIsPlaying(): boolean {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { skinService } from '../firebase/SkinService';
 import { creamSkinRadio } from '../audio/CreamSkinRadio';
 import { LanguageCode, LANGUAGES, getTranslation } from '../i18n/translations';
@@ -31,6 +31,7 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(creamSkinRadio.getCurrentTrack());
   const [isMuted, setIsMuted] = useState(creamSkinRadio.getIsMuted());
+  const audioFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setIsPlayingMusic(creamSkinRadio.getIsPlaying());
@@ -51,6 +52,15 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
   const handleToggleMute = () => {
     const muted = creamSkinRadio.toggleMute();
     setIsMuted(muted);
+  };
+
+  const handleCustomAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      creamSkinRadio.loadCustomFile(file);
+      setCurrentTrack(creamSkinRadio.getCurrentTrack());
+      setIsPlayingMusic(true);
+    }
   };
 
   const t = (k: string) => getTranslation(lang, k);
@@ -117,7 +127,13 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
         <select
           className="tool-btn-sm"
           value={lang}
-          onChange={(e) => onLangChange(e.target.value as LanguageCode)}
+          onChange={(e) => {
+            const nextLang = e.target.value as LanguageCode;
+            try {
+              localStorage.setItem('creamskin_lang', nextLang);
+            } catch {}
+            onLangChange(nextLang);
+          }}
           style={{ padding: '3px 6px', background: 'rgba(255,255,255,0.05)', color: '#fff' }}
         >
           {LANGUAGES.map((l) => (
@@ -143,20 +159,35 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
             {isPlayingMusic ? '⏸️' : '🎵'}
           </button>
           <span className="radio-track-title">{currentTrack.title}</span>
-          <button className="radio-btn" onClick={handleNextTrack} title="Next">
+          <button className="radio-btn" onClick={handleNextTrack} title="Next Track">
             ⏭️
           </button>
           <button className="radio-btn" onClick={handleToggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
             {isMuted ? '🔇' : '🔊'}
           </button>
+          {/* Custom audio file upload trigger */}
+          <button
+            className="radio-btn"
+            onClick={() => audioFileInputRef.current?.click()}
+            title="Load custom MP3/Audio file from device"
+          >
+            📁
+          </button>
+          <input
+            ref={audioFileInputRef}
+            type="file"
+            accept="audio/*"
+            style={{ display: 'none' }}
+            onChange={handleCustomAudioUpload}
+          />
         </div>
 
-        {/* Direct Messages Button */}
+        {/* Community Chat / Direct Messages Button */}
         <button
           className="tool-btn-sm"
           style={{ background: '#1e293b' }}
           onClick={onOpenDMs}
-          title="Messages"
+          title="Global Chat & Messages"
         >
           💬 {t('nav.dms')}
         </button>

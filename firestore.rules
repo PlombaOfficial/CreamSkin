@@ -48,6 +48,16 @@ service cloud.firestore {
       }
     }
 
+    // Global Community Chat
+    match /global_chat/{msgId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 400;
+      allow update, delete: if false;
+    }
+
     // Reports (Moderation)
     match /reports/{reportId} {
       allow create: if request.auth != null

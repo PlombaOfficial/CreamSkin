@@ -368,6 +368,7 @@ export class SkinService {
     });
   }
 
+  // --- DIRECT MESSAGES ---
   public async sendDirectMessage(recipientUid: string, recipientName: string, text: string): Promise<void> {
     if (!this.currentUser) return;
     const myUid = this.currentUser.uid;
@@ -407,6 +408,54 @@ export class SkinService {
       snapshot.forEach((d) => list.push(d.data() as DirectMessage));
       onUpdate(list);
     }, () => onUpdate([]));
+  }
+
+  // --- GLOBAL COMMUNITY CHAT (Persisted for all users) ---
+  public async sendGlobalChatMessage(text: string): Promise<void> {
+    if (!this.currentUser) return;
+    const myUid = this.currentUser.uid;
+    const myName = this.userProfile?.username || 'Crafter';
+
+    const message: DirectMessage = {
+      id: `global_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      conversationId: 'global_chat',
+      senderUid: myUid,
+      senderName: myName,
+      text: text.trim(),
+      timestamp: Date.now(),
+    };
+
+    try {
+      const chatCol = collection(firestore, 'global_chat');
+      await addDoc(chatCol, message);
+    } catch {
+      // Offline local storage fallback
+      const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');
+      saved.push(message);
+      if (saved.length > 100) saved.shift();
+      localStorage.setItem('creamskin_global_chat', JSON.stringify(saved));
+    }
+  }
+
+  public subscribeToGlobalChat(onUpdate: (messages: DirectMessage[]) => void): () => void {
+    try {
+      const chatCol = collection(firestore, 'global_chat');
+      const q = query(chatCol, orderBy('timestamp', 'desc'), limit(100));
+
+      return onSnapshot(q, (snapshot) => {
+        const list: DirectMessage[] = [];
+        snapshot.forEach((d) => list.push(d.data() as DirectMessage));
+        // Reverse so newest messages are at bottom
+        onUpdate(list.reverse());
+      }, () => {
+        const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');
+        onUpdate(saved);
+      });
+    } catch {
+      const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');
+      onUpdate(saved);
+      return () => {};
+    }
   }
 
   public async submitReport(
