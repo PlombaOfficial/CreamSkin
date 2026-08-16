@@ -28,7 +28,6 @@ import {
   DirectMessage,
   ReportItem,
 } from '../types';
-import { SKIN_TEMPLATES } from '../templates/SkinTemplates';
 
 export class SkinService {
   public currentUser: User | null = null;
@@ -83,7 +82,7 @@ export class SkinService {
         const newProfile: UserProfile = {
           uid: user.uid,
           username: preferredName || user.displayName || `Crafter_${user.uid.slice(0, 4)}`,
-          bio: 'CreamSkin Minecraft skin designer & pixel artist.',
+          bio: 'Minecraft skin designer & creator.',
           likedSkinIds: [],
           favoriteSkinIds: [],
           followingUids: [],
@@ -95,8 +94,7 @@ export class SkinService {
         this.userProfile = newProfile;
       }
       return this.userProfile!;
-    } catch (e) {
-      console.warn('Profile load fallback:', e);
+    } catch {
       const fallback: UserProfile = {
         uid: user.uid,
         username: preferredName || 'Crafter',
@@ -112,6 +110,40 @@ export class SkinService {
     }
   }
 
+  /**
+   * Fetch any public user profile by UID (accessible to guests without login)
+   */
+  public async getPublicUserProfile(uid: string): Promise<UserProfile | null> {
+    try {
+      const userRef = doc(firestore, 'users', uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        return snap.data() as UserProfile;
+      }
+    } catch {}
+
+    // Check local published fallback
+    try {
+      const local = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
+      const match = local.find((s: SkinMetadata) => s.authorUid === uid);
+      if (match) {
+        return {
+          uid,
+          username: match.authorName,
+          bio: 'Community Creator',
+          likedSkinIds: [],
+          favoriteSkinIds: [],
+          followingUids: [],
+          followersCount: 0,
+          publishedCount: 1,
+          createdAt: match.createdAt,
+        };
+      }
+    } catch {}
+
+    return null;
+  }
+
   public async publishSkin(
     title: string,
     description: string,
@@ -123,12 +155,12 @@ export class SkinService {
   ): Promise<string> {
     const skinId = `skin_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const authorUid = this.currentUser?.uid || 'guest';
-    const authorName = this.userProfile?.username || 'Anonymous Crafter';
+    const authorName = this.userProfile?.username || 'Community Creator';
 
     const metadata: SkinMetadata = {
       id: skinId,
       title: title.trim() || 'Untitled Skin',
-      description: description.trim() || 'Custom designed Minecraft skin on CreamSkin.',
+      description: description.trim() || 'Minecraft Java Edition skin.',
       authorUid,
       authorName,
       modelType,
@@ -155,8 +187,7 @@ export class SkinService {
           publishedCount: increment(1),
         });
       }
-    } catch (err) {
-      console.warn('Firestore publish offline fallback:', err);
+    } catch {
       const saved = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
       saved.unshift(metadata);
       localStorage.setItem('local_published_skins', JSON.stringify(saved));
@@ -172,7 +203,7 @@ export class SkinService {
   ): Promise<SkinMetadata[]> {
     const result: SkinMetadata[] = [];
 
-    // 1. Fetch from Firestore if online
+    // 1. Fetch genuine skins from Firestore
     try {
       const skinsCol = collection(firestore, 'skins');
       let q = query(skinsCol, limit(50));
@@ -183,9 +214,7 @@ export class SkinService {
 
       const snapshot = await getDocs(q);
       snapshot.forEach((d) => result.push(d.data() as SkinMetadata));
-    } catch (e) {
-      console.warn('Firestore fetch failed, using local & template gallery:', e);
-    }
+    } catch {}
 
     // 2. Load Local Published Skins
     try {
@@ -197,34 +226,7 @@ export class SkinService {
       }
     } catch {}
 
-    // 3. Inject Seed Templates into Gallery
-    for (const t of SKIN_TEMPLATES) {
-      if (!result.some((r) => r.id === t.id)) {
-        const buffer = t.generate();
-        const base64 = buffer.toBase64PNG();
-        result.push({
-          id: t.id,
-          title: t.name,
-          description: t.description,
-          authorUid: 'official',
-          authorName: 'CreamSkin Studio',
-          modelType: t.modelType,
-          category: t.category,
-          tags: ['official', 'template', t.category.toLowerCase()],
-          likesCount: 42 + t.id.length * 3,
-          downloadsCount: 128 + t.id.length * 7,
-          viewsCount: 350 + t.id.length * 12,
-          ratingAverage: 4.9,
-          ratingCount: 18 + t.id.length * 2,
-          base64Png: base64,
-          previewUrl: base64,
-          createdAt: 1700000000000 + t.id.length * 10000,
-          updatedAt: 1700000000000 + t.id.length * 10000,
-        });
-      }
-    }
-
-    // 4. Client-side category & search filtering
+    // 3. Filter by Category & Search query
     return result.filter((s) => {
       const matchCat = category === 'All' || s.category.toLowerCase() === category.toLowerCase();
       const matchSearch =
@@ -237,8 +239,9 @@ export class SkinService {
   }
 
   public async rateSkin(skinId: string, stars: number): Promise<{ average: number; count: number }> {
+    if (!this.currentUser) return { average: 5.0, count: 1 };
     const clampedStars = Math.max(1, Math.min(5, Math.round(stars)));
-    const uid = this.currentUser?.uid || 'guest';
+    const uid = this.currentUser.uid;
 
     try {
       const ratingRef = doc(firestore, `skins/${skinId}/ratings`, uid);
@@ -248,7 +251,6 @@ export class SkinService {
         timestamp: Date.now(),
       });
 
-      // Update aggregate rating on skin document
       const skinRef = doc(firestore, 'skins', skinId);
       const skinSnap = await getDoc(skinRef);
       if (skinSnap.exists()) {
@@ -332,13 +334,14 @@ export class SkinService {
   }
 
   public async addComment(skinId: string, text: string): Promise<CommentItem | null> {
+    if (!this.currentUser) return null;
     const trimmed = text.trim();
     if (!trimmed || trimmed.length > 300) return null;
 
     const comment: CommentItem = {
       id: `comment_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       skinId,
-      authorUid: this.currentUser?.uid || 'guest',
+      authorUid: this.currentUser.uid,
       authorName: this.userProfile?.username || 'Crafter',
       text: trimmed,
       timestamp: Date.now(),
@@ -347,9 +350,7 @@ export class SkinService {
     try {
       const commentsCol = collection(firestore, `comments/${skinId}/messages`);
       await addDoc(commentsCol, comment);
-    } catch (e) {
-      console.warn('Comment post fallback:', e);
-    }
+    } catch {}
 
     return comment;
   }
@@ -367,7 +368,6 @@ export class SkinService {
     });
   }
 
-  // --- Direct Messages ---
   public async sendDirectMessage(recipientUid: string, recipientName: string, text: string): Promise<void> {
     if (!this.currentUser) return;
     const myUid = this.currentUser.uid;
@@ -395,9 +395,7 @@ export class SkinService {
 
       const messagesCol = collection(firestore, `conversations/${convId}/messages`);
       await addDoc(messagesCol, message);
-    } catch (e) {
-      console.warn('DM send error:', e);
-    }
+    } catch {}
   }
 
   public subscribeToConversation(convId: string, onUpdate: (messages: DirectMessage[]) => void): () => void {
@@ -411,7 +409,6 @@ export class SkinService {
     }, () => onUpdate([]));
   }
 
-  // --- Reports & Moderation ---
   public async submitReport(
     targetType: ReportItem['targetType'],
     targetId: string,

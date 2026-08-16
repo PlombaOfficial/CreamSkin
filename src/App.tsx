@@ -17,7 +17,7 @@ import { SKIN_TEMPLATES } from './skin-studio/templates/SkinTemplates';
 import './skin-studio/ui/SkinStudio.css';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'trending' | 'latest' | 'templates' | 'profile' | 'plugin'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'players' | 'trending' | 'templates' | 'profile' | 'plugin'>('editor');
   const [modelType, setModelType] = useState<ModelType>('classic');
   const [lang, setLang] = useState<LanguageCode>('ru');
 
@@ -31,6 +31,7 @@ export const App: React.FC = () => {
 
   // Modals & Popups State
   const [selectedSkin, setSelectedSkin] = useState<SkinMetadata | null>(null);
+  const [selectedProfileUid, setSelectedProfileUid] = useState<string | undefined>(undefined);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDMsModal, setShowDMsModal] = useState(false);
@@ -71,13 +72,22 @@ export const App: React.FC = () => {
     setShowDMsModal(true);
   };
 
+  const handleViewAuthorProfile = (authorUid: string) => {
+    setSelectedSkin(null);
+    setSelectedProfileUid(authorUid);
+    setActiveTab('profile');
+  };
+
   return (
     <div className="studio-app">
       {/* Top Navbar */}
       <StudioNavbar
         activeTab={activeTab}
         lang={lang}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          if (tab === 'profile') setSelectedProfileUid(undefined);
+          setActiveTab(tab);
+        }}
         onLangChange={setLang}
         onOpenAuth={() => setShowAuthModal(true)}
         onOpenPublish={() => setShowPublishModal(true)}
@@ -101,7 +111,17 @@ export const App: React.FC = () => {
 
       {activeTab === 'gallery' && (
         <GalleryView
-          initialSortBy="popular"
+          lang={lang}
+          initialMode="community"
+          onSelectSkin={(skin) => setSelectedSkin(skin)}
+          onEditSkin={handleEditSkin}
+        />
+      )}
+
+      {activeTab === 'players' && (
+        <GalleryView
+          lang={lang}
+          initialMode="players"
           onSelectSkin={(skin) => setSelectedSkin(skin)}
           onEditSkin={handleEditSkin}
         />
@@ -109,15 +129,8 @@ export const App: React.FC = () => {
 
       {activeTab === 'trending' && (
         <GalleryView
-          initialSortBy="trending"
-          onSelectSkin={(skin) => setSelectedSkin(skin)}
-          onEditSkin={handleEditSkin}
-        />
-      )}
-
-      {activeTab === 'latest' && (
-        <GalleryView
-          initialSortBy="recent"
+          lang={lang}
+          initialMode="trending"
           onSelectSkin={(skin) => setSelectedSkin(skin)}
           onEditSkin={handleEditSkin}
         />
@@ -126,9 +139,9 @@ export const App: React.FC = () => {
       {activeTab === 'templates' && (
         <div className="gallery-container">
           <div className="gallery-hero">
-            <h1 className="gallery-hero-title">STARTER TEMPLATES</h1>
-            <p style={{ color: '#94a3b8', fontSize: '14px' }}>
-              Choose a starter skin and customize every pixel in the CreamSkin Editor.
+            <h1 className="gallery-hero-title">Starter Templates</h1>
+            <p style={{ color: '#94a3b8', fontSize: '13px' }}>
+              Select a starter template to open directly in the CreamSkin Editor.
             </p>
           </div>
 
@@ -150,7 +163,7 @@ export const App: React.FC = () => {
                     <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t.description}</div>
                     <button
                       className="tool-btn-sm"
-                      style={{ marginTop: '8px', background: '#10b981', color: '#fff' }}
+                      style={{ marginTop: '8px', background: '#2563eb', color: '#fff' }}
                       onClick={() => handleLoadTemplateAndEdit(t.id)}
                     >
                       🎨 Start Editing
@@ -167,8 +180,11 @@ export const App: React.FC = () => {
 
       {activeTab === 'profile' && (
         <ProfileView
+          lang={lang}
+          targetUid={selectedProfileUid}
           onSelectSkin={(skin) => setSelectedSkin(skin)}
           onEditSkin={handleEditSkin}
+          onOpenAuth={() => setShowAuthModal(true)}
         />
       )}
 
@@ -176,10 +192,13 @@ export const App: React.FC = () => {
       {selectedSkin && (
         <SkinDetailModal
           skin={selectedSkin}
+          lang={lang}
           onClose={() => setSelectedSkin(null)}
           onEditInStudio={handleEditSkin}
+          onOpenAuth={() => setShowAuthModal(true)}
           onOpenDMsWithAuthor={handleOpenDMsWithUser}
           onOpenReport={(type, id) => setReportTarget({ type, id })}
+          onViewAuthorProfile={handleViewAuthorProfile}
         />
       )}
 
