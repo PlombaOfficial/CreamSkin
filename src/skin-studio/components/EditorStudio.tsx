@@ -279,6 +279,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             buffer={buffer}
             toolConfig={toolConfig}
             history={history}
+            textureVersion={textureVersion}
             onTextureChange={handleTextureChange}
             onColorPick={(color) => setToolConfig((c) => ({ ...c, primaryColor: color }))}
           />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { skinService } from '../firebase/SkinService';
 import { creamSkinRadio } from '../audio/CreamSkinRadio';
 import { LanguageCode, LANGUAGES, getTranslation } from '../i18n/translations';
@@ -27,11 +27,9 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
   const user = skinService.currentUser;
   const profile = skinService.userProfile;
 
-  // Radio Audio Player State
+  // Single Background Music Player State
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState(creamSkinRadio.getCurrentTrack());
   const [isMuted, setIsMuted] = useState(creamSkinRadio.getIsMuted());
-  const audioFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setIsPlayingMusic(creamSkinRadio.getIsPlaying());
@@ -40,27 +38,11 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
   const handleTogglePlayMusic = () => {
     const active = creamSkinRadio.togglePlay();
     setIsPlayingMusic(active);
-    setCurrentTrack(creamSkinRadio.getCurrentTrack());
-  };
-
-  const handleNextTrack = () => {
-    const next = creamSkinRadio.nextTrack();
-    setCurrentTrack(next);
-    setIsPlayingMusic(creamSkinRadio.getIsPlaying());
   };
 
   const handleToggleMute = () => {
     const muted = creamSkinRadio.toggleMute();
     setIsMuted(muted);
-  };
-
-  const handleCustomAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      creamSkinRadio.loadCustomFile(file);
-      setCurrentTrack(creamSkinRadio.getCurrentTrack());
-      setIsPlayingMusic(true);
-    }
   };
 
   const t = (k: string) => getTranslation(lang, k);
@@ -153,36 +135,17 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           ❓
         </button>
 
-        {/* Compact Radio Mini-Player */}
+        {/* Minimal Music Toggle (plays public/audio/music.mp3) */}
         <div className="radio-mini-widget">
-          <button className="radio-btn" onClick={handleTogglePlayMusic} title={isPlayingMusic ? 'Pause' : 'Play Music'}>
+          <button className="radio-btn" onClick={handleTogglePlayMusic} title={isPlayingMusic ? 'Pause Music' : 'Play Music (music.mp3)'}>
             {isPlayingMusic ? '⏸️' : '🎵'}
-          </button>
-          <span className="radio-track-title">{currentTrack.title}</span>
-          <button className="radio-btn" onClick={handleNextTrack} title="Next Track">
-            ⏭️
           </button>
           <button className="radio-btn" onClick={handleToggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
             {isMuted ? '🔇' : '🔊'}
           </button>
-          {/* Custom audio file upload trigger */}
-          <button
-            className="radio-btn"
-            onClick={() => audioFileInputRef.current?.click()}
-            title="Load custom MP3/Audio file from device"
-          >
-            📁
-          </button>
-          <input
-            ref={audioFileInputRef}
-            type="file"
-            accept="audio/*"
-            style={{ display: 'none' }}
-            onChange={handleCustomAudioUpload}
-          />
         </div>
 
-        {/* Community Chat / Direct Messages Button */}
+        {/* Community Chat & Messages */}
         <button
           className="tool-btn-sm"
           style={{ background: '#1e293b' }}

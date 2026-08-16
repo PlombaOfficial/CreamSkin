@@ -10,6 +10,7 @@ interface Canvas2DProps {
   buffer: SkinTextureBuffer;
   toolConfig: ToolConfig;
   history: HistoryManager;
+  textureVersion: number;
   onTextureChange: () => void;
   onColorPick: (color: ColorRGBA) => void;
 }
@@ -18,6 +19,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   buffer,
   toolConfig,
   history,
+  textureVersion,
   onTextureChange,
   onColorPick,
 }) => {
@@ -57,7 +59,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     }
   }, []);
 
-  // Redraw 2D Pixel Canvas
+  // Redraw 2D Pixel Canvas (runs whenever textureVersion updates via undo/redo or draw)
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -68,7 +70,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     const imgData = ctx.createImageData(64, 64);
     imgData.data.set(buffer.data);
     ctx.putImageData(imgData, 0, 0);
-  }, [buffer]);
+  }, [buffer, textureVersion]);
 
   // Redraw Grid & Guides Overlay
   const renderOverlay = useCallback(() => {
@@ -140,7 +142,17 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     renderCheckerboard();
     renderCanvas();
     renderOverlay();
-  }, [renderCheckerboard, renderCanvas, renderOverlay]);
+  }, [renderCheckerboard, renderCanvas, renderOverlay, textureVersion]);
+
+  // Mouse wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (e.deltaY < 0) {
+      setZoom((z) => Math.min(16, z + 1));
+    } else {
+      setZoom((z) => Math.max(3, z - 1));
+    }
+  };
 
   const getCanvasCoords = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const canvas = canvasRef.current;
@@ -159,7 +171,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button === 1 || e.button === 2) {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - panX, y: e.clientY - panY });
       return;
@@ -210,7 +222,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (coords) {
       const region = findUVRegion(coords.x, coords.y);
-      setHoverRegion(region ? `${region.name} (${region.layer === 'overlay' ? 'Layer 2' : 'Base'})` : `Pixel X: ${coords.x} Y: ${coords.y}`);
+      setHoverRegion(region ? `${region.name} (${region.layer === 'overlay' ? 'Layer 2' : 'Base'})` : `X: ${coords.x}, Y: ${coords.y}`);
     } else {
       setHoverRegion(null);
     }
@@ -258,15 +270,16 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     <div
       ref={containerRef}
       className="canvas2d-viewport"
+      onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      {/* Zoom / Pan Toolbar */}
+      {/* Floating Canvas Controls */}
       <div className="canvas-controls-bar">
         <button className="tool-btn-sm" onClick={() => setZoom((z) => Math.min(16, z + 1))} title="Zoom In">➕</button>
-        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600 }}>{zoom * 100}%</span>
+        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, minWidth: '40px', textAlign: 'center' }}>{zoom * 100}%</span>
         <button className="tool-btn-sm" onClick={() => setZoom((z) => Math.max(3, z - 1))} title="Zoom Out">➖</button>
         <button className={`tool-btn-sm ${showGrid ? 'active' : ''}`} onClick={() => setShowGrid(!showGrid)} title="Toggle Grid">▦ Grid</button>
         <button className={`tool-btn-sm ${showUVLabels ? 'active' : ''}`} onClick={() => setShowUVLabels(!showUVLabels)} title="Toggle UV Outlines">🏷️ UV</button>
