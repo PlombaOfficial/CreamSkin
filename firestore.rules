@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User Profiles
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // World Rooms
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+
+      // Realtime Player Presence & State
+      match /players/{playerId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == playerId
+          && request.resource.data.x is number
+          && request.resource.data.y is number
+          && request.resource.data.health is number
+          && request.resource.data.health >= 0
+          && request.resource.data.health <= 20
+          && request.resource.data.username is string
+          && request.resource.data.username.size() <= 32;
+      }
+
+      // Delta Block Updates
+      match /blocks/{deltaId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.playerUid == request.auth.uid
+          && request.resource.data.x is int
+          && request.resource.data.y is int
+          && request.resource.data.y >= 0
+          && request.resource.data.y <= 128
+          && request.resource.data.block is int
+          && request.resource.data.block >= 0
+          && request.resource.data.block <= 50;
+        allow update, delete: if false; // Immutable audit log
+      }
+
+      // Global Room Chat
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 200
+          && request.resource.data.senderName is string
+          && request.resource.data.senderName.size() <= 32;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

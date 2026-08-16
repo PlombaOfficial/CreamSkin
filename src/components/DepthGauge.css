@@ -1,0 +1,190 @@
+.abyss-depth-gauge {
+  position: fixed;
+  left: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 900;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.gauge-frame {
+  background: rgba(6, 12, 20, 0.75);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(16px);
+  padding: 1.25rem 0.85rem;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  width: 96px;
+  box-shadow: var(--shadow-deep);
+}
+
+.gauge-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-bottom: 1px solid rgba(106, 130, 154, 0.15);
+  padding-bottom: 0.5rem;
+  width: 100%;
+}
+
+.gauge-axis-label {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.gauge-current-val {
+  display: flex;
+  align-items: baseline;
+  gap: 0.2rem;
+}
+
+.depth-num {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--mineral-sand);
+  letter-spacing: 0.05em;
+}
+
+.depth-unit {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--slate-steel-highlight);
+}
+
+/* Vertical Track */
+.gauge-track-wrap {
+  height: 240px;
+  width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.gauge-track-line {
+  position: absolute;
+  left: 12px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(106, 130, 154, 0.2);
+  border-radius: 1px;
+}
+
+.gauge-track-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(180deg, var(--slate-steel), var(--mineral-sand));
+  border-radius: 1px;
+}
+
+.gauge-track-cursor {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cursor-indicator-diamond {
+  width: 8px;
+  height: 8px;
+  background-color: var(--mineral-sand);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px rgba(199, 186, 161, 0.8);
+}
+
+.gauge-markers {
+  position: absolute;
+  top: 0;
+  left: 24px;
+  width: calc(100% - 24px);
+  height: 100%;
+}
+
+.depth-marker-node {
+  position: absolute;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  transition: color var(--transition-fast);
+}
+
+.depth-marker-node.passed {
+  color: var(--slate-steel-highlight);
+}
+
+.marker-tick {
+  width: 4px;
+  height: 1px;
+  background: var(--text-dim);
+}
+
+.depth-marker-node.passed .marker-tick {
+  background: var(--mineral-sand-muted);
+  width: 6px;
+}
+
+.marker-label {
+  font-weight: 500;
+}
+
+/* Footer Telemetry */
+.gauge-telemetry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  border-top: 1px solid rgba(106, 130, 154, 0.15);
+  padding-top: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+}
+
+.telemetry-mini-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.t-label {
+  color: var(--text-dim);
+}
+
+.t-val {
+  color: var(--text-ivory);
+  font-weight: 600;
+}
+
+.gauge-alert-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.3rem;
+  background: rgba(199, 186, 161, 0.12);
+  border: 1px solid rgba(199, 186, 161, 0.3);
+  color: var(--mineral-sand);
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  margin-top: 0.25rem;
+  justify-content: center;
+}
+
+@media (max-width: 1200px) {
+  .abyss-depth-gauge {
+    display: none;
+  }
+}

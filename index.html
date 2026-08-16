@@ -1,169 +1,27 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>CYBER-MAKER // Платформер с Идеальной Физикой и Редактором Уровней</title>
-  <meta name="description" content="Платформер нового поколения с кристальной физикой (Coyote time, Jump buffer, Dash), мощным встроенным редактором уровней и социальной Community экосистемой.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Minecraft 2D // Full Sandbox Edition</title>
+  <meta name="description" content="Full-featured procedural 2D Minecraft sandbox game with crafting, survival, mobs, smooth lighting, weather, and real-time multiplayer." />
+  <meta name="theme-color" content="#141720" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <link rel="stylesheet" href="styles.css">
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Pixel Grass Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%237c5737'/><rect width='16' height='4' fill='%2352962f'/><rect y='4' width='4' height='2' fill='%2352962f'/><rect x='8' y='4' width='3' height='1' fill='%2352962f'/></svg>" />
+
+  <!-- Google Pixel Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 </head>
 <body>
-
-  <div class="cyber-maker-app">
-
-    <!-- Top Navigation Header -->
-    <header class="app-top-header">
-      <div class="header-brand">
-        <div class="logo-title">🎮 CYBER-MAKER</div>
-        <div class="logo-sub">STUDIO & COMMUNITY</div>
-      </div>
-
-      <nav class="app-nav-row">
-        <button class="app-nav-btn" data-mode="play">▶ ИГРАТЬ</button>
-        <button class="app-nav-btn" data-mode="editor">🛠️ РЕДАКТОР</button>
-        <button class="app-nav-btn active" data-mode="community">🌐 COMMUNITY</button>
-        <button class="app-nav-btn" data-mode="profile">👤 ПРОФИЛЬ</button>
-      </nav>
-
-      <div class="header-controls">
-        <button class="btn-sound-toggle" id="btn-sound-toggle">🔊 ЗВУК: ВКЛ</button>
-      </div>
-    </header>
-
-    <!-- Main Canvas Viewport Area -->
-    <div class="canvas-viewport-container" id="canvas-container">
-      <canvas id="game-canvas"></canvas>
-
-      <!-- Overlay: Play Mode HUD -->
-      <div class="play-hud-overlay hidden" id="play-hud-overlay">
-        <div class="play-hud-top-bar">
-          <div class="play-hud-info">
-            <h2 id="play-hud-title">Неоновый Горизонт</h2>
-            <span class="author-tag" id="play-hud-author">Автор: Cyber_God</span>
-          </div>
-          <div class="play-hud-stats">
-            <span class="attempts-val" id="play-hud-attempts">Попытка 1</span>
-            <span class="percent-val" id="play-hud-percent">0%</span>
-          </div>
-        </div>
-
-        <!-- Level Progress Bar (0% -> 100%) -->
-        <div class="play-progress-bar-wrap">
-          <div class="play-progress-bar-fill" id="play-progress-bar-fill"></div>
-        </div>
-
-        <!-- Controls Helper -->
-        <div class="play-controls-hint">
-          <span>[A / D] или [← / →] Движение</span> • 
-          <span>[ПРОБЕЛ] Прыжок</span> • 
-          <span>[SHIFT] Air Dash (Рывок)</span> • 
-          <span>[TAB] Редактор</span>
-        </div>
-      </div>
-
-      <!-- Overlay: Pro Level Editor Tools -->
-      <div class="panel-editor-tools hidden" id="panel-editor-tools">
-        <div class="editor-top-toolbar">
-          <div class="toolbar-title">🛠️ LEVEL MAKER STUDIO</div>
-          <div class="editor-history-group">
-            <button class="btn-editor-tool" id="btn-editor-undo" title="Отменить (Ctrl+Z)">↩ Undo</button>
-            <button class="btn-editor-tool" id="btn-editor-redo" title="Повторить (Ctrl+Y)">↪ Redo</button>
-            <button class="btn-editor-tool danger" id="btn-editor-clear">🗑 Очистить</button>
-          </div>
-
-          <div class="editor-actions-group">
-            <button class="btn-editor-playtest" id="btn-editor-playtest">⚡ ТЕСТ УРОВНЯ (Tab)</button>
-            <button class="btn-editor-publish" id="btn-editor-publish">🌟 ОПУБЛИКОВАТЬ В COMMUNITY</button>
-          </div>
-        </div>
-
-        <!-- Editor Object Palette -->
-        <div class="editor-palette-dock">
-          <div class="palette-category-label">ОБЪЕКТЫ (ЛКМ - Поставить, ПКМ - Панорама):</div>
-          <div class="palette-items-row">
-            <button class="palette-btn active" data-type="solid">🧱 Блок</button>
-            <button class="palette-btn" data-type="hazard">🔺 Шип</button>
-            <button class="palette-btn" data-type="saw">⚙️ Пила</button>
-            <button class="palette-btn" data-type="jump_ring">🟡 Кольцо</button>
-            <button class="palette-btn" data-type="portal_gravity">🌌 Гравитация</button>
-            <button class="palette-btn" data-type="speed_boost">⚡ Ускоритель</button>
-            <button class="palette-btn" data-type="finish">🏁 Финиш</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Overlay: Social Community Hub -->
-      <div class="panel-community" id="panel-community">
-        <div class="community-header-box">
-          <div class="community-title-section">
-            <h2>🌐 COMMUNITY УРОВНЕЙ</h2>
-            <p>Тысячи уровней от игроков со всего мира. Проходите, ставьте лайки и создавайте свои шедевры!</p>
-          </div>
-
-          <div class="community-search-bar">
-            <input type="text" id="community-search-input" placeholder="🔍 Поиск уровня по названию или автору...">
-          </div>
-        </div>
-
-        <!-- Community Filters Bar -->
-        <div class="community-filters-bar">
-          <button class="community-tab-btn active" data-filter="featured">🌟 ИЗБРАННЫЕ</button>
-          <button class="community-tab-btn" data-filter="trending">🔥 В ТРЕНДЕ</button>
-          <button class="community-tab-btn" data-filter="new">🆕 НОВИНКИ</button>
-          <button class="community-tab-btn" data-filter="demons">💀 ДЕМОНЫ (ХАРДКОР)</button>
-        </div>
-
-        <!-- Levels Grid -->
-        <div class="community-levels-grid" id="community-levels-grid"></div>
-      </div>
-
-      <!-- Overlay: Customization & Profile -->
-      <div class="panel-customization hidden" id="panel-customization">
-        <div class="profile-card">
-          <div class="prof-header-row">
-            <h2 id="prof-stat-name">Cyber_Player</h2>
-            <button class="btn-sm" id="btn-profile-change-name">✏️ Сменить Ник</button>
-          </div>
-
-          <div class="prof-stats-grid">
-            <div class="prof-stat-box">
-              <span class="label">ЗВЕЗДЫ:</span>
-              <span class="val" id="prof-stat-stars">⭐ 45</span>
-            </div>
-            <div class="prof-stat-box">
-              <span class="label">ДЕМОНОВ ПРОЙДЕНО:</span>
-              <span class="val" id="prof-stat-demons">💀 2</span>
-            </div>
-            <div class="prof-stat-box">
-              <span class="label">УРОВНЕЙ ПРОЙДЕНО:</span>
-              <span class="val" id="prof-stat-completed">8</span>
-            </div>
-            <div class="prof-stat-box">
-              <span class="label">ВСЕГО ПОПЫТОК:</span>
-              <span class="val" id="prof-stat-attempts">142</span>
-            </div>
-          </div>
-
-          <div class="custom-color-picker-box">
-            <div class="label">НЕОНОВЫЙ ЦВЕТ КУБА:</div>
-            <div class="color-swatches-row">
-              <button class="color-pick-swatch" data-color="#00f0ff" style="background:#00f0ff"></button>
-              <button class="color-pick-swatch" data-color="#ff0077" style="background:#ff0077"></button>
-              <button class="color-pick-swatch" data-color="#00ff88" style="background:#00ff88"></button>
-              <button class="color-pick-swatch" data-color="#ffd700" style="background:#ffd700"></button>
-              <button class="color-pick-swatch" data-color="#a855f7" style="background:#a855f7"></button>
-              <button class="color-pick-swatch" data-color="#ff6600" style="background:#ff6600"></button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-  </div>
-
-  <script type="module" src="src/app.js"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

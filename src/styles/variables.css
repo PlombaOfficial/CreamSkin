@@ -1,0 +1,68 @@
+/* ==========================================================================
+   ABYSS DESIGN SYSTEM TOKENS
+   Aesthetic: Cinematic + Editorial + Luxury + Ocean Exploration + Scientific Archive
+   Strictly NO neon, NO purple-on-dark, NO generic AI gradients.
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Deep Oceanic, Cold Slate, Mineral Sand, Crisp White */
+  --bg-deep-void: #020407;
+  --bg-abyss-black: #04080e;
+  --bg-abyss-card: rgba(8, 15, 24, 0.75);
+  --bg-abyss-card-hover: rgba(14, 25, 38, 0.85);
+  --bg-abyss-card-solid: #09131e;
+  
+  --ocean-deep-blue: #081321;
+  --ocean-slate-blue: #122234;
+  --ocean-trench: #03060a;
+  
+  --slate-steel-dark: #223447;
+  --slate-steel: #3e5369;
+  --slate-steel-light: #6a829a;
+  --slate-steel-highlight: #9cb2c6;
+  
+  --bathymetric-cyan: #3c9fb4;
+  --bathymetric-cyan-dim: rgba(60, 159, 180, 0.25);
+  --bathymetric-teal-subtle: #245b6b;
+  
+  --mineral-sand: #c7baa1;
+  --mineral-sand-dim: rgba(199, 186, 161, 0.3);
+  --mineral-sand-muted: #8e836f;
+  
+  --text-pure-white: #ffffff;
+  --text-ivory: #edf2f7;
+  --text-body: #ccd6e0;
+  --text-muted: #8899a8;
+  --text-dim: #506172;
+  
+  --border-subtle: rgba(106, 130, 154, 0.18);
+  --border-active: rgba(199, 186, 161, 0.4);
+  --border-cyan-dim: rgba(60, 159, 180, 0.28);
+  
+  /* Typography */
+  --font-serif-display: 'Cinzel', 'Times New Roman', serif;
+  --font-serif-editorial: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Syne', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  /* Transitions */
+  --ease-cinematic: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-fast: 0.2s var(--ease-smooth);
+  --transition-normal: 0.4s var(--ease-cinematic);
+  --transition-slow: 0.8s var(--ease-cinematic);
+  --transition-ultra-slow: 1.6s var(--ease-cinematic);
+  
+  /* Shadows & Atmospheric Fog */
+  --shadow-subtle: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-deep: 0 16px 48px rgba(0, 0, 0, 0.7);
+  --shadow-modal: 0 24px 80px rgba(0, 0, 0, 0.9);
+  --backdrop-blur: blur(16px);
+  
+  /* Spacing */
+  --container-max-width: 1400px;
+  --container-editorial-width: 1180px;
+  --section-padding-y: clamp(5rem, 12vh, 10rem);
+  --section-padding-x: clamp(1.25rem, 5vw, 4rem);
+}

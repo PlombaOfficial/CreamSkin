@@ -1,0 +1,223 @@
+.sector-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(2, 4, 7, 0.88);
+  backdrop-filter: blur(16px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sector-modal-content {
+  background: #060d16;
+  border: 1px solid var(--border-active);
+  box-shadow: var(--shadow-modal);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 2px;
+  overflow: hidden;
+  animation: modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  background: rgba(14, 28, 45, 0.7);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-header-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+}
+
+.modal-sector-code {
+  color: var(--mineral-sand);
+  font-weight: 700;
+}
+
+.modal-header-divider {
+  color: var(--text-dim);
+}
+
+.modal-sector-name {
+  color: var(--text-pure-white);
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  color: var(--slate-steel-highlight);
+  padding: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  color: var(--mineral-sand);
+}
+
+.modal-telemetry-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 1rem 1.75rem;
+  background: rgba(8, 17, 28, 0.9);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.telemetry-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  background: rgba(18, 34, 52, 0.6);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--slate-steel-highlight);
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+}
+
+.status-pill.active {
+  background: rgba(60, 159, 180, 0.15);
+  border: 1px solid var(--bathymetric-cyan);
+  color: var(--bathymetric-cyan);
+}
+
+.status-pill.exploring {
+  background: rgba(199, 186, 161, 0.15);
+  border: 1px solid var(--mineral-sand);
+  color: var(--mineral-sand);
+}
+
+.status-pill.unexplored {
+  background: rgba(220, 80, 80, 0.15);
+  border: 1px solid rgba(220, 80, 80, 0.5);
+  color: #e57373;
+}
+
+.status-pill.analysis {
+  background: rgba(106, 130, 154, 0.2);
+  border: 1px solid var(--slate-steel-light);
+  color: var(--slate-steel-highlight);
+}
+
+.modal-body-scroll {
+  padding: 1.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.modal-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-block-title {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  color: var(--mineral-sand);
+  text-transform: uppercase;
+}
+
+.modal-block-body {
+  font-size: 0.92rem;
+  color: var(--text-body);
+  line-height: 1.6;
+}
+
+.modal-block-body.geological {
+  font-family: var(--font-serif-editorial);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--slate-steel-highlight);
+  border-left: 2px solid var(--border-subtle);
+  padding-left: 1rem;
+}
+
+.modal-findings-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.finding-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  color: var(--text-ivory);
+  background: rgba(14, 25, 38, 0.4);
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border-subtle);
+}
+
+.finding-bullet {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--mineral-sand-muted);
+  font-weight: 600;
+}
+
+.modal-footer-stats {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(106, 130, 154, 0.15);
+  padding-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.f-stat {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.f-stat-key {
+  color: var(--text-dim);
+}
+
+.f-stat-val {
+  color: var(--mineral-sand);
+  font-weight: 500;
+}

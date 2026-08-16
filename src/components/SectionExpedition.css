@@ -1,0 +1,378 @@
+.abyss-expedition-section {
+  position: relative;
+  background-color: var(--bg-deep-void);
+  border-top: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.expedition-header-wrap {
+  margin-bottom: 3.5rem;
+  max-width: 960px;
+}
+
+/* 4 Big Metrics Banner */
+.expedition-metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 3.5rem;
+}
+
+.exp-metric-box {
+  background: rgba(8, 17, 28, 0.6);
+  border: 1px solid var(--border-subtle);
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transition: all var(--transition-fast);
+}
+
+.exp-metric-box:hover {
+  background: rgba(14, 28, 45, 0.7);
+  border-color: rgba(106, 130, 154, 0.4);
+}
+
+.exp-metric-box.highlight {
+  border-color: var(--border-active);
+  background: rgba(199, 186, 161, 0.06);
+}
+
+.exp-metric-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.exp-metric-val {
+  font-family: var(--font-serif-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-pure-white);
+  letter-spacing: 0.04em;
+}
+
+.exp-metric-box.highlight .exp-metric-val {
+  color: var(--mineral-sand);
+}
+
+.exp-metric-sub {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--slate-steel-highlight);
+  letter-spacing: 0.08em;
+}
+
+/* Tabs */
+.expedition-tabs-row {
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+  overflow-x: auto;
+}
+
+.exp-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.4rem;
+  background: rgba(8, 17, 28, 0.4);
+  border: 1px solid var(--border-subtle);
+  color: var(--slate-steel-highlight);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.exp-tab-btn:hover {
+  color: var(--text-pure-white);
+  border-color: var(--slate-steel-light);
+}
+
+.exp-tab-btn.active {
+  color: var(--mineral-sand);
+  border-color: var(--mineral-sand);
+  background: rgba(199, 186, 161, 0.08);
+}
+
+/* Vessel Showcase */
+.vessels-showcase-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.vessel-selector-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.v-select-btn {
+  padding: 0.5rem 1.1rem;
+  background: rgba(14, 25, 38, 0.5);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--slate-steel-highlight);
+  transition: all var(--transition-fast);
+}
+
+.v-select-btn.active {
+  background: rgba(199, 186, 161, 0.12);
+  border-color: var(--mineral-sand);
+  color: var(--mineral-sand);
+}
+
+.vessel-dossier-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 2.5rem;
+  background: rgba(6, 13, 22, 0.7);
+  border: 1px solid var(--border-subtle);
+  padding: 2rem;
+  box-shadow: var(--shadow-deep);
+}
+
+.vessel-image-pane {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #020407;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.vessel-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: contrast(1.08) brightness(0.95);
+}
+
+.vessel-img-tag {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgba(4, 8, 14, 0.85);
+  border: 1px solid var(--border-subtle);
+  padding: 0.3rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--mineral-sand);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.vessel-info-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vessel-type-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: var(--slate-steel-highlight);
+  text-transform: uppercase;
+}
+
+.vessel-main-title {
+  font-family: var(--font-serif-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-pure-white);
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.vessel-desc-text {
+  font-size: 0.92rem;
+  color: var(--text-body);
+  line-height: 1.6;
+}
+
+.vessel-specs-table {
+  background: rgba(14, 25, 38, 0.5);
+  border: 1px solid var(--border-subtle);
+  padding: 1rem;
+}
+
+.specs-table-head {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: var(--mineral-sand);
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(106, 130, 154, 0.15);
+  padding-bottom: 0.4rem;
+}
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sp-lbl {
+  color: var(--text-dim);
+}
+
+.sp-val {
+  color: var(--text-ivory);
+}
+
+/* Crew Showcase Grid */
+.crew-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.crew-card {
+  background: rgba(8, 17, 28, 0.6);
+  border: 1px solid var(--border-subtle);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: all var(--transition-fast);
+}
+
+.crew-card:hover {
+  background: rgba(14, 28, 45, 0.75);
+  border-color: var(--border-active);
+}
+
+.crew-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.crew-dive-count {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--mineral-sand);
+  background: rgba(199, 186, 161, 0.1);
+  padding: 0.15rem 0.45rem;
+}
+
+.crew-shield {
+  color: var(--slate-steel-highlight);
+}
+
+.crew-name {
+  font-family: var(--font-serif-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-pure-white);
+  letter-spacing: 0.04em;
+}
+
+.crew-role {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  color: var(--slate-steel-highlight);
+}
+
+.crew-org {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+.crew-note {
+  font-family: var(--font-serif-editorial);
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--text-ivory);
+  line-height: 1.45;
+  margin-top: 0.5rem;
+  border-left: 2px solid var(--border-subtle);
+  padding-left: 0.75rem;
+}
+
+/* Equipment Grid */
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.equip-card {
+  background: rgba(8, 17, 28, 0.6);
+  border: 1px solid var(--border-subtle);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: all var(--transition-fast);
+}
+
+.equip-card:hover {
+  background: rgba(14, 28, 45, 0.75);
+  border-color: var(--border-active);
+}
+
+.equip-icon {
+  color: var(--mineral-sand);
+}
+
+.equip-title {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-pure-white);
+}
+
+.equip-desc {
+  font-size: 0.88rem;
+  color: var(--text-body);
+  line-height: 1.55;
+}
+
+.equip-meta {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--slate-steel-highlight);
+  border-top: 1px solid rgba(106, 130, 154, 0.12);
+  padding-top: 0.75rem;
+  margin-top: auto;
+}
+
+@media (max-width: 1024px) {
+  .expedition-metrics-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .vessel-dossier-grid {
+    grid-template-columns: 1fr;
+  }
+  .crew-showcase-grid {
+    grid-template-columns: 1fr;
+  }
+  .equipment-grid {
+    grid-template-columns: 1fr;
+  }
+}

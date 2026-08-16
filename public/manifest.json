@@ -1,0 +1,18 @@
+{
+  "name": "Minecraft 2D Sandbox",
+  "short_name": "Minecraft 2D",
+  "description": "Procedural 2D Minecraft sandbox game with survival, crafting, mobs, and multiplayer.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c12",
+  "theme_color": "#141720",
+  "orientation": "landscape-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%237c5737'/><rect width='64' height='16' fill='%2352962f'/><rect y='16' width='16' height='8' fill='%2352962f'/><rect x='32' y='16' width='12' height='4' fill='%2352962f'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
