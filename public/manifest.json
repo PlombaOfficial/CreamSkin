@@ -2,7 +2,7 @@
   "name": "Minecraft 2D Sandbox",
   "short_name": "Minecraft 2D",
   "description": "Procedural 2D Minecraft sandbox game with survival, crafting, mobs, and multiplayer.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0a0c12",
   "theme_color": "#141720",
