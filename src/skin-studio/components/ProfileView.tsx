@@ -9,6 +9,7 @@ interface ProfileViewProps {
   onSelectSkin: (skin: SkinMetadata) => void;
   onEditSkin: (skin: SkinMetadata) => void;
   onOpenAuth: () => void;
+  onOpenAvatarModal?: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -16,6 +17,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onSelectSkin,
   onEditSkin,
   onOpenAuth,
+  onOpenAvatarModal,
 }) => {
   const currentUser = skinService.currentUser;
   const currentProfile = skinService.userProfile;
@@ -25,6 +27,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [loading, setLoading] = useState(true);
 
   const effectiveUid = targetUid || currentUser?.uid;
+  const isMyProfile = currentUser && (!targetUid || targetUid === currentUser.uid);
 
   useEffect(() => {
     const loadProfileData = async () => {
@@ -61,11 +64,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             Guest User
           </h2>
           <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '16px' }}>
-            You are browsing CreamSkin in Guest Mode. Sign in or create a free account to publish your own skins, track favorites, and follow creators.
+            You are browsing CreamSkin in Guest Mode. Sign in or create a free account to publish your own skins, track favorites, and customize your avatar.
           </p>
           <button
-            className="tool-btn-sm"
-            style={{ background: '#2563eb', color: '#fff', padding: '8px 20px', fontSize: '13px' }}
+            className="mc-btn-primary"
+            style={{ padding: '8px 20px', fontSize: '13px' }}
             onClick={onOpenAuth}
           >
             Sign In / Register
@@ -83,33 +86,58 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     );
   }
 
+  const avatarSrc = (profile as any)?.avatarUrl || (currentUser ? localStorage.getItem(`avatar_${currentUser.uid}`) : null);
+
   return (
     <div className="gallery-container">
       {/* Profile Header Banner */}
-      <div className="panel-box" style={{ padding: '20px', background: '#121722', marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <div style={{
-          width: '72px',
-          height: '72px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #2563eb, #0ea5e9)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '28px',
-          color: '#fff',
-          fontWeight: 800,
-        }}>
-          {profile?.username ? profile.username.charAt(0).toUpperCase() : 'C'}
-        </div>
+      <div className="panel-box" style={{ padding: '20px', background: '#1b1f28', marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+        {avatarSrc ? (
+          <div style={{
+            width: '76px',
+            height: '76px',
+            borderRadius: '10px',
+            border: '2px solid #2ce0d6',
+            overflow: 'hidden',
+            background: '#12151d',
+          }}>
+            <img src={avatarSrc} alt="Avatar" style={{ width: '100%', height: '100%', imageRendering: 'pixelated' }} />
+          </div>
+        ) : (
+          <div style={{
+            width: '76px',
+            height: '76px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #52962f, #2ce0d6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '30px',
+            color: '#fff',
+            fontWeight: 800,
+            textShadow: '1px 1px 0 rgba(0,0,0,0.5)',
+          }}>
+            {profile?.username ? profile.username.charAt(0).toUpperCase() : 'C'}
+          </div>
+        )}
 
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#fff' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#fff' }}>
               {profile?.username || 'Crafter'}
             </h1>
-            <span style={{ fontSize: '10px', background: '#1e3a8a', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px' }}>
+            <span className="mc-badge green">
               CreamSkin Creator
             </span>
+            {isMyProfile && onOpenAvatarModal && (
+              <button
+                className="mc-btn-secondary"
+                style={{ fontSize: '10px', padding: '2px 8px', marginLeft: 'auto' }}
+                onClick={onOpenAvatarModal}
+              >
+                ✏️ Change Avatar
+              </button>
+            )}
           </div>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
             {profile?.bio || 'Minecraft skin designer & creator.'}
@@ -149,7 +177,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
               <div className="skin-card-body">
                 <div className="skin-card-title">{skin.title}</div>
-                <div style={{ fontSize: '11px', color: '#38bdf8' }}>
+                <div style={{ fontSize: '11px', color: '#2ce0d6' }}>
                   {skin.category} • <span style={{ textTransform: 'capitalize' }}>{skin.modelType}</span>
                 </div>
 
@@ -161,8 +189,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
                 <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
                   <button
-                    className="tool-btn-sm"
-                    style={{ flex: 1, background: '#2563eb', color: '#fff' }}
+                    className="mc-btn-primary"
+                    style={{ flex: 1, padding: '4px' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       onEditSkin(skin);
@@ -171,8 +199,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     Edit
                   </button>
                   <button
-                    className="tool-btn-sm"
-                    style={{ background: '#10b981', color: '#fff' }}
+                    className="mc-btn-secondary"
+                    style={{ padding: '4px 8px' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       skinService.recordDownload(skin.id);

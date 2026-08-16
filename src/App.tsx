@@ -5,6 +5,7 @@ import { LanguageCode } from './skin-studio/i18n/translations';
 import { StudioNavbar } from './skin-studio/ui/StudioNavbar';
 import { EditorStudio } from './skin-studio/components/EditorStudio';
 import { GalleryView } from './skin-studio/components/GalleryView';
+import { ContestsView } from './skin-studio/components/ContestsView';
 import { SkinDetailModal } from './skin-studio/components/SkinDetailModal';
 import { PublishModal } from './skin-studio/components/PublishModal';
 import { ProfileView } from './skin-studio/components/ProfileView';
@@ -13,11 +14,13 @@ import { AuthModal } from './skin-studio/components/AuthModal';
 import { DirectMessagesModal } from './skin-studio/components/DirectMessagesModal';
 import { ReportModal } from './skin-studio/components/ReportModal';
 import { OnboardingModal } from './skin-studio/components/OnboardingModal';
+import { AdminPanel } from './skin-studio/components/AdminPanel';
+import { AvatarModal } from './skin-studio/components/AvatarModal';
 import { SKIN_TEMPLATES } from './skin-studio/templates/SkinTemplates';
 import './skin-studio/ui/SkinStudio.css';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'players' | 'trending' | 'templates' | 'profile' | 'plugin'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'players' | 'contests' | 'trending' | 'templates' | 'profile' | 'plugin'>('editor');
   const [modelType, setModelType] = useState<ModelType>('classic');
   const [lang, setLang] = useState<LanguageCode>(() => {
     try {
@@ -42,6 +45,8 @@ export const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDMsModal, setShowDMsModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [dmRecipient, setDmRecipient] = useState<{ uid: string; name: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<{ type: ReportItem['targetType']; id: string } | null>(null);
 
@@ -102,6 +107,7 @@ export const App: React.FC = () => {
           setShowDMsModal(true);
         }}
         onOpenTutorial={() => setShowOnboarding(true)}
+        onOpenAdminPanel={() => setShowAdminPanel(true)}
       />
 
       {/* Main Tab Views */}
@@ -122,6 +128,15 @@ export const App: React.FC = () => {
           initialMode="community"
           onSelectSkin={(skin) => setSelectedSkin(skin)}
           onEditSkin={handleEditSkin}
+        />
+      )}
+
+      {activeTab === 'contests' && (
+        <ContestsView
+          lang={lang}
+          onSelectSkin={(skin) => setSelectedSkin(skin)}
+          onEditSkin={handleEditSkin}
+          onOpenCreateSkin={() => setActiveTab('editor')}
         />
       )}
 
@@ -169,8 +184,8 @@ export const App: React.FC = () => {
                     <div className="skin-card-title">{t.name}</div>
                     <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t.description}</div>
                     <button
-                      className="tool-btn-sm"
-                      style={{ marginTop: '8px', background: '#2563eb', color: '#fff' }}
+                      className="mc-btn-primary"
+                      style={{ marginTop: '8px', width: '100%' }}
                       onClick={() => handleLoadTemplateAndEdit(t.id)}
                     >
                       🎨 Start Editing
@@ -192,6 +207,7 @@ export const App: React.FC = () => {
           onSelectSkin={(skin) => setSelectedSkin(skin)}
           onEditSkin={handleEditSkin}
           onOpenAuth={() => setShowAuthModal(true)}
+          onOpenAvatarModal={() => setShowAvatarModal(true)}
         />
       )}
 
@@ -251,6 +267,22 @@ export const App: React.FC = () => {
         <OnboardingModal
           lang={lang}
           onClose={() => setShowOnboarding(false)}
+        />
+      )}
+
+      {showAdminPanel && (
+        <AdminPanel
+          onClose={() => setShowAdminPanel(false)}
+        />
+      )}
+
+      {showAvatarModal && (
+        <AvatarModal
+          currentBuffer={buffer}
+          onClose={() => setShowAvatarModal(false)}
+          onAvatarSaved={() => {
+            alert('🎉 Avatar saved to your profile!');
+          }}
         />
       )}
     </div>

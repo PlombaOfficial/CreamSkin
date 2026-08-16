@@ -77,6 +77,7 @@ export interface UserProfile {
   username: string;
   bio?: string;
   avatar?: string;
+  avatarUrl?: string;
   likedSkinIds: string[];
   favoriteSkinIds: string[];
   followingUids: string[];

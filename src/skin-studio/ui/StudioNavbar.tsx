@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { skinService } from '../firebase/SkinService';
 import { creamSkinRadio } from '../audio/CreamSkinRadio';
 import { LanguageCode, LANGUAGES, getTranslation } from '../i18n/translations';
+import { ADMIN_EMAIL } from '../components/AdminPanel';
 
 interface StudioNavbarProps {
-  activeTab: 'editor' | 'gallery' | 'players' | 'trending' | 'templates' | 'profile' | 'plugin';
+  activeTab: 'editor' | 'gallery' | 'players' | 'contests' | 'trending' | 'templates' | 'profile' | 'plugin';
   lang: LanguageCode;
-  onTabChange: (tab: 'editor' | 'gallery' | 'players' | 'trending' | 'templates' | 'profile' | 'plugin') => void;
+  onTabChange: (tab: 'editor' | 'gallery' | 'players' | 'contests' | 'trending' | 'templates' | 'profile' | 'plugin') => void;
   onLangChange: (lang: LanguageCode) => void;
   onOpenAuth: () => void;
   onOpenPublish?: () => void;
   onOpenDMs: () => void;
   onOpenTutorial: () => void;
+  onOpenAdminPanel?: () => void;
 }
 
 export const StudioNavbar: React.FC<StudioNavbarProps> = ({
@@ -23,11 +25,13 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
   onOpenPublish,
   onOpenDMs,
   onOpenTutorial,
+  onOpenAdminPanel,
 }) => {
   const user = skinService.currentUser;
   const profile = skinService.userProfile;
+  const isSuperAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
-  // Single Background Music Player State
+  // Background Music State
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [isMuted, setIsMuted] = useState(creamSkinRadio.getIsMuted());
 
@@ -72,6 +76,12 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           🌐 {t('nav.gallery')}
         </button>
         <button
+          className={`nav-tab-item ${activeTab === 'contests' ? 'active' : ''}`}
+          onClick={() => onTabChange('contests')}
+        >
+          🏆 {lang === 'ru' ? 'Конкурсы' : 'Contests'}
+        </button>
+        <button
           className={`nav-tab-item ${activeTab === 'players' ? 'active' : ''}`}
           onClick={() => onTabChange('players')}
         >
@@ -105,6 +115,18 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
 
       {/* Right Controls */}
       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        {/* Admin Panel Trigger (Only for Plomba@gmail.com) */}
+        {isSuperAdmin && onOpenAdminPanel && (
+          <button
+            className="mc-btn-primary"
+            style={{ fontSize: '11px', padding: '4px 8px', background: 'linear-gradient(to bottom, #f59e0b, #d97706)', borderTopColor: '#fbbf24', borderLeftColor: '#fbbf24', borderRightColor: '#92400e', borderBottomColor: '#92400e' }}
+            onClick={onOpenAdminPanel}
+            title="SuperAdmin Moderation Console"
+          >
+            🛡️ Admin
+          </button>
+        )}
+
         {/* Language Selector */}
         <select
           className="tool-btn-sm"
@@ -135,7 +157,7 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           ❓
         </button>
 
-        {/* Minimal Music Toggle (plays public/audio/music.mp3) */}
+        {/* Music Play/Pause & Mute Button */}
         <div className="radio-mini-widget">
           <button className="radio-btn" onClick={handleTogglePlayMusic} title={isPlayingMusic ? 'Pause Music' : 'Play Music (music.mp3)'}>
             {isPlayingMusic ? '⏸️' : '🎵'}
@@ -145,7 +167,7 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           </button>
         </div>
 
-        {/* Community Chat & Messages */}
+        {/* Global Chat & Messages */}
         <button
           className="tool-btn-sm"
           style={{ background: '#1e293b' }}
@@ -158,8 +180,8 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
         {/* Publish Skin Trigger */}
         {activeTab === 'editor' && onOpenPublish && (
           <button
-            className="tool-btn-sm"
-            style={{ background: '#10b981', color: '#fff', padding: '5px 10px' }}
+            className="mc-btn-primary"
+            style={{ padding: '4px 10px', fontSize: '11px' }}
             onClick={onOpenPublish}
           >
             🚀 {t('nav.publish')}
@@ -173,8 +195,8 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
               {profile?.username || 'Crafter'}
             </span>
             <button
-              className="tool-btn-sm"
-              style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}
+              className="mc-btn-danger"
+              style={{ padding: '3px 6px', fontSize: '10px' }}
               onClick={async () => {
                 await skinService.logout();
                 window.location.reload();
@@ -185,8 +207,8 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           </div>
         ) : (
           <button
-            className="tool-btn-sm"
-            style={{ background: '#2563eb', color: '#fff' }}
+            className="mc-btn-primary"
+            style={{ padding: '4px 10px', fontSize: '11px' }}
             onClick={onOpenAuth}
           >
             🔑 {t('nav.login')}

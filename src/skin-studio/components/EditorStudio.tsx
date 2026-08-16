@@ -7,6 +7,7 @@ import { Canvas2D } from './Canvas2D';
 import { ModelViewer3D } from './ModelViewer3D';
 import { ColorPicker } from '../colors/ColorPicker';
 import { LanguageCode, getTranslation } from '../i18n/translations';
+import { AvatarModal } from './AvatarModal';
 
 interface EditorStudioProps {
   buffer: SkinTextureBuffer;
@@ -29,6 +30,19 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
 
   const [toolConfig, setToolConfig] = useState<ToolConfig>(DEFAULT_TOOL_CONFIG);
   const [textureVersion, setTextureVersion] = useState(0);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  // Restore draft skin on initial load if available
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem('creamskin_draft_skin_v2');
+      if (savedDraft) {
+        buffer.loadFromBase64PNG(savedDraft).then(() => {
+          setTextureVersion((v) => v + 1);
+        });
+      }
+    } catch {}
+  }, [buffer]);
 
   // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S)
   useEffect(() => {
@@ -36,13 +50,22 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
-          if (history.redo(buffer)) setTextureVersion((v) => v + 1);
+          if (history.redo(buffer)) {
+            setTextureVersion((v) => v + 1);
+            saveDraft();
+          }
         } else {
-          if (history.undo(buffer)) setTextureVersion((v) => v + 1);
+          if (history.undo(buffer)) {
+            setTextureVersion((v) => v + 1);
+            saveDraft();
+          }
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
-        if (history.redo(buffer)) setTextureVersion((v) => v + 1);
+        if (history.redo(buffer)) {
+          setTextureVersion((v) => v + 1);
+          saveDraft();
+        }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleDownloadPNG();
@@ -52,8 +75,16 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [buffer, history]);
 
+  const saveDraft = () => {
+    try {
+      const b64 = buffer.toBase64PNG();
+      localStorage.setItem('creamskin_draft_skin_v2', b64);
+    } catch {}
+  };
+
   const handleTextureChange = () => {
     setTextureVersion((v) => v + 1);
+    saveDraft();
   };
 
   const handleToolSelect = (tool: ToolType) => {
@@ -61,11 +92,17 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
   };
 
   const handleUndo = () => {
-    if (history.undo(buffer)) setTextureVersion((v) => v + 1);
+    if (history.undo(buffer)) {
+      setTextureVersion((v) => v + 1);
+      saveDraft();
+    }
   };
 
   const handleRedo = () => {
-    if (history.redo(buffer)) setTextureVersion((v) => v + 1);
+    if (history.redo(buffer)) {
+      setTextureVersion((v) => v + 1);
+      saveDraft();
+    }
   };
 
   const handleDownloadPNG = () => {
@@ -85,6 +122,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         history.pushSnapshot(buffer);
         await buffer.loadFromBase64PNG(reader.result);
         setTextureVersion((v) => v + 1);
+        saveDraft();
       }
     };
     reader.readAsDataURL(file);
@@ -246,8 +284,16 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           </div>
 
           {/* Action Export Buttons */}
-          <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
-            <label className="tool-btn-sm" style={{ cursor: 'pointer', background: '#1e293b' }}>
+          <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
+            <button
+              className="mc-btn-secondary"
+              style={{ fontSize: '11px', padding: '4px 8px' }}
+              onClick={() => setShowAvatarModal(true)}
+              title="Set Avatar from Skin"
+            >
+              👤 Avatar
+            </button>
+            <label className="mc-btn-secondary" style={{ cursor: 'pointer', fontSize: '11px', padding: '4px 8px' }}>
               📥 {t('editor.importPng')}
               <input
                 type="file"
@@ -257,15 +303,15 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
               />
             </label>
             <button
-              className="tool-btn-sm"
-              style={{ background: '#10b981', color: '#fff' }}
+              className="mc-btn-secondary"
+              style={{ fontSize: '11px', padding: '4px 8px' }}
               onClick={handleDownloadPNG}
             >
               💾 {t('editor.downloadPng')}
             </button>
             <button
-              className="tool-btn-sm"
-              style={{ background: '#2563eb', color: '#fff' }}
+              className="mc-btn-primary"
+              style={{ fontSize: '11px', padding: '4px 10px' }}
               onClick={onOpenPublish}
             >
               🚀 {t('nav.publish')}
@@ -289,7 +335,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
       {/* 3. RIGHT SIDEBAR: 3D Viewport & Color Picker */}
       <aside className="editor-sidebar-clean-right">
         {/* 3D Model Live Viewport */}
-        <div style={{ height: '320px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+        <div style={{ height: '320px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #3b4252' }}>
           <ModelViewer3D
             buffer={buffer}
             modelType={modelType}
@@ -308,6 +354,17 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           />
         </div>
       </aside>
+
+      {/* Avatar Modal */}
+      {showAvatarModal && (
+        <AvatarModal
+          currentBuffer={buffer}
+          onClose={() => setShowAvatarModal(false)}
+          onAvatarSaved={() => {
+            alert('🎉 Profile avatar successfully updated!');
+          }}
+        />
+      )}
     </div>
   );
 };

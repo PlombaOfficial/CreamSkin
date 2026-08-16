@@ -1,25 +1,28 @@
 /**
  * Dedicated Music Player for public/audio/music.mp3
- * Simple, reliable, zero-bloat audio player.
+ * Supports seamless autoplay on user first interaction and volume persistence.
  */
 
 export class CreamSkinRadio {
   private audioElement: HTMLAudioElement | null = null;
   private isPlaying = false;
   private isMuted = false;
-  private volume = 0.5;
+  private volume = 0.45;
+  private hasInteracted = false;
 
   constructor() {
     try {
       const savedVol = localStorage.getItem('creamskin_radio_vol');
       if (savedVol) this.volume = parseFloat(savedVol);
+      const savedMute = localStorage.getItem('creamskin_radio_mute');
+      if (savedMute) this.isMuted = savedMute === 'true';
     } catch {}
 
     if (typeof window !== 'undefined') {
       this.audioElement = new Audio();
       this.audioElement.src = './audio/music.mp3';
       this.audioElement.loop = true;
-      this.audioElement.volume = this.volume;
+      this.audioElement.volume = this.isMuted ? 0 : this.volume;
 
       this.audioElement.addEventListener('play', () => {
         this.isPlaying = true;
@@ -30,11 +33,26 @@ export class CreamSkinRadio {
       });
 
       this.audioElement.addEventListener('error', () => {
-        // Try fallback to russian name or relative without ./
         if (this.audioElement && this.audioElement.src.includes('music.mp3')) {
           this.audioElement.src = './audio/музыка.mp3';
         }
       });
+
+      // Auto-start music on first user click anywhere on page if not muted
+      const startOnFirstGesture = () => {
+        if (this.hasInteracted) return;
+        this.hasInteracted = true;
+        if (!this.isMuted && !this.isPlaying) {
+          this.play();
+        }
+        window.removeEventListener('click', startOnFirstGesture);
+        window.removeEventListener('keydown', startOnFirstGesture);
+        window.removeEventListener('touchstart', startOnFirstGesture);
+      };
+
+      window.addEventListener('click', startOnFirstGesture);
+      window.addEventListener('keydown', startOnFirstGesture);
+      window.addEventListener('touchstart', startOnFirstGesture);
     }
   }
 
@@ -53,8 +71,7 @@ export class CreamSkinRadio {
           .then(() => {
             this.isPlaying = true;
           })
-          .catch((err) => {
-            console.warn('Audio playback waiting for user interaction or file not found:', err);
+          .catch(() => {
             this.isPlaying = false;
           });
       }
@@ -65,8 +82,12 @@ export class CreamSkinRadio {
   public play() {
     if (!this.audioElement) return;
     this.audioElement.volume = this.isMuted ? 0 : this.volume;
-    this.audioElement.play().catch(() => {});
-    this.isPlaying = true;
+    const p = this.audioElement.play();
+    if (p !== undefined) {
+      p.then(() => {
+        this.isPlaying = true;
+      }).catch(() => {});
+    }
   }
 
   public pause() {
@@ -86,6 +107,8 @@ export class CreamSkinRadio {
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
+    localStorage.setItem('creamskin_radio_mute', this.isMuted.toString());
+
     if (this.audioElement) {
       this.audioElement.volume = this.isMuted ? 0 : this.volume;
     }
