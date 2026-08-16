@@ -23,14 +23,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [skins, setSkins] = useState<SkinMetadata[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load Reports & Skins
   useEffect(() => {
     if (!isSuperAdmin) return;
 
     const loadData = async () => {
       setLoading(true);
       try {
-        // Load reports
         const repCol = collection(firestore, 'reports');
         const repSnap = await getDocs(query(repCol, limit(50)));
         const repList: ReportItem[] = [];
@@ -38,7 +36,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         setReports(repList);
       } catch {}
 
-      // Load skins
       const allSkins = await skinService.getPublicSkins('All', 'recent');
       setSkins(allSkins);
       setLoading(false);
@@ -52,10 +49,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     try {
       await deleteDoc(doc(firestore, 'skins', skinId));
       setSkins((list) => list.filter((s) => s.id !== skinId));
-      alert('Skin successfully deleted by Admin.');
-    } catch {
-      alert('Could not delete skin from database.');
-    }
+    } catch {}
   };
 
   const handleDismissReport = async (repId: string) => {
@@ -87,16 +81,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" style={{ maxWidth: '850px', height: '620px' }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="mc-badge gold">👑 SUPER ADMIN</span>
+            <span className="mc-badge gold">SUPER ADMIN</span>
             <h2 style={{ fontSize: '17px', fontWeight: 800, color: '#fff' }}>CreamSkin Master Control</h2>
           </div>
           <button className="tool-btn-sm" onClick={onClose}>✕</button>
         </div>
 
-        {/* Sub-tabs */}
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
             className={`mc-btn-secondary ${activeTab === 'reports' ? 'active' : ''}`}
@@ -112,7 +104,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           </button>
         </div>
 
-        {/* Tab Content */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Loading Admin Console...</div>
@@ -120,7 +111,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             <div>
               {reports.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '50px', color: '#10b981' }}>
-                  ✓ No pending moderation reports. The community is clean!
+                  No pending moderation reports.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -152,7 +143,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                           className="mc-btn-secondary"
                           onClick={() => handleDismissReport(r.id)}
                         >
-                          ✓ Dismiss
+                          Dismiss
                         </button>
                       </div>
                     </div>

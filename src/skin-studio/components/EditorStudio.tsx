@@ -32,7 +32,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
   const [textureVersion, setTextureVersion] = useState(0);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-  // Restore draft skin on initial load if available
   useEffect(() => {
     try {
       const savedDraft = localStorage.getItem('creamskin_draft_skin_v2');
@@ -44,7 +43,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
     } catch {}
   }, [buffer]);
 
-  // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -130,7 +128,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
 
   return (
     <div className="editor-clean-layout">
-      {/* 1. SLIM LEFT TOOLBAR (Icon-only with clean tooltips) */}
       <aside className="editor-slim-toolbar">
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'pencil' ? 'active' : ''}`}
@@ -226,11 +223,8 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         </button>
       </aside>
 
-      {/* 2. CENTER CANVAS AREA */}
       <main className="editor-main-canvas-area">
-        {/* Top Floating Controls Strip */}
         <div className="canvas-header-strip">
-          {/* Layer Selector */}
           <div className="segmented-control">
             <button
               className={`seg-btn ${toolConfig.activeLayer === 'base' ? 'active' : ''}`}
@@ -252,7 +246,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             </button>
           </div>
 
-          {/* Brush Size */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ fontSize: '11px', color: '#94a3b8' }}>{t('editor.brushSize')}:</span>
             {[1, 2, 3, 4].map((s) => (
@@ -267,7 +260,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             ))}
           </div>
 
-          {/* Model Type */}
           <div className="segmented-control">
             <button
               className={`seg-btn ${modelType === 'classic' ? 'active' : ''}`}
@@ -283,7 +275,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             </button>
           </div>
 
-          {/* Action Export Buttons */}
           <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
             <button
               className="mc-btn-secondary"
@@ -319,7 +310,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           </div>
         </div>
 
-        {/* 2D Drawing Canvas Viewport */}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <Canvas2D
             buffer={buffer}
@@ -332,9 +322,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         </div>
       </main>
 
-      {/* 3. RIGHT SIDEBAR: 3D Viewport & Color Picker */}
       <aside className="editor-sidebar-clean-right">
-        {/* 3D Model Live Viewport */}
         <div style={{ height: '320px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #3b4252' }}>
           <ModelViewer3D
             buffer={buffer}
@@ -343,7 +331,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           />
         </div>
 
-        {/* Compact Color Palette & Picker */}
         <div className="panel-box" style={{ flex: 1, overflowY: 'auto' }}>
           <div className="panel-header">
             <span>{t('editor.colorPalette')}</span>
@@ -355,14 +342,11 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         </div>
       </aside>
 
-      {/* Avatar Modal */}
       {showAvatarModal && (
         <AvatarModal
           currentBuffer={buffer}
           onClose={() => setShowAvatarModal(false)}
-          onAvatarSaved={() => {
-            alert('🎉 Profile avatar successfully updated!');
-          }}
+          onAvatarSaved={() => {}}
         />
       )}
     </div>
