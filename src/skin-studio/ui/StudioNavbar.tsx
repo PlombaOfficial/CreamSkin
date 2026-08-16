@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { skinService } from '../firebase/SkinService';
 import { creamSkinRadio } from '../audio/CreamSkinRadio';
+import { LanguageCode, LANGUAGES, getTranslation } from '../i18n/translations';
 
 interface StudioNavbarProps {
   activeTab: 'editor' | 'gallery' | 'trending' | 'latest' | 'templates' | 'profile' | 'plugin';
+  lang: LanguageCode;
   onTabChange: (tab: 'editor' | 'gallery' | 'trending' | 'latest' | 'templates' | 'profile' | 'plugin') => void;
+  onLangChange: (lang: LanguageCode) => void;
   onOpenAuth: () => void;
   onOpenPublish?: () => void;
   onOpenDMs: () => void;
+  onOpenTutorial: () => void;
 }
 
 export const StudioNavbar: React.FC<StudioNavbarProps> = ({
   activeTab,
+  lang,
   onTabChange,
+  onLangChange,
   onOpenAuth,
   onOpenPublish,
   onOpenDMs,
+  onOpenTutorial,
 }) => {
   const user = skinService.currentUser;
   const profile = skinService.userProfile;
@@ -46,6 +53,8 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
     setIsMuted(muted);
   };
 
+  const t = (k: string) => getTranslation(lang, k);
+
   return (
     <nav className="studio-navbar">
       {/* Brand */}
@@ -62,48 +71,72 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           className={`nav-tab-item ${activeTab === 'editor' ? 'active' : ''}`}
           onClick={() => onTabChange('editor')}
         >
-          🎨 Editor
+          🎨 {t('nav.editor')}
         </button>
         <button
           className={`nav-tab-item ${activeTab === 'gallery' ? 'active' : ''}`}
           onClick={() => onTabChange('gallery')}
         >
-          🌐 Explore
+          🌐 {t('nav.explore')}
         </button>
         <button
           className={`nav-tab-item ${activeTab === 'trending' ? 'active' : ''}`}
           onClick={() => onTabChange('trending')}
         >
-          🔥 Trending
+          🔥 {t('nav.trending')}
         </button>
         <button
           className={`nav-tab-item ${activeTab === 'latest' ? 'active' : ''}`}
           onClick={() => onTabChange('latest')}
         >
-          ⚡ Latest
+          ⚡ {t('nav.latest')}
         </button>
         <button
           className={`nav-tab-item ${activeTab === 'templates' ? 'active' : ''}`}
           onClick={() => onTabChange('templates')}
         >
-          📦 Templates
+          📦 {t('nav.templates')}
         </button>
         <button
           className={`nav-tab-item ${activeTab === 'plugin' ? 'active' : ''}`}
           onClick={() => onTabChange('plugin')}
         >
-          🔌 Server
+          🔌 {t('nav.server')}
         </button>
         <button
           className={`nav-tab-item ${activeTab === 'profile' ? 'active' : ''}`}
           onClick={() => onTabChange('profile')}
         >
-          👤 Profile
+          👤 {t('nav.profile')}
         </button>
       </div>
 
-      {/* Right Controls (Music, DMs, Publish, Account) */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      {/* Right Controls */}
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        {/* Language Selector Dropdown */}
+        <select
+          className="tool-btn-sm"
+          value={lang}
+          onChange={(e) => onLangChange(e.target.value as LanguageCode)}
+          style={{ padding: '4px 6px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code} style={{ background: '#111622', color: '#fff' }}>
+              {l.flag} {l.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Tutorial / Help Button */}
+        <button
+          className="tool-btn-sm"
+          style={{ padding: '4px 8px' }}
+          onClick={onOpenTutorial}
+          title="Open Guide / Tutorial"
+        >
+          ❓
+        </button>
+
         {/* CreamSkin Radio Mini-Player */}
         <div className="radio-mini-widget">
           <button className="radio-btn" onClick={handleTogglePlayMusic} title={isPlayingMusic ? 'Pause Music' : 'Play Lo-Fi Music'}>
@@ -125,7 +158,7 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           onClick={onOpenDMs}
           title="Direct Messages"
         >
-          💬 DMs
+          💬 {t('nav.dms')}
         </button>
 
         {/* Publish Skin Trigger */}
@@ -135,7 +168,7 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
             style={{ background: '#10b981', color: '#fff', padding: '6px 12px' }}
             onClick={onOpenPublish}
           >
-            🚀 Publish
+            🚀 {t('nav.publish')}
           </button>
         )}
 
@@ -153,7 +186,7 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
                 window.location.reload();
               }}
             >
-              Exit
+              {t('nav.exit')}
             </button>
           </div>
         ) : (
@@ -162,7 +195,7 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
             style={{ background: '#3b82f6', color: '#fff' }}
             onClick={onOpenAuth}
           >
-            🔑 Log In
+            🔑 {t('nav.login')}
           </button>
         )}
       </div>

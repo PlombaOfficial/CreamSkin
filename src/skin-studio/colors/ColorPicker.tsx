@@ -61,11 +61,18 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
     <div className="color-picker-box">
       {/* Color Preview & Native Picker */}
       <div className="color-preview-row">
-        <label className="color-preview-swatch" style={{ background: hexValue }}>
+        <label
+          className="color-preview-swatch"
+          style={{
+            background: color.a === 0 ? 'repeating-conic-gradient(#334155 0% 25%, #1e293b 0% 50%) 50% / 10px 10px' : hexValue,
+            opacity: color.a === 0 ? 0.7 : 1,
+          }}
+          title={color.a === 0 ? 'Transparent (Alpha 0)' : `Color: ${hexValue}`}
+        >
           <input
             type="color"
             value={hexValue}
-            onChange={(e) => onChange(hexToRgba(e.target.value, color.a))}
+            onChange={(e) => onChange(hexToRgba(e.target.value, color.a === 0 ? 255 : color.a))}
             className="color-hidden-input"
           />
         </label>
@@ -73,14 +80,59 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
           <input
             type="text"
             className="color-hex-input"
-            value={hexValue}
+            value={color.a === 0 ? 'TRANSPARENT' : hexValue}
             onChange={handleHexChange}
-            maxLength={7}
+            maxLength={11}
           />
         </div>
-        <button className="tool-btn" title="Add to My Palette" onClick={handleAddSwatch}>
+        <button className="tool-btn-sm" title="Save Swatch" onClick={handleAddSwatch}>
           ➕
         </button>
+      </div>
+
+      {/* Quick Opacity / Transparency Buttons */}
+      <div>
+        <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase' }}>
+          Opacity / Transparency
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '3px' }}>
+          <button
+            className={`tool-btn-sm ${color.a === 0 ? 'active' : ''}`}
+            style={{ padding: '4px 2px', fontSize: '9px', background: color.a === 0 ? '#ef4444' : undefined }}
+            onClick={() => onChange({ ...color, a: 0 })}
+            title="100% Transparent (Alpha 0)"
+          >
+            0% Clear
+          </button>
+          <button
+            className={`tool-btn-sm ${color.a === 64 ? 'active' : ''}`}
+            style={{ padding: '4px 2px', fontSize: '9px' }}
+            onClick={() => onChange({ ...color, a: 64 })}
+          >
+            25%
+          </button>
+          <button
+            className={`tool-btn-sm ${color.a === 128 ? 'active' : ''}`}
+            style={{ padding: '4px 2px', fontSize: '9px' }}
+            onClick={() => onChange({ ...color, a: 128 })}
+          >
+            50%
+          </button>
+          <button
+            className={`tool-btn-sm ${color.a === 192 ? 'active' : ''}`}
+            style={{ padding: '4px 2px', fontSize: '9px' }}
+            onClick={() => onChange({ ...color, a: 192 })}
+          >
+            75%
+          </button>
+          <button
+            className={`tool-btn-sm ${color.a === 255 ? 'active' : ''}`}
+            style={{ padding: '4px 2px', fontSize: '9px' }}
+            onClick={() => onChange({ ...color, a: 255 })}
+          >
+            100%
+          </button>
+        </div>
       </div>
 
       {/* RGB Sliders */}
@@ -122,7 +174,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
         </div>
 
         <div className="slider-row">
-          <span style={{ color: '#ffcc00' }}>A</span>
+          <span style={{ color: '#f59e0b' }}>A</span>
           <input
             type="range"
             min="0"
@@ -154,7 +206,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
               key={c}
               className="swatch-btn"
               style={{ background: c }}
-              onClick={() => onChange(hexToRgba(c, color.a))}
+              onClick={() => onChange(hexToRgba(c, color.a === 0 ? 255 : color.a))}
             />
           ))}
         </div>
@@ -162,14 +214,14 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => 
 
       {/* Custom Saved Swatches */}
       <div className="custom-swatches-section">
-        <div style={{ fontSize: '11px', color: '#8d95ab', marginBottom: '4px' }}>Saved Swatches:</div>
+        <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '3px' }}>My Saved Swatches:</div>
         <div className="swatches-grid">
           {customSwatches.map((c, i) => (
             <button
               key={`custom_${i}`}
               className="swatch-btn"
               style={{ background: c }}
-              onClick={() => onChange(hexToRgba(c, color.a))}
+              onClick={() => onChange(hexToRgba(c, color.a === 0 ? 255 : color.a))}
             />
           ))}
         </div>

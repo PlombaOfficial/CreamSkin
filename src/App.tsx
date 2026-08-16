@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { HistoryManager } from './skin-studio/engine/HistoryManager';
 import { ModelType, SkinMetadata, ReportItem } from './skin-studio/types';
+import { LanguageCode } from './skin-studio/i18n/translations';
 import { StudioNavbar } from './skin-studio/ui/StudioNavbar';
 import { EditorStudio } from './skin-studio/components/EditorStudio';
 import { GalleryView } from './skin-studio/components/GalleryView';
@@ -11,12 +12,14 @@ import { ServerIntegrationGuide } from './skin-studio/components/ServerIntegrati
 import { AuthModal } from './skin-studio/components/AuthModal';
 import { DirectMessagesModal } from './skin-studio/components/DirectMessagesModal';
 import { ReportModal } from './skin-studio/components/ReportModal';
+import { OnboardingModal } from './skin-studio/components/OnboardingModal';
 import { SKIN_TEMPLATES } from './skin-studio/templates/SkinTemplates';
 import './skin-studio/ui/SkinStudio.css';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'trending' | 'latest' | 'templates' | 'profile' | 'plugin'>('editor');
   const [modelType, setModelType] = useState<ModelType>('classic');
+  const [lang, setLang] = useState<LanguageCode>('ru');
 
   // Core Skin Buffer & Undo/Redo Engine
   const buffer = useMemo(() => {
@@ -31,8 +34,19 @@ export const App: React.FC = () => {
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDMsModal, setShowDMsModal] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [dmRecipient, setDmRecipient] = useState<{ uid: string; name: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<{ type: ReportItem['targetType']; id: string } | null>(null);
+
+  // Check if first-time user
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem('creamskin_tutorial_seen');
+      if (!seen) {
+        setShowOnboarding(true);
+      }
+    } catch {}
+  }, []);
 
   const handleEditSkin = async (skin: SkinMetadata) => {
     history.pushSnapshot(buffer);
@@ -62,13 +76,16 @@ export const App: React.FC = () => {
       {/* Top Navbar */}
       <StudioNavbar
         activeTab={activeTab}
+        lang={lang}
         onTabChange={setActiveTab}
+        onLangChange={setLang}
         onOpenAuth={() => setShowAuthModal(true)}
         onOpenPublish={() => setShowPublishModal(true)}
         onOpenDMs={() => {
           setDmRecipient(null);
           setShowDMsModal(true);
         }}
+        onOpenTutorial={() => setShowOnboarding(true)}
       />
 
       {/* Main Tab Views */}
@@ -199,6 +216,13 @@ export const App: React.FC = () => {
           targetType={reportTarget.type}
           targetId={reportTarget.id}
           onClose={() => setReportTarget(null)}
+        />
+      )}
+
+      {showOnboarding && (
+        <OnboardingModal
+          lang={lang}
+          onClose={() => setShowOnboarding(false)}
         />
       )}
     </div>

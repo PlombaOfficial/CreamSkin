@@ -24,6 +24,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const checkerboardCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [zoom, setZoom] = useState(8); // 8x scale = 512px
   const [panX, setPanX] = useState(0);
@@ -38,6 +39,23 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [currentCoord, setCurrentCoord] = useState<{ x: number; y: number } | null>(null);
+
+  // Render Transparency Checkerboard Background
+  const renderCheckerboard = useCallback(() => {
+    const cb = checkerboardCanvasRef.current;
+    if (!cb) return;
+    const ctx = cb.getContext('2d');
+    if (!ctx) return;
+
+    cb.width = 64;
+    cb.height = 64;
+    for (let y = 0; y < 64; y++) {
+      for (let x = 0; x < 64; x++) {
+        ctx.fillStyle = (x + y) % 2 === 0 ? '#1e293b' : '#0f172a';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }, []);
 
   // Redraw 2D Pixel Canvas
   const renderCanvas = useCallback(() => {
@@ -77,7 +95,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
       }
     }
 
-    // 2. UV Region Outlines & Badges
+    // 2. UV Region Outlines
     if (showUVLabels) {
       for (const r of SKIN_UV_REGIONS) {
         const rx = r.x * zoom;
@@ -85,13 +103,13 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
         const rw = r.w * zoom;
         const rh = r.h * zoom;
 
-        ctx.strokeStyle = r.layer === 'overlay' ? 'rgba(85, 255, 255, 0.35)' : 'rgba(255, 204, 0, 0.35)';
+        ctx.strokeStyle = r.layer === 'overlay' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(245, 158, 11, 0.4)';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
       }
     }
 
-    // 3. Shape Preview on Drag (Line, Rect, Circle)
+    // 3. Shape Preview on Drag
     if (isDrawing && drawStart && currentCoord) {
       const tool = toolConfig.activeTool;
       if (tool === 'line' || tool === 'rectangle' || tool === 'circle') {
@@ -119,9 +137,10 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   }, [zoom, showGrid, showUVLabels, isDrawing, drawStart, currentCoord, toolConfig.activeTool]);
 
   useEffect(() => {
+    renderCheckerboard();
     renderCanvas();
     renderOverlay();
-  }, [renderCanvas, renderOverlay]);
+  }, [renderCheckerboard, renderCanvas, renderOverlay]);
 
   const getCanvasCoords = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const canvas = canvasRef.current;
@@ -140,14 +159,13 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    // Middle mouse or auxiliary button = pan
     if (e.button === 1 || e.button === 2) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - panX, y: e.clientY - panY });
       return;
     }
 
-    if (e.button !== 0) return; // Left click only for drawing
+    if (e.button !== 0) return;
 
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (!coords) return;
@@ -192,7 +210,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     const coords = getCanvasCoords(e.clientX, e.clientY);
     if (coords) {
       const region = findUVRegion(coords.x, coords.y);
-      setHoverRegion(region ? `${region.name} (${region.layer})` : `X: ${coords.x} Y: ${coords.y}`);
+      setHoverRegion(region ? `${region.name} (${region.layer === 'overlay' ? 'Layer 2' : 'Base'})` : `Pixel X: ${coords.x} Y: ${coords.y}`);
     } else {
       setHoverRegion(null);
     }
@@ -245,18 +263,18 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      {/* Zoom / Pan Controls Toolbar */}
+      {/* Zoom / Pan Toolbar */}
       <div className="canvas-controls-bar">
         <button className="tool-btn-sm" onClick={() => setZoom((z) => Math.min(16, z + 1))} title="Zoom In">➕</button>
-        <span style={{ fontSize: '11px', color: '#fff' }}>{zoom * 100}%</span>
+        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600 }}>{zoom * 100}%</span>
         <button className="tool-btn-sm" onClick={() => setZoom((z) => Math.max(3, z - 1))} title="Zoom Out">➖</button>
-        <button className={`tool-btn-sm ${showGrid ? 'active' : ''}`} onClick={() => setShowGrid(!showGrid)} title="Toggle Grid">▦</button>
-        <button className={`tool-btn-sm ${showUVLabels ? 'active' : ''}`} onClick={() => setShowUVLabels(!showUVLabels)} title="Toggle UV Outlines">🏷️</button>
+        <button className={`tool-btn-sm ${showGrid ? 'active' : ''}`} onClick={() => setShowGrid(!showGrid)} title="Toggle Grid">▦ Grid</button>
+        <button className={`tool-btn-sm ${showUVLabels ? 'active' : ''}`} onClick={() => setShowUVLabels(!showUVLabels)} title="Toggle UV Outlines">🏷️ UV</button>
         <button className="tool-btn-sm" onClick={() => { setPanX(0); setPanY(0); setZoom(8); }} title="Reset View">🎯</button>
         {hoverRegion && <span className="hover-region-badge">{hoverRegion}</span>}
       </div>
 
-      {/* Scaled & Positioned Canvas Stack */}
+      {/* Render Canvas Stack (Checkerboard -> Main Pixels -> Overlay Grid) */}
       <div
         className="canvas-render-wrapper"
         style={{
@@ -266,11 +284,17 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
         }}
       >
         <canvas
+          ref={checkerboardCanvasRef}
+          width={64}
+          height={64}
+          style={{ position: 'absolute', top: 0, left: 0, width: `${64 * zoom}px`, height: `${64 * zoom}px`, imageRendering: 'pixelated' }}
+        />
+        <canvas
           ref={canvasRef}
           width={64}
           height={64}
           className="canvas2d-main"
-          style={{ width: `${64 * zoom}px`, height: `${64 * zoom}px` }}
+          style={{ position: 'relative', width: `${64 * zoom}px`, height: `${64 * zoom}px`, imageRendering: 'pixelated' }}
         />
         <canvas
           ref={overlayCanvasRef}
