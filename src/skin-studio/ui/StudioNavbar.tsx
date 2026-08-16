@@ -34,7 +34,6 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
     profile?.username?.toLowerCase() === 'plombaiguess' ||
     user?.email?.toLowerCase().startsWith('plombaiguess');
 
-  // Background Music State
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [isMuted, setIsMuted] = useState(creamSkinRadio.getIsMuted());
 
@@ -56,7 +55,6 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
 
   return (
     <nav className="studio-navbar">
-      {/* Brand */}
       <div className="brand-wrapper" onClick={() => onTabChange('gallery')}>
         <div className="brand-badge">CS</div>
         <div className="brand-text">
@@ -64,7 +62,6 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
         </div>
       </div>
 
-      {/* Navigation Tabs */}
       <div className="nav-links-row">
         <button
           className={`nav-tab-item ${activeTab === 'editor' ? 'active' : ''}`}
@@ -116,21 +113,18 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
         </button>
       </div>
 
-      {/* Right Controls */}
       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-        {/* Admin Panel Trigger (Only for Plomba@gmail.com) */}
         {isSuperAdmin && onOpenAdminPanel && (
           <button
             className="mc-btn-primary"
             style={{ fontSize: '11px', padding: '4px 8px', background: 'linear-gradient(to bottom, #f59e0b, #d97706)', borderTopColor: '#fbbf24', borderLeftColor: '#fbbf24', borderRightColor: '#92400e', borderBottomColor: '#92400e' }}
             onClick={onOpenAdminPanel}
-            title="SuperAdmin Moderation Console"
+            title="Admin Console"
           >
             🛡️ Admin
           </button>
         )}
 
-        {/* Language Selector */}
         <select
           className="tool-btn-sm"
           value={lang}
@@ -150,7 +144,6 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           ))}
         </select>
 
-        {/* Tutorial Button */}
         <button
           className="tool-btn-sm"
           style={{ padding: '3px 6px' }}
@@ -160,9 +153,8 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           ❓
         </button>
 
-        {/* Music Play/Pause & Mute Button */}
         <div className="radio-mini-widget">
-          <button className="radio-btn" onClick={handleTogglePlayMusic} title={isPlayingMusic ? 'Pause Music' : 'Play Music (music.mp3)'}>
+          <button className="radio-btn" onClick={handleTogglePlayMusic} title={isPlayingMusic ? 'Pause Music' : 'Play Music'}>
             {isPlayingMusic ? '⏸️' : '🎵'}
           </button>
           <button className="radio-btn" onClick={handleToggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
@@ -170,7 +162,6 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           </button>
         </div>
 
-        {/* Global Chat & Messages */}
         <button
           className="tool-btn-sm"
           style={{ background: '#1e293b' }}
@@ -180,7 +171,6 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           💬 {t('nav.dms')}
         </button>
 
-        {/* Publish Skin Trigger */}
         {activeTab === 'editor' && onOpenPublish && (
           <button
             className="mc-btn-primary"
@@ -191,7 +181,6 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
           </button>
         )}
 
-        {/* Account / Auth */}
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc' }}>

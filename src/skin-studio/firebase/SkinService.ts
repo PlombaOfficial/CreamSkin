@@ -9,6 +9,7 @@ import {
   limit,
   addDoc,
   updateDoc,
+  deleteDoc,
   increment,
   onSnapshot,
 } from 'firebase/firestore';
@@ -28,6 +29,20 @@ import {
   DirectMessage,
   ReportItem,
 } from '../types';
+import { SKIN_TEMPLATES } from '../templates/SkinTemplates';
+
+export const DEFAULT_CATEGORIES = [
+  'All',
+  'Popular',
+  'Medieval',
+  'Anime',
+  'PvP',
+  'Mobs',
+  'Sci-Fi',
+  'Fantasy',
+  'Cute',
+  'Memes',
+];
 
 export class SkinService {
   public currentUser: User | null = null;
@@ -42,6 +57,38 @@ export class SkinService {
         this.userProfile = null;
       }
     });
+  }
+
+  public getCategories(): string[] {
+    try {
+      const custom = JSON.parse(localStorage.getItem('creamskin_custom_categories') || '[]');
+      const combined = Array.from(new Set([...DEFAULT_CATEGORIES, ...custom]));
+      return combined;
+    } catch {
+      return DEFAULT_CATEGORIES;
+    }
+  }
+
+  public addCustomCategory(categoryName: string): string[] {
+    const trimmed = categoryName.trim();
+    if (!trimmed) return this.getCategories();
+    try {
+      const custom = JSON.parse(localStorage.getItem('creamskin_custom_categories') || '[]');
+      if (!custom.includes(trimmed)) {
+        custom.push(trimmed);
+        localStorage.setItem('creamskin_custom_categories', JSON.stringify(custom));
+      }
+    } catch {}
+    return this.getCategories();
+  }
+
+  public deleteCustomCategory(categoryName: string): string[] {
+    try {
+      let custom = JSON.parse(localStorage.getItem('creamskin_custom_categories') || '[]');
+      custom = custom.filter((c: string) => c.toLowerCase() !== categoryName.toLowerCase());
+      localStorage.setItem('creamskin_custom_categories', JSON.stringify(custom));
+    } catch {}
+    return this.getCategories();
   }
 
   public async loginAnonymous(customName: string = 'Crafter'): Promise<User> {
@@ -110,9 +157,6 @@ export class SkinService {
     }
   }
 
-  /**
-   * Fetch any public user profile by UID (accessible to guests without login)
-   */
   public async getPublicUserProfile(uid: string): Promise<UserProfile | null> {
     try {
       const userRef = doc(firestore, 'users', uid);
@@ -122,7 +166,6 @@ export class SkinService {
       }
     } catch {}
 
-    // Check local published fallback
     try {
       const local = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
       const match = local.find((s: SkinMetadata) => s.authorUid === uid);
@@ -164,7 +207,7 @@ export class SkinService {
       authorUid,
       authorName,
       modelType,
-      category: category || 'General',
+      category: category || 'Medieval',
       tags: tags.length > 0 ? tags : ['minecraft', 'skin'],
       likesCount: 0,
       downloadsCount: 0,
@@ -196,6 +239,32 @@ export class SkinService {
     return skinId;
   }
 
+  private getDefaultCommunitySkins(): SkinMetadata[] {
+    return SKIN_TEMPLATES.map((t, idx) => {
+      const buf = t.generate();
+      const b64 = buf.toBase64PNG();
+      return {
+        id: `template_skin_${t.id}`,
+        title: t.name,
+        description: t.description,
+        authorUid: 'official_creamteam',
+        authorName: 'CreamTeam Official',
+        modelType: t.modelType,
+        category: idx % 2 === 0 ? 'Medieval' : 'Fantasy',
+        tags: ['minecraft', 'template', t.id],
+        likesCount: 150 - idx * 12,
+        downloadsCount: 420 - idx * 25,
+        viewsCount: 1100 - idx * 40,
+        ratingAverage: 5.0,
+        ratingCount: 18 - idx,
+        base64Png: b64,
+        previewUrl: b64,
+        createdAt: Date.now() - idx * 86400000,
+        updatedAt: Date.now() - idx * 86400000,
+      };
+    });
+  }
+
   public async getPublicSkins(
     category: string = 'All',
     sortBy: 'popular' | 'recent' | 'downloads' | 'trending' = 'popular',
@@ -203,7 +272,6 @@ export class SkinService {
   ): Promise<SkinMetadata[]> {
     const result: SkinMetadata[] = [];
 
-    // 1. Fetch genuine skins from Firestore
     try {
       const skinsCol = collection(firestore, 'skins');
       let q = query(skinsCol, limit(50));
@@ -216,7 +284,6 @@ export class SkinService {
       snapshot.forEach((d) => result.push(d.data() as SkinMetadata));
     } catch {}
 
-    // 2. Load Local Published Skins
     try {
       const local = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
       for (const item of local) {
@@ -226,7 +293,13 @@ export class SkinService {
       }
     } catch {}
 
-    // 3. Filter by Category & Search query
+    const defaults = this.getDefaultCommunitySkins();
+    for (const def of defaults) {
+      if (!result.some((r) => r.id === def.id || r.title === def.title)) {
+        result.push(def);
+      }
+    }
+
     return result.filter((s) => {
       const matchCat = category === 'All' || s.category.toLowerCase() === category.toLowerCase();
       const matchSearch =
@@ -368,7 +441,6 @@ export class SkinService {
     });
   }
 
-  // --- DIRECT MESSAGES ---
   public async sendDirectMessage(recipientUid: string, recipientName: string, text: string): Promise<void> {
     if (!this.currentUser) return;
     const myUid = this.currentUser.uid;
@@ -410,11 +482,9 @@ export class SkinService {
     }, () => onUpdate([]));
   }
 
-  // --- GLOBAL COMMUNITY CHAT (Persisted for all users) ---
   public async sendGlobalChatMessage(text: string): Promise<void> {
-    if (!this.currentUser) return;
-    const myUid = this.currentUser.uid;
-    const myName = this.userProfile?.username || 'Crafter';
+    const myUid = this.currentUser?.uid || `guest_${Date.now().toString(36).slice(2, 6)}`;
+    const myName = this.userProfile?.username || (this.currentUser ? 'Crafter' : 'Player');
 
     const message: DirectMessage = {
       id: `global_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
@@ -429,12 +499,22 @@ export class SkinService {
       const chatCol = collection(firestore, 'global_chat');
       await addDoc(chatCol, message);
     } catch {
-      // Offline local storage fallback
       const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');
       saved.push(message);
       if (saved.length > 100) saved.shift();
       localStorage.setItem('creamskin_global_chat', JSON.stringify(saved));
     }
+  }
+
+  public async deleteGlobalChatMessage(msgId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(firestore, 'global_chat', msgId));
+    } catch {}
+    try {
+      let saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');
+      saved = saved.filter((m: DirectMessage) => m.id !== msgId);
+      localStorage.setItem('creamskin_global_chat', JSON.stringify(saved));
+    } catch {}
   }
 
   public subscribeToGlobalChat(onUpdate: (messages: DirectMessage[]) => void): () => void {
@@ -444,8 +524,21 @@ export class SkinService {
 
       return onSnapshot(q, (snapshot) => {
         const list: DirectMessage[] = [];
-        snapshot.forEach((d) => list.push(d.data() as DirectMessage));
-        // Reverse so newest messages are at bottom
+        snapshot.forEach((d) => {
+          const data = d.data() as DirectMessage;
+          data.id = d.id;
+          list.push(data);
+        });
+        if (list.length === 0) {
+          list.push({
+            id: 'welcome_1',
+            conversationId: 'global_chat',
+            senderUid: 'admin',
+            senderName: 'CreamSkin Team',
+            text: 'Welcome to CreamSkin! Share your skins, chat with creators, and have fun!',
+            timestamp: Date.now() - 3600000,
+          });
+        }
         onUpdate(list.reverse());
       }, () => {
         const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');

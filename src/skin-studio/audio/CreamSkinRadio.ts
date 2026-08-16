@@ -1,8 +1,3 @@
-/**
- * Dedicated Music Player for public/audio/music.mp3
- * Supports seamless autoplay on user first interaction and volume persistence.
- */
-
 export class CreamSkinRadio {
   private audioElement: HTMLAudioElement | null = null;
   private isPlaying = false;
@@ -38,7 +33,6 @@ export class CreamSkinRadio {
         }
       });
 
-      // Auto-start music on first user click anywhere on page if not muted
       const startOnFirstGesture = () => {
         if (this.hasInteracted) return;
         this.hasInteracted = true;

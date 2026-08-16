@@ -32,11 +32,8 @@ export class SkinTextureBuffer {
   ): boolean {
     if (x < 0 || x >= 64 || y < 0 || y >= 64) return false;
 
-    // UV Validation and Filtering
     const region = findUVRegion(x, y);
-    if (!region) {
-      // Unmapped region in standard Minecraft skin, still allow writing if user desires
-    } else {
+    if (region) {
       if (activeLayer !== 'both' && region.layer !== activeLayer) {
         return false;
       }
@@ -99,13 +96,10 @@ export class SkinTextureBuffer {
         ctx.imageSmoothingEnabled = false;
 
         if (img.height === 32) {
-          // Legacy 64x32 skin format: convert to modern 64x64
           ctx.drawImage(img, 0, 0);
-          // Mirror Right Arm to Left Arm (32, 48)
           ctx.save();
           ctx.scale(-1, 1);
           ctx.drawImage(canvas, 40, 16, 16, 16, -48, 48, 16, 16);
-          // Mirror Right Leg to Left Leg (16, 48)
           ctx.drawImage(canvas, 0, 16, 16, 16, -32, 48, 16, 16);
           ctx.restore();
         } else {

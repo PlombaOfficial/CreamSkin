@@ -30,7 +30,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     leftLeg: true,
   });
 
-  // Initialize Three.js WebGL Model
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -61,14 +60,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
     };
   }, []);
 
-  // Update texture when buffer changes
   useEffect(() => {
     if (model3DRef.current) {
       model3DRef.current.updateTextureFromBuffer(buffer);
     }
   }, [buffer, textureVersion]);
 
-  // Update model type (classic vs slim)
   useEffect(() => {
     if (model3DRef.current) {
       model3DRef.current.setModelType(modelType);
@@ -109,25 +106,24 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
   return (
     <div className="model3d-container">
-      {/* 3D Viewport Controls Top Bar */}
       <div className="model3d-toolbar">
         <div style={{ display: 'flex', gap: '4px' }}>
           <button
-            className={`tool-btn-sm ${animType === 'idle' ? 'active' : ''}`}
+            className={`mc-btn-secondary ${animType === 'idle' ? 'active' : ''}`}
             onClick={() => handleAnimChange('idle')}
-            title="Idle Breathing Animation"
+            title="Idle Breathing"
           >
             🧘 Idle
           </button>
           <button
-            className={`tool-btn-sm ${animType === 'walk' ? 'active' : ''}`}
+            className={`mc-btn-secondary ${animType === 'walk' ? 'active' : ''}`}
             onClick={() => handleAnimChange('walk')}
-            title="Walking Animation"
+            title="Walking"
           >
             🚶 Walk
           </button>
           <button
-            className={`tool-btn-sm ${animType === 'tpose' ? 'active' : ''}`}
+            className={`mc-btn-secondary ${animType === 'tpose' ? 'active' : ''}`}
             onClick={() => handleAnimChange('tpose')}
             title="T-Pose"
           >
@@ -137,22 +133,20 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({
 
         <div style={{ display: 'flex', gap: '4px' }}>
           <button
-            className={`tool-btn-sm ${showOverlay ? 'active' : ''}`}
+            className={`mc-btn-secondary ${showOverlay ? 'active' : ''}`}
             onClick={handleToggleOverlay}
-            title="Toggle Layer 2 (Outer Hat/Jacket/Sleeve Overlay)"
+            title="Layer 2 Overlay"
           >
-            🧥 Layer 2: {showOverlay ? 'ON' : 'OFF'}
+            🧥 L2: {showOverlay ? 'ON' : 'OFF'}
           </button>
           <button className="tool-btn-sm" onClick={handleResetCamera} title="Reset 3D Camera">
-            🔄 Reset
+            🔄
           </button>
         </div>
       </div>
 
-      {/* WebGL Canvas Container */}
       <div ref={containerRef} className="model3d-viewport" />
 
-      {/* Body Parts Visibility Footer */}
       <div className="model3d-parts-bar">
         <span style={{ fontSize: '10px', color: '#8d95ab' }}>Parts:</span>
         <button

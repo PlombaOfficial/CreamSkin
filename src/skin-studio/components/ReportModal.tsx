@@ -43,8 +43,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
             <div>
               <label style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>Reason</label>
               <select
-                className="color-hex-input"
-                style={{ marginTop: '4px' }}
+                style={{ marginTop: '4px', width: '100%' }}
                 value={reason}
                 onChange={(e) => setReason(e.target.value as any)}
               >
@@ -59,9 +58,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
             <div>
               <label style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>Additional Details (Optional)</label>
               <textarea
-                className="color-hex-input"
                 rows={3}
-                style={{ marginTop: '4px', resize: 'none' }}
+                style={{ marginTop: '4px', width: '100%', resize: 'none' }}
                 placeholder="Explain the issue..."
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
@@ -74,8 +72,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ targetType, targetId, 
               </button>
               <button
                 type="submit"
-                className="tool-btn-sm"
-                style={{ background: '#ef4444', color: '#fff', padding: '6px 14px' }}
+                className="mc-btn-danger"
+                style={{ padding: '6px 14px' }}
               >
                 Submit Report
               </button>

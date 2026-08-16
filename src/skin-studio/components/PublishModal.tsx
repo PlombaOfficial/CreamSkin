@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SkinTextureBuffer } from '../engine/SkinTextureBuffer';
 import { ModelType } from '../types';
 import { skinService } from '../firebase/SkinService';
@@ -18,9 +18,16 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Fantasy');
+  const [category, setCategory] = useState('Medieval');
+  const [categories, setCategories] = useState<string[]>([]);
   const [tags, setTags] = useState('custom, pixelart, minecraft');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const cats = skinService.getCategories().filter((c) => c !== 'All');
+    setCategories(cats);
+    if (cats.length > 0) setCategory(cats[0]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +48,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
       );
       setIsSubmitting(false);
       onSuccess(skinId);
-    } catch (err) {
+    } catch {
       setIsSubmitting(false);
       alert('Failed to publish skin. Please try again.');
     }
@@ -61,8 +68,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             <input
               type="text"
               required
-              className="color-hex-input"
-              style={{ marginTop: '4px' }}
+              style={{ marginTop: '4px', width: '100%' }}
               placeholder="e.g. Cyber Dragon Knight"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -72,9 +78,8 @@ export const PublishModal: React.FC<PublishModalProps> = ({
           <div>
             <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>Description</label>
             <textarea
-              className="color-hex-input"
               rows={3}
-              style={{ marginTop: '4px', resize: 'none' }}
+              style={{ marginTop: '4px', width: '100%', resize: 'none' }}
               placeholder="Tell other crafters about your skin design..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -83,20 +88,15 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>Category</label>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>Genre / Category</label>
               <select
-                className="color-hex-input"
-                style={{ marginTop: '4px' }}
+                style={{ marginTop: '4px', width: '100%' }}
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
-                <option value="Gaming">Gaming</option>
-                <option value="Anime">Anime</option>
-                <option value="Fantasy">Fantasy</option>
-                <option value="Sci-Fi">Sci-Fi</option>
-                <option value="Medieval">Medieval</option>
-                <option value="Cute">Cute</option>
-                <option value="Mobs">Mobs</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
             </div>
 
@@ -105,8 +105,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
               <input
                 type="text"
                 disabled
-                className="color-hex-input"
-                style={{ marginTop: '4px', opacity: 0.7 }}
+                style={{ marginTop: '4px', width: '100%', opacity: 0.7 }}
                 value={modelType === 'classic' ? 'Classic (4px)' : 'Slim (3px)'}
               />
             </div>
@@ -116,8 +115,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             <label style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>Tags (comma separated)</label>
             <input
               type="text"
-              className="color-hex-input"
-              style={{ marginTop: '4px' }}
+              style={{ marginTop: '4px', width: '100%' }}
               placeholder="knight, gold, cape, armor"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
@@ -130,9 +128,9 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             </button>
             <button
               type="submit"
-              className="tool-btn-sm"
+              className="mc-btn-primary"
               disabled={isSubmitting}
-              style={{ background: '#10b981', color: '#fff', padding: '8px 16px' }}
+              style={{ padding: '8px 16px' }}
             >
               {isSubmitting ? 'Publishing...' : '🚀 Publish Now'}
             </button>

@@ -56,14 +56,12 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
     const loadContestSkins = async () => {
       setLoading(true);
       const allSkins = await skinService.getPublicSkins('All', 'popular');
-      // Filter skins related to contest theme or sort by likes
       const contestSkins = allSkins.filter(
         (s) =>
           s.category.toLowerCase() === activeContest.category.toLowerCase() ||
           s.tags.some((t) => t.toLowerCase().includes(activeContest.category.toLowerCase()))
       );
 
-      // If no specific category skins, show top liked skins
       setSkins(contestSkins.length > 0 ? contestSkins : allSkins.slice(0, 12));
       setLoading(false);
     };
@@ -73,7 +71,6 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
 
   return (
     <div className="gallery-container">
-      {/* Contest Header Banner */}
       <div className="mc-contest-banner">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
           <div>
@@ -101,8 +98,7 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
           </button>
         </div>
 
-        {/* Contest Switcher Tabs */}
-        <div style={{ display: 'flex', gap: '6px', marginTop: '16px', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+        <div style={{ display: 'flex', gap: '6px', marginTop: '16px', borderTop: '1px solid var(--cs-border-subtle)', paddingTop: '12px' }}>
           {DEFAULT_CONTESTS.map((c) => (
             <button
               key={c.id}
@@ -115,7 +111,6 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
         </div>
       </div>
 
-      {/* Leaderboard Grid (Sorted by Likes & Ratings) */}
       <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>
           🏅 Live Contest Leaderboard (Ranked by Community Likes)

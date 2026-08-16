@@ -42,14 +42,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ lang, onClose 
   return (
     <div className="modal-overlay" onClick={handleFinish}>
       <div className="modal-dialog" style={{ maxWidth: '540px' }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '8px' }}>
           <div style={{ fontSize: '38px', marginBottom: '6px' }}>{steps[step].icon}</div>
           <h2 style={{ fontSize: '20px', fontWeight: 800 }}>{t('onboard.welcome')}</h2>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{t('onboard.intro')}</p>
         </div>
 
-        {/* Step Card */}
         <div className="panel-box" style={{ background: '#111622', padding: '16px', borderRadius: '10px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#38bdf8' }}>{steps[step].title}</h3>
           <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6', marginTop: '6px' }}>
@@ -60,7 +58,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ lang, onClose 
           </div>
         </div>
 
-        {/* Step Indicators */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', margin: '6px 0' }}>
           {steps.map((_, i) => (
             <div
@@ -76,7 +73,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ lang, onClose 
           ))}
         </div>
 
-        {/* Footer Navigation Buttons */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
           <button
             className="tool-btn-sm"
@@ -89,16 +85,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ lang, onClose 
 
           {step < steps.length - 1 ? (
             <button
-              className="tool-btn-sm"
-              style={{ background: '#3b82f6', color: '#fff', padding: '8px 18px' }}
+              className="mc-btn-primary"
+              style={{ padding: '8px 18px' }}
               onClick={() => setStep((s) => s + 1)}
             >
               Next Step →
             </button>
           ) : (
             <button
-              className="tool-btn-sm"
-              style={{ background: '#10b981', color: '#fff', padding: '8px 20px' }}
+              className="mc-btn-primary"
+              style={{ padding: '8px 20px' }}
               onClick={handleFinish}
             >
               {t('onboard.getStarted')}

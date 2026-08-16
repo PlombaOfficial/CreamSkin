@@ -26,7 +26,6 @@ export class MinecraftModel3D {
   public animationType: 'idle' | 'walk' | 'tpose' = 'idle';
   private animTime = 0;
 
-  // Interaction controls
   public isDragging = false;
   private prevMouseX = 0;
   private prevMouseY = 0;
@@ -38,7 +37,6 @@ export class MinecraftModel3D {
     this.container = container;
     this.modelType = modelType;
 
-    // 1. Setup Canvas Texture (64x64)
     this.skinCanvas = document.createElement('canvas');
     this.skinCanvas.width = 64;
     this.skinCanvas.height = 64;
@@ -47,7 +45,6 @@ export class MinecraftModel3D {
     this.skinTexture.minFilter = THREE.NearestFilter;
     this.skinTexture.colorSpace = THREE.SRGBColorSpace;
 
-    // 2. Three.js Scene, Camera, Renderer
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
       45,
@@ -62,7 +59,6 @@ export class MinecraftModel3D {
     this.renderer.shadowMap.enabled = true;
     container.appendChild(this.renderer.domElement);
 
-    // 3. Studio Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     this.scene.add(ambientLight);
 
@@ -74,7 +70,6 @@ export class MinecraftModel3D {
     dirLight2.position.set(-15, -10, -15);
     this.scene.add(dirLight2);
 
-    // 4. Build Model Structure
     this.characterGroup = new THREE.Group();
     this.headGroup = new THREE.Group();
     this.torsoGroup = new THREE.Group();
@@ -115,7 +110,6 @@ export class MinecraftModel3D {
   }
 
   public rebuildModel() {
-    // Clear groups
     while (this.headGroup.children.length > 0) this.headGroup.remove(this.headGroup.children[0]);
     while (this.torsoGroup.children.length > 0) this.torsoGroup.remove(this.torsoGroup.children[0]);
     while (this.rightArmGroup.children.length > 0) this.rightArmGroup.remove(this.rightArmGroup.children[0]);
@@ -144,7 +138,6 @@ export class MinecraftModel3D {
       side: THREE.DoubleSide,
     });
 
-    // --- HEAD (8x8x8) ---
     const headGeom = this.createBoxGeometry(8, 8, 8, 0, 0, 8, 8, 8);
     const headMesh = new THREE.Mesh(headGeom, baseMat);
     headMesh.position.set(0, 4, 0);
@@ -157,7 +150,6 @@ export class MinecraftModel3D {
     this.headGroup.add(hatMesh);
     this.overlayMeshes.push(hatMesh);
 
-    // --- TORSO (8x12x4) ---
     const torsoGeom = this.createBoxGeometry(8, 12, 4, 16, 16, 8, 12, 4);
     const torsoMesh = new THREE.Mesh(torsoGeom, baseMat);
     torsoMesh.position.set(0, 6, 0);
@@ -170,7 +162,6 @@ export class MinecraftModel3D {
     this.torsoGroup.add(jacketMesh);
     this.overlayMeshes.push(jacketMesh);
 
-    // --- RIGHT ARM (4x12x4 or 3x12x4) ---
     const rArmGeom = this.createBoxGeometry(armW, 12, 4, 40, 16, armW, 12, 4);
     const rArmMesh = new THREE.Mesh(rArmGeom, baseMat);
     rArmMesh.position.set(-armW / 2, -4, 0);
@@ -183,7 +174,6 @@ export class MinecraftModel3D {
     this.rightArmGroup.add(rSleeveMesh);
     this.overlayMeshes.push(rSleeveMesh);
 
-    // --- LEFT ARM (4x12x4 or 3x12x4) ---
     const lArmGeom = this.createBoxGeometry(armW, 12, 4, 32, 48, armW, 12, 4);
     const lArmMesh = new THREE.Mesh(lArmGeom, baseMat);
     lArmMesh.position.set(armW / 2, -4, 0);
@@ -196,7 +186,6 @@ export class MinecraftModel3D {
     this.leftArmGroup.add(lSleeveMesh);
     this.overlayMeshes.push(lSleeveMesh);
 
-    // --- RIGHT LEG (4x12x4) ---
     const rLegGeom = this.createBoxGeometry(4, 12, 4, 0, 16, 4, 12, 4);
     const rLegMesh = new THREE.Mesh(rLegGeom, baseMat);
     rLegMesh.position.set(0, -6, 0);
@@ -209,7 +198,6 @@ export class MinecraftModel3D {
     this.rightLegGroup.add(rPantMesh);
     this.overlayMeshes.push(rPantMesh);
 
-    // --- LEFT LEG (4x12x4) ---
     const lLegGeom = this.createBoxGeometry(4, 12, 4, 16, 48, 4, 12, 4);
     const lLegMesh = new THREE.Mesh(lLegGeom, baseMat);
     lLegMesh.position.set(0, -6, 0);
@@ -223,9 +211,6 @@ export class MinecraftModel3D {
     this.overlayMeshes.push(lPantMesh);
   }
 
-  /**
-   * Helper to map official Minecraft box face UVs (+X, -X, +Y, -Y, +Z, -Z)
-   */
   private createBoxGeometry(
     w: number,
     h: number,
@@ -239,20 +224,13 @@ export class MinecraftModel3D {
     const geometry = new THREE.BoxGeometry(w, h, d);
     const uvs: number[] = [];
 
-    // Face UV mapping in Minecraft 64x64 texture coords
-    // 0: Right (+X)
-    // 1: Left (-X)
-    // 2: Top (+Y)
-    // 3: Bottom (-Y)
-    // 4: Front (+Z)
-    // 5: Back (-Z)
     const faces = [
-      { x: u, y: v + ud, w: ud, h: uh }, // Right
-      { x: u + ud + uw, y: v + ud, w: ud, h: uh }, // Left
-      { x: u + ud, y: v, w: uw, h: ud }, // Top
-      { x: u + ud + uw, y: v, w: uw, h: ud }, // Bottom
-      { x: u + ud, y: v + ud, w: uw, h: uh }, // Front
-      { x: u + ud * 2 + uw, y: v + ud, w: uw, h: uh }, // Back
+      { x: u, y: v + ud, w: ud, h: uh },
+      { x: u + ud + uw, y: v + ud, w: ud, h: uh },
+      { x: u + ud, y: v, w: uw, h: ud },
+      { x: u + ud + uw, y: v, w: uw, h: ud },
+      { x: u + ud, y: v + ud, w: uw, h: uh },
+      { x: u + ud * 2 + uw, y: v + ud, w: uw, h: uh },
     ];
 
     for (const f of faces) {
@@ -261,7 +239,6 @@ export class MinecraftModel3D {
       const u1 = (f.x + f.w) / 64;
       const v1 = 1 - f.y / 64;
 
-      // 4 UV vertices per face
       uvs.push(u0, v1, u1, v1, u0, v0, u1, v0);
     }
 
@@ -318,7 +295,6 @@ export class MinecraftModel3D {
         this.rightArmGroup.rotation.z = -0.08;
         this.leftArmGroup.rotation.z = 0.08;
       } else {
-        // T-Pose
         this.headGroup.rotation.set(0, 0, 0);
         this.rightArmGroup.rotation.set(0, 0, -Math.PI / 2.2);
         this.leftArmGroup.rotation.set(0, 0, Math.PI / 2.2);
@@ -380,7 +356,6 @@ export class MinecraftModel3D {
       this.updateCameraPosition();
     }, { passive: false });
 
-    // Touch controls for mobile 3D orbit
     let touchStartX = 0;
     let touchStartY = 0;
     el.addEventListener('touchstart', (e) => {

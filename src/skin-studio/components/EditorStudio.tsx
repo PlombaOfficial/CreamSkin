@@ -31,8 +31,9 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
   const [toolConfig, setToolConfig] = useState<ToolConfig>(DEFAULT_TOOL_CONFIG);
   const [textureVersion, setTextureVersion] = useState(0);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'canvas' | '3d' | 'colors'>('canvas');
+  const [eyedropperPickedHex, setEyedropperPickedHex] = useState<string | null>(null);
 
-  // Restore draft skin on initial load if available
   useEffect(() => {
     try {
       const savedDraft = localStorage.getItem('creamskin_draft_skin_v2');
@@ -44,7 +45,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
     } catch {}
   }, [buffer]);
 
-  // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -89,6 +89,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
 
   const handleToolSelect = (tool: ToolType) => {
     setToolConfig((c) => ({ ...c, activeTool: tool }));
+    setEyedropperPickedHex(null);
   };
 
   const handleUndo = () => {
@@ -128,72 +129,131 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const getToolDescription = () => {
+    switch (toolConfig.activeTool) {
+      case 'eyedropper':
+        return lang === 'ru'
+          ? '🧪 Пипетка: Нажмите на любой пиксель на холсте, чтобы скопировать его цвет'
+          : '🧪 Eyedropper: Tap any pixel on the canvas to sample its color';
+      case 'pencil':
+        return lang === 'ru'
+          ? '✏️ Карандаш (1px): Точное попиксельное рисование'
+          : '✏️ Pencil (1px): Pixel-precise drawing';
+      case 'brush':
+        return lang === 'ru'
+          ? `🖌️ Кисть (${toolConfig.brushSize}px): Рисование с выбранным размером кисти`
+          : `🖌️ Brush (${toolConfig.brushSize}px): Freehand painting with brush radius`;
+      case 'eraser':
+        return lang === 'ru'
+          ? '🧹 Ластик: Стирает пиксели до прозрачности на верхнем слое'
+          : '🧹 Eraser: Erases pixels to transparency on overlay layer';
+      case 'fill':
+        return lang === 'ru'
+          ? '🪣 Заливка: Заполняет цветом всю соединенную область'
+          : '🪣 Flood Fill: Fills connected color area';
+      case 'line':
+        return lang === 'ru'
+          ? '📏 Линия: Зажмите и протяните для прямой линии'
+          : '📏 Line Tool: Drag to draw straight lines';
+      case 'rectangle':
+        return lang === 'ru'
+          ? '⬛ Прямоугольник: Зажмите и протяните для рисования прямоугольника'
+          : '⬛ Rectangle: Drag to draw filled rectangle';
+      case 'circle':
+        return lang === 'ru'
+          ? '⚪ Круг: Зажмите и протяните для рисования круга'
+          : '⚪ Circle: Drag to draw circle';
+      case 'noise':
+        return lang === 'ru'
+          ? '✨ Текстурный шум: Создает естественные полутона и градиент Minecraft'
+          : '✨ Texture Noise: Adds subtle shading dithering';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="editor-clean-layout">
-      {/* 1. SLIM LEFT TOOLBAR (Icon-only with clean tooltips) */}
       <aside className="editor-slim-toolbar">
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'pencil' ? 'active' : ''}`}
           onClick={() => handleToolSelect('pencil')}
-          title={`${t('editor.pencil')} (Pencil 1px)`}
+          title={`${t('editor.pencil')} (1px)`}
         >
-          ✏️
+          <span>✏️</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Карандаш' : 'Pencil'}</span>
         </button>
-        <button
-          className={`tool-icon-btn ${toolConfig.activeTool === 'brush' ? 'active' : ''}`}
-          onClick={() => handleToolSelect('brush')}
-          title={`${t('editor.brush')} (Brush)`}
-        >
-          🖌️
-        </button>
-        <button
-          className={`tool-icon-btn ${toolConfig.activeTool === 'eraser' ? 'active' : ''}`}
-          onClick={() => handleToolSelect('eraser')}
-          title={`${t('editor.eraser')} (Eraser)`}
-        >
-          🧹
-        </button>
-        <button
-          className={`tool-icon-btn ${toolConfig.activeTool === 'fill' ? 'active' : ''}`}
-          onClick={() => handleToolSelect('fill')}
-          title={`${t('editor.fill')} (Flood Fill)`}
-        >
-          🪣
-        </button>
+
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'eyedropper' ? 'active' : ''}`}
           onClick={() => handleToolSelect('eyedropper')}
           title={`${t('editor.picker')} (Eyedropper)`}
         >
-          🧪
+          <span>🧪</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Пипетка' : 'Picker'}</span>
         </button>
+
+        <button
+          className={`tool-icon-btn ${toolConfig.activeTool === 'fill' ? 'active' : ''}`}
+          onClick={() => handleToolSelect('fill')}
+          title={`${t('editor.fill')} (Fill)`}
+        >
+          <span>🪣</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Заливка' : 'Fill'}</span>
+        </button>
+
+        <button
+          className={`tool-icon-btn ${toolConfig.activeTool === 'eraser' ? 'active' : ''}`}
+          onClick={() => handleToolSelect('eraser')}
+          title={`${t('editor.eraser')} (Eraser)`}
+        >
+          <span>🧹</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Ластик' : 'Eraser'}</span>
+        </button>
+
+        <button
+          className={`tool-icon-btn ${toolConfig.activeTool === 'brush' ? 'active' : ''}`}
+          onClick={() => handleToolSelect('brush')}
+          title={`${t('editor.brush')} (Brush)`}
+        >
+          <span>🖌️</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Кисть' : 'Brush'}</span>
+        </button>
+
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'line' ? 'active' : ''}`}
           onClick={() => handleToolSelect('line')}
-          title={`${t('editor.line')} (Line Tool)`}
+          title={`${t('editor.line')} (Line)`}
         >
-          📏
+          <span>📏</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Линия' : 'Line'}</span>
         </button>
+
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'rectangle' ? 'active' : ''}`}
           onClick={() => handleToolSelect('rectangle')}
           title={`${t('editor.rect')} (Rectangle)`}
         >
-          ⬛
+          <span>⬛</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Прямоуг' : 'Rect'}</span>
         </button>
+
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'circle' ? 'active' : ''}`}
           onClick={() => handleToolSelect('circle')}
           title={`${t('editor.circle')} (Circle)`}
         >
-          ⚪
+          <span>⚪</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Круг' : 'Circle'}</span>
         </button>
+
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'noise' ? 'active' : ''}`}
           onClick={() => handleToolSelect('noise')}
-          title={`${t('editor.noise')} (Texture Dither)`}
+          title={`${t('editor.noise')} (Texture Noise)`}
         >
-          ✨
+          <span>✨</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Шум' : 'Noise'}</span>
         </button>
 
         <div className="toolbar-divider" />
@@ -203,7 +263,8 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           onClick={() => setToolConfig((c) => ({ ...c, symmetryX: !c.symmetryX }))}
           title={`${t('editor.symmetry')} (Mirror X)`}
         >
-          🪞
+          <span>🪞</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Зеркало' : 'Mirror'}</span>
         </button>
 
         <div className="toolbar-divider" />
@@ -214,7 +275,8 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           disabled={!history.canUndo()}
           title="Undo (Ctrl+Z)"
         >
-          ↩
+          <span>↩</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Назад' : 'Undo'}</span>
         </button>
         <button
           className="tool-icon-btn"
@@ -222,15 +284,13 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           disabled={!history.canRedo()}
           title="Redo (Ctrl+Y)"
         >
-          ↪
+          <span>↪</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Вперед' : 'Redo'}</span>
         </button>
       </aside>
 
-      {/* 2. CENTER CANVAS AREA */}
       <main className="editor-main-canvas-area">
-        {/* Top Floating Controls Strip */}
         <div className="canvas-header-strip">
-          {/* Layer Selector */}
           <div className="segmented-control">
             <button
               className={`seg-btn ${toolConfig.activeLayer === 'base' ? 'active' : ''}`}
@@ -252,7 +312,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             </button>
           </div>
 
-          {/* Brush Size */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             <span style={{ fontSize: '11px', color: '#94a3b8' }}>{t('editor.brushSize')}:</span>
             {[1, 2, 3, 4].map((s) => (
@@ -267,7 +326,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             ))}
           </div>
 
-          {/* Model Type */}
           <div className="segmented-control">
             <button
               className={`seg-btn ${modelType === 'classic' ? 'active' : ''}`}
@@ -283,7 +341,27 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             </button>
           </div>
 
-          {/* Action Export Buttons */}
+          <div className="mobile-view-tabs">
+            <button
+              className={`seg-btn ${mobileTab === 'canvas' ? 'active' : ''}`}
+              onClick={() => setMobileTab('canvas')}
+            >
+              2D
+            </button>
+            <button
+              className={`seg-btn ${mobileTab === '3d' ? 'active' : ''}`}
+              onClick={() => setMobileTab('3d')}
+            >
+              3D
+            </button>
+            <button
+              className={`seg-btn ${mobileTab === 'colors' ? 'active' : ''}`}
+              onClick={() => setMobileTab('colors')}
+            >
+              🎨
+            </button>
+          </div>
+
           <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
             <button
               className="mc-btn-secondary"
@@ -319,22 +397,51 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           </div>
         </div>
 
-        {/* 2D Drawing Canvas Viewport */}
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <div className="tool-status-banner">
+          <span>{getToolDescription()}</span>
+          {eyedropperPickedHex && (
+            <span className="eyedropper-tag" style={{ background: eyedropperPickedHex }}>
+              Picked: {eyedropperPickedHex}
+            </span>
+          )}
+        </div>
+
+        <div className={`editor-mobile-viewport ${mobileTab !== 'canvas' ? 'hide-on-mobile' : ''}`} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <Canvas2D
             buffer={buffer}
             toolConfig={toolConfig}
             history={history}
             textureVersion={textureVersion}
             onTextureChange={handleTextureChange}
-            onColorPick={(color) => setToolConfig((c) => ({ ...c, primaryColor: color }))}
+            onColorPick={(color) => {
+              const hex = `#${((1 << 24) + (color.r << 16) + (color.g << 8) + color.b).toString(16).slice(1)}`;
+              setToolConfig((c) => ({ ...c, primaryColor: color }));
+              setEyedropperPickedHex(hex);
+            }}
           />
         </div>
+
+        {mobileTab === '3d' && (
+          <div className="mobile-only-3d-pane">
+            <ModelViewer3D
+              buffer={buffer}
+              modelType={modelType}
+              textureVersion={textureVersion}
+            />
+          </div>
+        )}
+
+        {mobileTab === 'colors' && (
+          <div className="mobile-only-colors-pane">
+            <ColorPicker
+              color={toolConfig.primaryColor}
+              onChange={(color) => setToolConfig((c) => ({ ...c, primaryColor: color }))}
+            />
+          </div>
+        )}
       </main>
 
-      {/* 3. RIGHT SIDEBAR: 3D Viewport & Color Picker */}
       <aside className="editor-sidebar-clean-right">
-        {/* 3D Model Live Viewport */}
         <div style={{ height: '320px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #3b4252' }}>
           <ModelViewer3D
             buffer={buffer}
@@ -343,7 +450,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           />
         </div>
 
-        {/* Compact Color Palette & Picker */}
         <div className="panel-box" style={{ flex: 1, overflowY: 'auto' }}>
           <div className="panel-header">
             <span>{t('editor.colorPalette')}</span>
@@ -355,14 +461,11 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         </div>
       </aside>
 
-      {/* Avatar Modal */}
       {showAvatarModal && (
         <AvatarModal
           currentBuffer={buffer}
           onClose={() => setShowAvatarModal(false)}
-          onAvatarSaved={() => {
-            alert('🎉 Profile avatar successfully updated!');
-          }}
+          onAvatarSaved={() => {}}
         />
       )}
     </div>

@@ -30,7 +30,6 @@ export const App: React.FC = () => {
     return 'ru';
   });
 
-  // Core Skin Buffer & Undo/Redo Engine
   const buffer = useMemo(() => {
     const template = SKIN_TEMPLATES.find((t) => t.id === 'classic_steve') || SKIN_TEMPLATES[0];
     return template.generate();
@@ -38,7 +37,6 @@ export const App: React.FC = () => {
 
   const history = useMemo(() => new HistoryManager(), []);
 
-  // Modals & Popups State
   const [selectedSkin, setSelectedSkin] = useState<SkinMetadata | null>(null);
   const [selectedProfileUid, setSelectedProfileUid] = useState<string | undefined>(undefined);
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -50,7 +48,6 @@ export const App: React.FC = () => {
   const [dmRecipient, setDmRecipient] = useState<{ uid: string; name: string } | null>(null);
   const [reportTarget, setReportTarget] = useState<{ type: ReportItem['targetType']; id: string } | null>(null);
 
-  // Check if first-time user
   useEffect(() => {
     try {
       const seen = localStorage.getItem('creamskin_tutorial_seen');
@@ -91,7 +88,6 @@ export const App: React.FC = () => {
 
   return (
     <div className="studio-app">
-      {/* Top Navbar */}
       <StudioNavbar
         activeTab={activeTab}
         lang={lang}
@@ -110,7 +106,6 @@ export const App: React.FC = () => {
         onOpenAdminPanel={() => setShowAdminPanel(true)}
       />
 
-      {/* Main Tab Views */}
       {activeTab === 'editor' && (
         <EditorStudio
           buffer={buffer}
@@ -188,7 +183,7 @@ export const App: React.FC = () => {
                       style={{ marginTop: '8px', width: '100%' }}
                       onClick={() => handleLoadTemplateAndEdit(t.id)}
                     >
-                      🎨 Start Editing
+                      Start Editing
                     </button>
                   </div>
                 </div>
@@ -211,7 +206,6 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Modals */}
       {selectedSkin && (
         <SkinDetailModal
           skin={selectedSkin}
@@ -230,10 +224,9 @@ export const App: React.FC = () => {
           buffer={buffer}
           modelType={modelType}
           onClose={() => setShowPublishModal(false)}
-          onSuccess={(skinId) => {
+          onSuccess={() => {
             setShowPublishModal(false);
             setActiveTab('gallery');
-            alert(`🎉 Skin published successfully to CreamSkin community! ID: ${skinId}`);
           }}
         />
       )}
@@ -280,9 +273,7 @@ export const App: React.FC = () => {
         <AvatarModal
           currentBuffer={buffer}
           onClose={() => setShowAvatarModal(false)}
-          onAvatarSaved={() => {
-            alert('🎉 Avatar saved to your profile!');
-          }}
+          onAvatarSaved={() => {}}
         />
       )}
     </div>
