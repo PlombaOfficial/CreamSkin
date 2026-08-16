@@ -113,7 +113,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             fontSize: '30px',
             color: '#fff',
             fontWeight: 800,
-            textShadow: '1px 1px 0 rgba(0,0,0,0.5)',
           }}>
             {profile?.username ? profile.username.charAt(0).toUpperCase() : 'C'}
           </div>
@@ -121,11 +120,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#fff' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#fff', margin: 0 }}>
               {profile?.username || 'Crafter'}
             </h1>
             <span className="mc-badge green">
-              CreamSkin Creator
+              Creator
             </span>
             {isMyProfile && onOpenAvatarModal && (
               <button
@@ -137,7 +136,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </button>
             )}
           </div>
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
             {profile?.bio || 'Minecraft skin designer & creator.'}
           </p>
 
@@ -154,7 +153,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       {publishedSkins.length === 0 ? (
         <div className="empty-state-box">
-          <p style={{ fontSize: '13px' }}>No skins published by this creator yet.</p>
+          <p style={{ fontSize: '13px' }}>Пока здесь нет опубликованных работ этого автора.</p>
         </div>
       ) : (
         <div className="skins-grid">
@@ -179,7 +178,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
 
                 <div className="skin-card-meta" style={{ marginTop: '4px' }}>
-                  <span>★ {skin.ratingAverage || 5.0}</span>
+                  <span>★ {skin.ratingAverage > 0 ? skin.ratingAverage : '—'}</span>
                   <span>❤️ {skin.likesCount}</span>
                   <span>📥 {skin.downloadsCount}</span>
                 </div>

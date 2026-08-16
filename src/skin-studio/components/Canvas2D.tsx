@@ -15,6 +15,9 @@ interface Canvas2DProps {
   onColorPick: (color: ColorRGBA) => void;
 }
 
+const ZOOM_STEPS = [50, 75, 100, 125, 150, 200, 300, 400, 600, 800];
+const BASE_PIXEL_SIZE = 6;
+
 export const Canvas2D: React.FC<Canvas2DProps> = ({
   buffer,
   toolConfig,
@@ -28,11 +31,12 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const checkerboardCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [zoom, setZoom] = useState(8);
-  const [panX, setPanX] = useState(0);
-  const [panY, setPanY] = useState(0);
+  const [zoomPercent, setZoomPercent] = useState<number>(100);
+  const [panX, setPanX] = useState<number>(0);
+  const [panY, setPanY] = useState<number>(0);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
 
   const [showGrid, setShowGrid] = useState(true);
   const [showUVLabels, setShowUVLabels] = useState(true);
@@ -41,6 +45,29 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [currentCoord, setCurrentCoord] = useState<{ x: number; y: number } | null>(null);
+
+  const pixelSize = (BASE_PIXEL_SIZE * zoomPercent) / 100;
+  const canvasDisplaySize = 64 * pixelSize;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const renderCheckerboard = useCallback(() => {
     const cb = checkerboardCanvasRef.current;
@@ -76,16 +103,29 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     const ctx = overlay.getContext('2d');
     if (!ctx) return;
 
-    const size = 64 * zoom;
+    const size = canvasDisplaySize;
     overlay.width = size;
     overlay.height = size;
     ctx.clearRect(0, 0, size, size);
 
-    if (showGrid && zoom >= 4) {
+    if (toolConfig.activePart !== 'all') {
+      for (const r of SKIN_UV_REGIONS) {
+        if (r.part !== toolConfig.activePart) {
+          const rx = r.x * pixelSize;
+          const ry = r.y * pixelSize;
+          const rw = r.w * pixelSize;
+          const rh = r.h * pixelSize;
+          ctx.fillStyle = 'rgba(10, 14, 22, 0.65)';
+          ctx.fillRect(rx, ry, rw, rh);
+        }
+      }
+    }
+
+    if (showGrid && pixelSize >= 3) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
       for (let i = 0; i <= 64; i++) {
-        const p = i * zoom;
+        const p = i * pixelSize;
         ctx.beginPath();
         ctx.moveTo(p, 0); ctx.lineTo(p, size);
         ctx.moveTo(0, p); ctx.lineTo(size, p);
@@ -95,13 +135,21 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
 
     if (showUVLabels) {
       for (const r of SKIN_UV_REGIONS) {
-        const rx = r.x * zoom;
-        const ry = r.y * zoom;
-        const rw = r.w * zoom;
-        const rh = r.h * zoom;
+        const rx = r.x * pixelSize;
+        const ry = r.y * pixelSize;
+        const rw = r.w * pixelSize;
+        const rh = r.h * pixelSize;
 
-        ctx.strokeStyle = r.layer === 'overlay' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(245, 158, 11, 0.4)';
-        ctx.lineWidth = 1.5;
+        const isSelectedPart = toolConfig.activePart === 'all' || toolConfig.activePart === r.part;
+
+        if (isSelectedPart) {
+          ctx.strokeStyle = r.layer === 'overlay' ? '#38bdf8' : '#f59e0b';
+          ctx.lineWidth = toolConfig.activePart === r.part ? 2 : 1;
+        } else {
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+          ctx.lineWidth = 1;
+        }
+
         ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
       }
     }
@@ -109,28 +157,28 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     if (isDrawing && drawStart && currentCoord) {
       const tool = toolConfig.activeTool;
       if (tool === 'line' || tool === 'rectangle' || tool === 'circle') {
-        ctx.strokeStyle = '#ffff00';
+        ctx.strokeStyle = '#facc15';
         ctx.lineWidth = 2;
         if (tool === 'line') {
           ctx.beginPath();
-          ctx.moveTo((drawStart.x + 0.5) * zoom, (drawStart.y + 0.5) * zoom);
-          ctx.lineTo((currentCoord.x + 0.5) * zoom, (currentCoord.y + 0.5) * zoom);
+          ctx.moveTo((drawStart.x + 0.5) * pixelSize, (drawStart.y + 0.5) * pixelSize);
+          ctx.lineTo((currentCoord.x + 0.5) * pixelSize, (currentCoord.y + 0.5) * pixelSize);
           ctx.stroke();
         } else if (tool === 'rectangle') {
-          const minX = Math.min(drawStart.x, currentCoord.x) * zoom;
-          const minY = Math.min(drawStart.y, currentCoord.y) * zoom;
-          const rw = (Math.abs(currentCoord.x - drawStart.x) + 1) * zoom;
-          const rh = (Math.abs(currentCoord.y - drawStart.y) + 1) * zoom;
+          const minX = Math.min(drawStart.x, currentCoord.x) * pixelSize;
+          const minY = Math.min(drawStart.y, currentCoord.y) * pixelSize;
+          const rw = (Math.abs(currentCoord.x - drawStart.x) + 1) * pixelSize;
+          const rh = (Math.abs(currentCoord.y - drawStart.y) + 1) * pixelSize;
           ctx.strokeRect(minX, minY, rw, rh);
         } else if (tool === 'circle') {
-          const r = Math.hypot(currentCoord.x - drawStart.x, currentCoord.y - drawStart.y) * zoom;
+          const r = Math.hypot(currentCoord.x - drawStart.x, currentCoord.y - drawStart.y) * pixelSize;
           ctx.beginPath();
-          ctx.arc((drawStart.x + 0.5) * zoom, (drawStart.y + 0.5) * zoom, r, 0, Math.PI * 2);
+          ctx.arc((drawStart.x + 0.5) * pixelSize, (drawStart.y + 0.5) * pixelSize, r, 0, Math.PI * 2);
           ctx.stroke();
         }
       }
     }
-  }, [zoom, showGrid, showUVLabels, isDrawing, drawStart, currentCoord, toolConfig.activeTool]);
+  }, [canvasDisplaySize, pixelSize, showGrid, showUVLabels, isDrawing, drawStart, currentCoord, toolConfig.activeTool, toolConfig.activePart]);
 
   useEffect(() => {
     renderCheckerboard();
@@ -138,12 +186,32 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     renderOverlay();
   }, [renderCheckerboard, renderCanvas, renderOverlay, textureVersion]);
 
+  const handleZoomIn = () => {
+    setZoomPercent((curr) => {
+      const next = ZOOM_STEPS.find((s) => s > curr);
+      return next !== undefined ? next : curr;
+    });
+  };
+
+  const handleZoomOut = () => {
+    setZoomPercent((curr) => {
+      const prev = [...ZOOM_STEPS].reverse().find((s) => s < curr);
+      return prev !== undefined ? prev : curr;
+    });
+  };
+
+  const handleResetZoom = () => {
+    setZoomPercent(100);
+    setPanX(0);
+    setPanY(0);
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (e.deltaY < 0) {
-      setZoom((z) => Math.min(16, z + 1));
+      handleZoomIn();
     } else {
-      setZoom((z) => Math.max(3, z - 1));
+      handleZoomOut();
     }
   };
 
@@ -164,7 +232,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    if (e.button === 1 || (e.button === 0 && (e.altKey || isSpacePressed))) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - panX, y: e.clientY - panY });
       return;
@@ -270,12 +338,47 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
       onPointerLeave={handlePointerUp}
     >
       <div className="canvas-controls-bar">
-        <button className="tool-btn-sm" onClick={() => setZoom((z) => Math.min(16, z + 1))} title="Zoom In">➕</button>
-        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, minWidth: '40px', textAlign: 'center' }}>{zoom * 100}%</span>
-        <button className="tool-btn-sm" onClick={() => setZoom((z) => Math.max(3, z - 1))} title="Zoom Out">➖</button>
-        <button className={`tool-btn-sm ${showGrid ? 'active' : ''}`} onClick={() => setShowGrid(!showGrid)} title="Toggle Grid">▦ Grid</button>
-        <button className={`tool-btn-sm ${showUVLabels ? 'active' : ''}`} onClick={() => setShowUVLabels(!showUVLabels)} title="Toggle UV Outlines">🏷️ UV</button>
-        <button className="tool-btn-sm" onClick={() => { setPanX(0); setPanY(0); setZoom(8); }} title="Reset View">🎯</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button className="tool-btn-sm" onClick={handleZoomOut} title="Zoom Out (-)">
+            ➖
+          </button>
+          <button
+            className="tool-btn-sm"
+            onClick={handleResetZoom}
+            title="Reset to 100% (0)"
+            style={{ minWidth: '54px', fontWeight: 700, fontSize: '11px', color: '#38bdf8' }}
+          >
+            {zoomPercent}%
+          </button>
+          <button className="tool-btn-sm" onClick={handleZoomIn} title="Zoom In (+)">
+            ➕
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            className={`tool-btn-sm ${showGrid ? 'active' : ''}`}
+            onClick={() => setShowGrid(!showGrid)}
+            title="Toggle Pixel Grid"
+          >
+            ▦ Grid
+          </button>
+          <button
+            className={`tool-btn-sm ${showUVLabels ? 'active' : ''}`}
+            onClick={() => setShowUVLabels(!showUVLabels)}
+            title="Toggle UV Outlines"
+          >
+            🏷️ UV
+          </button>
+          <button
+            className="tool-btn-sm"
+            onClick={handleResetZoom}
+            title="Reset Pan & Zoom"
+          >
+            🎯
+          </button>
+        </div>
+
         {hoverRegion && <span className="hover-region-badge">{hoverRegion}</span>}
       </div>
 
@@ -283,27 +386,39 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
         className="canvas-render-wrapper"
         style={{
           transform: `translate(${panX}px, ${panY}px)`,
-          width: `${64 * zoom}px`,
-          height: `${64 * zoom}px`,
+          width: `${canvasDisplaySize}px`,
+          height: `${canvasDisplaySize}px`,
         }}
       >
         <canvas
           ref={checkerboardCanvasRef}
           width={64}
           height={64}
-          style={{ position: 'absolute', top: 0, left: 0, width: `${64 * zoom}px`, height: `${64 * zoom}px`, imageRendering: 'pixelated' }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: `${canvasDisplaySize}px`,
+            height: `${canvasDisplaySize}px`,
+            imageRendering: 'pixelated',
+          }}
         />
         <canvas
           ref={canvasRef}
           width={64}
           height={64}
           className="canvas2d-main"
-          style={{ position: 'relative', width: `${64 * zoom}px`, height: `${64 * zoom}px`, imageRendering: 'pixelated' }}
+          style={{
+            position: 'relative',
+            width: `${canvasDisplaySize}px`,
+            height: `${canvasDisplaySize}px`,
+            imageRendering: 'pixelated',
+          }}
         />
         <canvas
           ref={overlayCanvasRef}
           className="canvas2d-overlay"
-          style={{ width: `${64 * zoom}px`, height: `${64 * zoom}px` }}
+          style={{ width: `${canvasDisplaySize}px`, height: `${canvasDisplaySize}px` }}
         />
       </div>
     </div>

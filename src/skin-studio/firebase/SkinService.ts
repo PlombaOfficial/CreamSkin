@@ -29,7 +29,6 @@ import {
   DirectMessage,
   ReportItem,
 } from '../types';
-import { SKIN_TEMPLATES } from '../templates/SkinTemplates';
 
 export const DEFAULT_CATEGORIES = [
   'All',
@@ -129,7 +128,7 @@ export class SkinService {
         const newProfile: UserProfile = {
           uid: user.uid,
           username: preferredName || user.displayName || `Crafter_${user.uid.slice(0, 4)}`,
-          bio: 'Minecraft skin designer & creator.',
+          bio: '',
           likedSkinIds: [],
           favoriteSkinIds: [],
           followingUids: [],
@@ -173,7 +172,7 @@ export class SkinService {
         return {
           uid,
           username: match.authorName,
-          bio: 'Community Creator',
+          bio: '',
           likedSkinIds: [],
           favoriteSkinIds: [],
           followingUids: [],
@@ -198,12 +197,12 @@ export class SkinService {
   ): Promise<string> {
     const skinId = `skin_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const authorUid = this.currentUser?.uid || 'guest';
-    const authorName = this.userProfile?.username || 'Community Creator';
+    const authorName = this.userProfile?.username || 'Creator';
 
     const metadata: SkinMetadata = {
       id: skinId,
       title: title.trim() || 'Untitled Skin',
-      description: description.trim() || 'Minecraft Java Edition skin.',
+      description: description.trim() || '',
       authorUid,
       authorName,
       modelType,
@@ -212,8 +211,8 @@ export class SkinService {
       likesCount: 0,
       downloadsCount: 0,
       viewsCount: 0,
-      ratingAverage: 5.0,
-      ratingCount: 1,
+      ratingAverage: 0,
+      ratingCount: 0,
       base64Png,
       previewUrl: previewUrl || base64Png,
       createdAt: Date.now(),
@@ -239,35 +238,9 @@ export class SkinService {
     return skinId;
   }
 
-  private getDefaultCommunitySkins(): SkinMetadata[] {
-    return SKIN_TEMPLATES.map((t, idx) => {
-      const buf = t.generate();
-      const b64 = buf.toBase64PNG();
-      return {
-        id: `template_skin_${t.id}`,
-        title: t.name,
-        description: t.description,
-        authorUid: 'official_creamteam',
-        authorName: 'CreamTeam Official',
-        modelType: t.modelType,
-        category: idx % 2 === 0 ? 'Medieval' : 'Fantasy',
-        tags: ['minecraft', 'template', t.id],
-        likesCount: 150 - idx * 12,
-        downloadsCount: 420 - idx * 25,
-        viewsCount: 1100 - idx * 40,
-        ratingAverage: 5.0,
-        ratingCount: 18 - idx,
-        base64Png: b64,
-        previewUrl: b64,
-        createdAt: Date.now() - idx * 86400000,
-        updatedAt: Date.now() - idx * 86400000,
-      };
-    });
-  }
-
   public async getPublicSkins(
     category: string = 'All',
-    sortBy: 'popular' | 'recent' | 'downloads' | 'trending' = 'popular',
+    sortBy: 'popular' | 'recent' | 'downloads' | 'trending' = 'recent',
     searchQuery: string = ''
   ): Promise<SkinMetadata[]> {
     const result: SkinMetadata[] = [];
@@ -293,13 +266,6 @@ export class SkinService {
       }
     } catch {}
 
-    const defaults = this.getDefaultCommunitySkins();
-    for (const def of defaults) {
-      if (!result.some((r) => r.id === def.id || r.title === def.title)) {
-        result.push(def);
-      }
-    }
-
     return result.filter((s) => {
       const matchCat = category === 'All' || s.category.toLowerCase() === category.toLowerCase();
       const matchSearch =
@@ -312,7 +278,7 @@ export class SkinService {
   }
 
   public async rateSkin(skinId: string, stars: number): Promise<{ average: number; count: number }> {
-    if (!this.currentUser) return { average: 5.0, count: 1 };
+    if (!this.currentUser) return { average: stars, count: 1 };
     const clampedStars = Math.max(1, Math.min(5, Math.round(stars)));
     const uid = this.currentUser.uid;
 
@@ -328,8 +294,9 @@ export class SkinService {
       const skinSnap = await getDoc(skinRef);
       if (skinSnap.exists()) {
         const data = skinSnap.data() as SkinMetadata;
-        const count = (data.ratingCount || 1) + 1;
-        const avg = ((data.ratingAverage || 5.0) * (count - 1) + clampedStars) / count;
+        const count = (data.ratingCount || 0) + 1;
+        const currentSum = (data.ratingAverage || 0) * (data.ratingCount || 0);
+        const avg = (currentSum + clampedStars) / count;
         await updateDoc(skinRef, {
           ratingAverage: parseFloat(avg.toFixed(1)),
           ratingCount: count,
@@ -338,7 +305,7 @@ export class SkinService {
       }
     } catch {}
 
-    return { average: 5.0, count: 1 };
+    return { average: stars, count: 1 };
   }
 
   public async likeSkin(skinId: string): Promise<boolean> {
@@ -529,16 +496,6 @@ export class SkinService {
           data.id = d.id;
           list.push(data);
         });
-        if (list.length === 0) {
-          list.push({
-            id: 'welcome_1',
-            conversationId: 'global_chat',
-            senderUid: 'admin',
-            senderName: 'CreamSkin Team',
-            text: 'Welcome to CreamSkin! Share your skins, chat with creators, and have fun!',
-            timestamp: Date.now() - 3600000,
-          });
-        }
         onUpdate(list.reverse());
       }, () => {
         const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');

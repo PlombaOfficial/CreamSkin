@@ -29,9 +29,9 @@ export class MinecraftModel3D {
   public isDragging = false;
   private prevMouseX = 0;
   private prevMouseY = 0;
-  public rotX = 0.2;
-  public rotY = -0.5;
-  public distance = 42;
+  public rotX = 0.15;
+  public rotY = -0.45;
+  public distance = 38;
 
   constructor(container: HTMLElement, modelType: ModelType = 'classic') {
     this.container = container;
@@ -44,6 +44,7 @@ export class MinecraftModel3D {
     this.skinTexture.magFilter = THREE.NearestFilter;
     this.skinTexture.minFilter = THREE.NearestFilter;
     this.skinTexture.colorSpace = THREE.SRGBColorSpace;
+    this.skinTexture.generateMipmaps = false;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
@@ -53,22 +54,31 @@ export class MinecraftModel3D {
       1000
     );
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance',
+    });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    this.scene.add(ambientLight);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x667788, 1.4);
+    this.scene.add(hemiLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight1.position.set(15, 25, 20);
-    this.scene.add(dirLight1);
+    const frontDirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    frontDirLight.position.set(15, 20, 25);
+    this.scene.add(frontDirLight);
 
-    const dirLight2 = new THREE.DirectionalLight(0x99bbff, 0.6);
-    dirLight2.position.set(-15, -10, -15);
-    this.scene.add(dirLight2);
+    const backDirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    backDirLight.position.set(-15, 10, -20);
+    this.scene.add(backDirLight);
+
+    const leftFillLight = new THREE.DirectionalLight(0xccddee, 0.5);
+    leftFillLight.position.set(-20, 0, 10);
+    this.scene.add(leftFillLight);
 
     this.characterGroup = new THREE.Group();
     this.headGroup = new THREE.Group();
@@ -102,6 +112,24 @@ export class MinecraftModel3D {
     this.skinTexture.needsUpdate = true;
   }
 
+  public async updateTextureFromBase64(base64Png: string): Promise<void> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const ctx = this.skinCanvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, 64, 64);
+          ctx.drawImage(img, 0, 0, 64, 64);
+          this.skinTexture.needsUpdate = true;
+        }
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = base64Png;
+    });
+  }
+
   public setModelType(type: ModelType) {
     if (this.modelType !== type) {
       this.modelType = type;
@@ -125,17 +153,22 @@ export class MinecraftModel3D {
     const isSlim = this.modelType === 'slim';
     const armW = isSlim ? 3 : 4;
 
-    const baseMat = new THREE.MeshLambertMaterial({
-      map: this.skinTexture,
-      transparent: false,
-      side: THREE.FrontSide,
-    });
-
-    const overlayMat = new THREE.MeshLambertMaterial({
+    const baseMat = new THREE.MeshStandardMaterial({
       map: this.skinTexture,
       transparent: true,
-      alphaTest: 0.1,
+      alphaTest: 0.05,
+      side: THREE.FrontSide,
+      roughness: 0.85,
+      metalness: 0.05,
+    });
+
+    const overlayMat = new THREE.MeshStandardMaterial({
+      map: this.skinTexture,
+      transparent: true,
+      alphaTest: 0.05,
       side: THREE.DoubleSide,
+      roughness: 0.85,
+      metalness: 0.05,
     });
 
     const headGeom = this.createBoxGeometry(8, 8, 8, 0, 0, 8, 8, 8);
@@ -144,7 +177,7 @@ export class MinecraftModel3D {
     this.headGroup.position.set(0, 12, 0);
     this.headGroup.add(headMesh);
 
-    const hatGeom = this.createBoxGeometry(8.75, 8.75, 8.75, 32, 0, 8, 8, 8);
+    const hatGeom = this.createBoxGeometry(8.8, 8.8, 8.8, 32, 0, 8, 8, 8);
     const hatMesh = new THREE.Mesh(hatGeom, overlayMat);
     hatMesh.position.set(0, 4, 0);
     this.headGroup.add(hatMesh);
@@ -156,7 +189,7 @@ export class MinecraftModel3D {
     this.torsoGroup.position.set(0, 0, 0);
     this.torsoGroup.add(torsoMesh);
 
-    const jacketGeom = this.createBoxGeometry(8.65, 12.65, 4.65, 16, 32, 8, 12, 4);
+    const jacketGeom = this.createBoxGeometry(8.7, 12.7, 4.7, 16, 32, 8, 12, 4);
     const jacketMesh = new THREE.Mesh(jacketGeom, overlayMat);
     jacketMesh.position.set(0, 6, 0);
     this.torsoGroup.add(jacketMesh);
@@ -168,7 +201,7 @@ export class MinecraftModel3D {
     this.rightArmGroup.position.set(-4, 10, 0);
     this.rightArmGroup.add(rArmMesh);
 
-    const rSleeveGeom = this.createBoxGeometry(armW + 0.65, 12.65, 4.65, 40, 32, armW, 12, 4);
+    const rSleeveGeom = this.createBoxGeometry(armW + 0.7, 12.7, 4.7, 40, 32, armW, 12, 4);
     const rSleeveMesh = new THREE.Mesh(rSleeveGeom, overlayMat);
     rSleeveMesh.position.set(-armW / 2, -4, 0);
     this.rightArmGroup.add(rSleeveMesh);
@@ -180,7 +213,7 @@ export class MinecraftModel3D {
     this.leftArmGroup.position.set(4, 10, 0);
     this.leftArmGroup.add(lArmMesh);
 
-    const lSleeveGeom = this.createBoxGeometry(armW + 0.65, 12.65, 4.65, 48, 48, armW, 12, 4);
+    const lSleeveGeom = this.createBoxGeometry(armW + 0.7, 12.7, 4.7, 48, 48, armW, 12, 4);
     const lSleeveMesh = new THREE.Mesh(lSleeveGeom, overlayMat);
     lSleeveMesh.position.set(armW / 2, -4, 0);
     this.leftArmGroup.add(lSleeveMesh);
@@ -192,7 +225,7 @@ export class MinecraftModel3D {
     this.rightLegGroup.position.set(-2, 0, 0);
     this.rightLegGroup.add(rLegMesh);
 
-    const rPantGeom = this.createBoxGeometry(4.65, 12.65, 4.65, 0, 32, 4, 12, 4);
+    const rPantGeom = this.createBoxGeometry(4.7, 12.7, 4.7, 0, 32, 4, 12, 4);
     const rPantMesh = new THREE.Mesh(rPantGeom, overlayMat);
     rPantMesh.position.set(0, -6, 0);
     this.rightLegGroup.add(rPantMesh);
@@ -204,7 +237,7 @@ export class MinecraftModel3D {
     this.leftLegGroup.position.set(2, 0, 0);
     this.leftLegGroup.add(lLegMesh);
 
-    const lPantGeom = this.createBoxGeometry(4.65, 12.65, 4.65, 0, 48, 4, 12, 4);
+    const lPantGeom = this.createBoxGeometry(4.7, 12.7, 4.7, 0, 48, 4, 12, 4);
     const lPantMesh = new THREE.Mesh(lPantGeom, overlayMat);
     lPantMesh.position.set(0, -6, 0);
     this.leftLegGroup.add(lPantMesh);
@@ -276,24 +309,24 @@ export class MinecraftModel3D {
       this.animTime += dt;
 
       if (this.animationType === 'idle') {
-        const breath = Math.sin(this.animTime * 2.5) * 0.04;
-        this.headGroup.rotation.x = breath * 0.5;
-        this.torsoGroup.position.y = breath * 0.5;
-        this.rightArmGroup.rotation.z = -0.06 + breath * 0.3;
-        this.leftArmGroup.rotation.z = 0.06 - breath * 0.3;
+        const breath = Math.sin(this.animTime * 2.2) * 0.035;
+        this.headGroup.rotation.x = breath * 0.4;
+        this.torsoGroup.position.y = breath * 0.4;
+        this.rightArmGroup.rotation.z = -0.06 + breath * 0.25;
+        this.leftArmGroup.rotation.z = 0.06 - breath * 0.25;
         this.rightArmGroup.rotation.x = 0;
         this.leftArmGroup.rotation.x = 0;
         this.rightLegGroup.rotation.x = 0;
         this.leftLegGroup.rotation.x = 0;
       } else if (this.animationType === 'walk') {
-        const walk = Math.sin(this.animTime * 6) * 0.55;
+        const walk = Math.sin(this.animTime * 5.5) * 0.5;
         this.headGroup.rotation.x = 0;
         this.rightArmGroup.rotation.x = -walk;
         this.leftArmGroup.rotation.x = walk;
         this.rightLegGroup.rotation.x = walk;
         this.leftLegGroup.rotation.x = -walk;
-        this.rightArmGroup.rotation.z = -0.08;
-        this.leftArmGroup.rotation.z = 0.08;
+        this.rightArmGroup.rotation.z = -0.07;
+        this.leftArmGroup.rotation.z = 0.07;
       } else {
         this.headGroup.rotation.set(0, 0, 0);
         this.rightArmGroup.rotation.set(0, 0, -Math.PI / 2.2);
@@ -316,11 +349,18 @@ export class MinecraftModel3D {
     this.renderer.setSize(w, h);
   }
 
-  private updateCameraPosition() {
+  public updateCameraPosition() {
     this.camera.position.x = this.distance * Math.sin(this.rotY) * Math.cos(this.rotX);
     this.camera.position.y = this.distance * Math.sin(this.rotX) + 6;
     this.camera.position.z = this.distance * Math.cos(this.rotY) * Math.cos(this.rotX);
     this.camera.lookAt(0, 6, 0);
+  }
+
+  public resetCamera() {
+    this.rotX = 0.15;
+    this.rotY = -0.45;
+    this.distance = 38;
+    this.updateCameraPosition();
   }
 
   private setupEventListeners() {
@@ -352,7 +392,7 @@ export class MinecraftModel3D {
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
       this.distance += e.deltaY * 0.04;
-      this.distance = Math.max(15, Math.min(80, this.distance));
+      this.distance = Math.max(12, Math.min(70, this.distance));
       this.updateCameraPosition();
     }, { passive: false });
 

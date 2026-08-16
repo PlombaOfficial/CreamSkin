@@ -25,7 +25,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
   const [skins, setSkins] = useState<SkinMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'popular' | 'trending' | 'recent' | 'downloads'>('popular');
+  const [sortBy, setSortBy] = useState<'popular' | 'trending' | 'recent' | 'downloads'>('recent');
 
   const [playerUsername, setPlayerUsername] = useState('');
   const [isSearchingPlayer, setIsSearchingPlayer] = useState(false);
@@ -94,11 +94,11 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
       modelType: player.modelType,
       category: 'Java Player',
       tags: ['minecraft', 'java', player.username.toLowerCase()],
-      likesCount: 120,
-      downloadsCount: 500,
-      viewsCount: 1400,
-      ratingAverage: 5.0,
-      ratingCount: 24,
+      likesCount: 0,
+      downloadsCount: 0,
+      viewsCount: 0,
+      ratingAverage: 0,
+      ratingCount: 0,
       base64Png: player.base64Png || player.skinUrl,
       previewUrl: player.base64Png || player.skinUrl,
       createdAt: Date.now(),
@@ -107,10 +107,9 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
     onSelectSkin(skinMeta);
   };
 
-  const handleAddCategory = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddCustomGenre = () => {
     if (!newCatInput.trim()) return;
-    const updated = skinService.addCustomCategory(newCatInput.trim());
+    const updated = skinService.addCustomCategory(newCatInput);
     setCategories(updated);
     setCategory(newCatInput.trim());
     setNewCatInput('');
@@ -119,82 +118,78 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
 
   return (
     <div className="gallery-container">
-      <div className="gallery-hero">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <h1 className="gallery-hero-title">
-              {activeMode === 'players'
-                ? t('players.title')
-                : activeMode === 'trending'
-                ? t('nav.trending')
-                : t('gallery.title')}
-            </h1>
-            <p style={{ color: '#94a3b8', fontSize: '13px', maxWidth: '600px' }}>
-              {activeMode === 'players'
-                ? t('players.subtitle')
-                : t('gallery.subtitle')}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button
-              className={`mc-btn-secondary ${activeMode === 'community' ? 'active' : ''}`}
-              onClick={() => setActiveMode('community')}
-            >
-              🌐 {t('nav.gallery')}
-            </button>
-            <button
-              className={`mc-btn-secondary ${activeMode === 'players' ? 'active' : ''}`}
-              onClick={() => setActiveMode('players')}
-            >
-              👤 {t('nav.players')}
-            </button>
-            <button
-              className={`mc-btn-secondary ${activeMode === 'trending' ? 'active' : ''}`}
-              onClick={() => setActiveMode('trending')}
-            >
-              🔥 {t('nav.trending')}
-            </button>
-          </div>
-        </div>
+      <div className="gallery-mode-switch-bar">
+        <button
+          className={`gallery-mode-pill ${activeMode === 'community' ? 'active' : ''}`}
+          onClick={() => setActiveMode('community')}
+        >
+          🌐 {t('nav.gallery')}
+        </button>
+        <button
+          className={`gallery-mode-pill ${activeMode === 'players' ? 'active' : ''}`}
+          onClick={() => setActiveMode('players')}
+        >
+          👤 {t('nav.players')}
+        </button>
+        <button
+          className={`gallery-mode-pill ${activeMode === 'trending' ? 'active' : ''}`}
+          onClick={() => setActiveMode('trending')}
+        >
+          🔥 {t('nav.trending')}
+        </button>
+        <button
+          className={`gallery-mode-pill ${activeMode === 'latest' ? 'active' : ''}`}
+          onClick={() => setActiveMode('latest')}
+        >
+          ✨ {t('gallery.newest')}
+        </button>
       </div>
 
       {activeMode === 'players' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <form onSubmit={handleSearchPlayer} style={{ display: 'flex', gap: '8px', maxWidth: '500px' }}>
+        <div className="player-search-section">
+          <div className="gallery-hero">
+            <h1 className="gallery-hero-title">{t('players.title')}</h1>
+            <p className="gallery-hero-desc">{t('players.subtitle')}</p>
+          </div>
+
+          <form onSubmit={handleSearchPlayer} className="player-search-form">
             <input
               type="text"
+              className="player-search-input"
               placeholder={t('players.searchPlaceholder')}
               value={playerUsername}
               onChange={(e) => setPlayerUsername(e.target.value)}
-              style={{ flex: 1 }}
             />
             <button type="submit" className="mc-btn-primary" disabled={isSearchingPlayer}>
-              {isSearchingPlayer ? 'Searching...' : t('players.searchBtn')}
+              {isSearchingPlayer ? t('players.searching') : '🔍 ' + (lang === 'ru' ? 'Найти' : 'Search')}
             </button>
           </form>
 
           {playerError && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#fca5a5', padding: '10px 14px', borderRadius: '6px', fontSize: '13px' }}>
-              {playerError}
+            <div className="player-error-box">
+              ⚠️ {playerError}
             </div>
           )}
 
           {foundPlayer && (
-            <div className="panel-box" style={{ padding: '16px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-              <img
-                src={foundPlayer.base64Png || foundPlayer.skinUrl}
-                alt={foundPlayer.username}
-                style={{ width: '80px', height: '80px', imageRendering: 'pixelated' }}
-              />
-              <div>
-                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff' }}>{foundPlayer.username}</h2>
+            <div className="found-player-card">
+              <div className="found-player-preview">
+                <img
+                  src={foundPlayer.base64Png || foundPlayer.skinUrl}
+                  alt={foundPlayer.username}
+                  className="found-player-img"
+                />
+              </div>
+              <div className="found-player-info">
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+                  {foundPlayer.username}
+                </h3>
                 <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-                  Model: <span style={{ textTransform: 'capitalize' }}>{foundPlayer.modelType}</span>
+                  Model: <span style={{ color: '#38bdf8' }}>{foundPlayer.modelType.toUpperCase()}</span> • UUID: {foundPlayer.uuid.slice(0, 8)}...
                 </div>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                   <button className="mc-btn-primary" onClick={() => handlePlayerToSkin(foundPlayer)}>
-                    View Skin
+                    👁️ 3D View & Details
                   </button>
                   <button
                     className="mc-btn-secondary"
@@ -202,122 +197,116 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
                       const skinMeta: SkinMetadata = {
                         id: `mc_${foundPlayer.uuid}`,
                         title: `${foundPlayer.username}'s Skin`,
-                        description: `Official skin of ${foundPlayer.username}.`,
+                        description: `Official Minecraft Java skin of ${foundPlayer.username}.`,
                         authorUid: 'mojang',
                         authorName: foundPlayer.username,
                         modelType: foundPlayer.modelType,
                         category: 'Java Player',
-                        tags: ['minecraft'],
+                        tags: ['minecraft', 'java', foundPlayer.username.toLowerCase()],
                         likesCount: 0,
                         downloadsCount: 0,
                         viewsCount: 0,
-                        ratingAverage: 5.0,
-                        ratingCount: 1,
+                        ratingAverage: 0,
+                        ratingCount: 0,
                         base64Png: foundPlayer.base64Png || foundPlayer.skinUrl,
+                        previewUrl: foundPlayer.base64Png || foundPlayer.skinUrl,
                         createdAt: Date.now(),
                         updatedAt: Date.now(),
                       };
                       onEditSkin(skinMeta);
                     }}
                   >
-                    Edit in Studio
+                    🎨 Edit / Remix
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>
-              {t('players.featured')}
+          <div style={{ marginTop: '30px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#cbd5e1', marginBottom: '12px', textTransform: 'uppercase' }}>
+              🌟 Popular Minecraft Creators & Players
             </h3>
-            <div className="skins-grid">
+            <div className="featured-players-grid">
               {featuredPlayers.map((p) => (
-                <div key={p.uuid} className="skin-card" onClick={() => handlePlayerToSkin(p)}>
-                  <div className="skin-card-preview">
-                    <img src={p.base64Png || p.skinUrl} alt={p.username} className="skin-card-img" />
-                  </div>
-                  <div className="skin-card-body">
-                    <div className="skin-card-title">{p.username}</div>
-                    <div style={{ fontSize: '11px', color: '#38bdf8' }}>Official Java Skin</div>
-                    <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
-                      <button
-                        className="mc-btn-primary"
-                        style={{ flex: 1, padding: '4px' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlayerToSkin(p);
-                        }}
-                      >
-                        View
-                      </button>
-                    </div>
-                  </div>
+                <div key={p.uuid} className="featured-player-pill" onClick={() => handlePlayerToSkin(p)}>
+                  <img
+                    src={`https://mc-heads.net/avatar/${p.username}/32`}
+                    alt={p.username}
+                    className="player-avatar-sm"
+                  />
+                  <span>{p.username}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
       ) : (
-        <div>
-          <div className="gallery-filters-row">
+        <>
+          <div className="gallery-hero">
+            <h1 className="gallery-hero-title">
+              {activeMode === 'trending' ? '🔥 TRENDING SKINS' : activeMode === 'latest' ? '✨ NEW RELEASES' : t('gallery.title')}
+            </h1>
+            <p className="gallery-hero-desc">{t('gallery.subtitle')}</p>
+          </div>
+
+          <div className="gallery-search-bar">
             <input
-              type="search"
-              className="search-input-box"
-              placeholder={t('gallery.searchPlaceholder')}
+              type="text"
+              className="gallery-search-input"
+              placeholder={t('gallery.search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <div className="category-pills">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  className={`cat-pill ${category === c ? 'active' : ''}`}
-                  onClick={() => setCategory(c)}
-                >
-                  {c}
-                </button>
-              ))}
-
-              {showAddCat ? (
-                <form onSubmit={handleAddCategory} style={{ display: 'inline-flex', gap: '4px' }}>
-                  <input
-                    type="text"
-                    placeholder="New Genre..."
-                    value={newCatInput}
-                    onChange={(e) => setNewCatInput(e.target.value)}
-                    style={{ padding: '2px 8px', fontSize: '11px', width: '110px' }}
-                  />
-                  <button type="submit" className="mc-btn-primary" style={{ padding: '2px 8px', fontSize: '11px' }}>
-                    +
-                  </button>
-                  <button type="button" className="tool-btn-sm" style={{ padding: '2px 6px' }} onClick={() => setShowAddCat(false)}>
-                    ✕
-                  </button>
-                </form>
-              ) : (
-                <button
-                  className="cat-pill"
-                  style={{ background: 'rgba(91, 163, 55, 0.15)', color: '#86efac', border: '1px dashed #5ba337' }}
-                  onClick={() => setShowAddCat(true)}
-                  title="Add Custom Category / Genre"
-                >
-                  + Add Genre
-                </button>
-              )}
-            </div>
-
             <select
+              className="gallery-sort-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              style={{ padding: '6px 10px', fontSize: '12px' }}
             >
+              <option value="recent">{t('gallery.newest')}</option>
               <option value="popular">{t('gallery.popular')}</option>
-              <option value="recent">{t('gallery.recent')}</option>
+              <option value="trending">{t('gallery.trending')}</option>
               <option value="downloads">{t('gallery.downloads')}</option>
             </select>
           </div>
+
+          <div className="categories-filter-row">
+            {categories.map((c) => (
+              <button
+                key={c}
+                className={`category-pill ${category.toLowerCase() === c.toLowerCase() ? 'active' : ''}`}
+                onClick={() => setCategory(c)}
+              >
+                {c}
+              </button>
+            ))}
+            <button
+              className="category-pill add-cat-btn"
+              onClick={() => setShowAddCat(!showAddCat)}
+              title="Add Custom Category / Genre"
+            >
+              + Add Genre
+            </button>
+          </div>
+
+          {showAddCat && (
+            <div className="add-category-box">
+              <input
+                type="text"
+                placeholder="Enter custom genre name (e.g. Cyber, Steampunk, Horror)..."
+                value={newCatInput}
+                onChange={(e) => setNewCatInput(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button className="mc-btn-primary" onClick={handleAddCustomGenre}>
+                ✓ Save Genre
+              </button>
+              <button className="tool-btn-sm" onClick={() => setShowAddCat(false)}>
+                ✕
+              </button>
+            </div>
+          )}
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
@@ -325,50 +314,49 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
             </div>
           ) : skins.length === 0 ? (
             <div className="empty-state-box">
-              <div style={{ fontSize: '32px', marginBottom: '10px' }}>📦</div>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '6px' }}>
-                {t('gallery.noSkins')}
-              </h3>
-              <p style={{ fontSize: '12px', color: '#94a3b8' }}>
-                Try searching for a different term or select another category above.
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎨</div>
+              <p style={{ fontSize: '14px', color: '#f1f5f9', fontWeight: 600, marginBottom: '4px' }}>
+                Пока здесь нет опубликованных работ
               </p>
+              <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '14px' }}>
+                Вы можете стать первым автором, создав скин в 3D-редакторе!
+              </p>
+              <button className="mc-btn-primary" onClick={() => (window as any).creamskin_nav_editor && (window as any).creamskin_nav_editor()}>
+                {t('gallery.createFirst')}
+              </button>
             </div>
           ) : (
             <div className="skins-grid">
               {skins.map((skin) => (
-                <div key={skin.id} className="skin-card" onClick={() => onSelectSkin(skin)}>
+                <div
+                  key={skin.id}
+                  className="skin-card"
+                  onClick={() => onSelectSkin(skin)}
+                >
                   <div className="skin-card-preview">
                     <img src={skin.base64Png} alt={skin.title} className="skin-card-img" />
+                    <span className="skin-card-model-badge">{skin.modelType.toUpperCase()}</span>
                   </div>
+
                   <div className="skin-card-body">
                     <div className="skin-card-title">{skin.title}</div>
                     <div style={{ fontSize: '11px', color: '#38bdf8' }}>by {skin.authorName}</div>
-                    <div className="skin-card-meta" style={{ marginTop: '4px' }}>
-                      <span style={{ color: '#e5a93b' }}>★ {skin.ratingAverage || 5.0}</span>
+
+                    <div className="skin-card-meta">
                       <span>❤️ {skin.likesCount}</span>
-                      <span>📥 {skin.downloadsCount}</span>
+                      <span>★ {skin.ratingAverage > 0 ? skin.ratingAverage : '—'}</span>
                     </div>
+
                     <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
                       <button
                         className="mc-btn-primary"
-                        style={{ flex: 1, padding: '4px' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectSkin(skin);
-                        }}
-                      >
-                        View
-                      </button>
-                      <button
-                        className="mc-btn-secondary"
-                        style={{ padding: '4px 8px' }}
+                        style={{ flex: 1, padding: '5px' }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onEditSkin(skin);
                         }}
-                        title="Edit / Remix"
                       >
-                        🎨
+                        🎨 Remix / Edit
                       </button>
                     </div>
                   </div>
@@ -376,7 +364,7 @@ export const GalleryView: React.FC<GalleryViewProps> = ({
               ))}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

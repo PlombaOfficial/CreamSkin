@@ -17,7 +17,7 @@ const DEFAULT_CONTESTS: ContestItem[] = [
   {
     id: 'contest_medieval',
     title: '🏰 Medieval Champions Contest',
-    description: 'Design the most epic medieval knight, royal monarch, or mysterious wizard skin! Top voted skins receive golden badges.',
+    description: 'Design the most epic medieval knight, royal monarch, or mysterious wizard skin! Community votes determine the leaderboard.',
     theme: 'Medieval / Fantasy',
     deadline: '7 days remaining',
     prize: '👑 Golden Creator Crown & Featured Spotlight',
@@ -25,7 +25,7 @@ const DEFAULT_CONTESTS: ContestItem[] = [
   },
   {
     id: 'contest_cyber',
-    title: '⚡ Neon Cyberpunk 2077',
+    title: '⚡ Neon Cyberpunk Contest',
     description: 'Create futuristic cyber warriors, holographic androids, or neon hackers.',
     theme: 'Sci-Fi / Cyberpunk',
     deadline: '14 days remaining',
@@ -62,7 +62,7 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
           s.tags.some((t) => t.toLowerCase().includes(activeContest.category.toLowerCase()))
       );
 
-      setSkins(contestSkins.length > 0 ? contestSkins : allSkins.slice(0, 12));
+      setSkins(contestSkins);
       setLoading(false);
     };
 
@@ -78,10 +78,10 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
               <span className="mc-badge gold">🏆 ACTIVE CONTEST</span>
               <span className="mc-badge cyan">⏳ {activeContest.deadline}</span>
             </div>
-            <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#fbb034', marginBottom: '6px' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#fbb034', marginBottom: '6px' }}>
               {activeContest.title}
             </h1>
-            <p style={{ fontSize: '13px', color: '#cbd5e1', maxWidth: '650px', lineHeight: '1.5' }}>
+            <p style={{ fontSize: '13px', color: '#cbd5e1', maxWidth: '650px', lineHeight: '1.5', margin: 0 }}>
               {activeContest.description}
             </p>
             <div style={{ marginTop: '8px', fontSize: '12px', color: '#4ade80', fontWeight: 600 }}>
@@ -94,7 +94,7 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
             style={{ padding: '10px 20px', fontSize: '13px' }}
             onClick={onOpenCreateSkin}
           >
-            🎨 Submit Your Skin to Contest
+            🎨 Submit Skin to Contest
           </button>
         </div>
 
@@ -112,24 +112,29 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
       </div>
 
       <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>
-          🏅 Live Contest Leaderboard (Ranked by Community Likes)
+        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>
+          🏅 Contest Leaderboard
         </h2>
         <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-          {skins.length} entries submitted
+          {skins.length} entries
         </span>
       </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-          Loading contest entries...
+          Loading entries...
         </div>
       ) : skins.length === 0 ? (
         <div className="empty-state-box">
-          <div style={{ fontSize: '30px', marginBottom: '8px' }}>🏆</div>
-          <p style={{ fontSize: '14px', marginBottom: '12px' }}>No entries submitted for this contest yet!</p>
+          <div style={{ fontSize: '32px', marginBottom: '8px' }}>🏆</div>
+          <p style={{ fontSize: '14px', color: '#f1f5f9', fontWeight: 600, marginBottom: '4px' }}>
+            Пока здесь нет опубликованных работ
+          </p>
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '14px' }}>
+            Вы можете стать первым участником и отправить свой скин в этот конкурс!
+          </p>
           <button className="mc-btn-primary" onClick={onOpenCreateSkin}>
-            Be the First to Submit
+            Создать и отправить скин
           </button>
         </div>
       ) : (
@@ -169,8 +174,8 @@ export const ContestsView: React.FC<ContestsViewProps> = ({
                   <div style={{ fontSize: '11px', color: '#38bdf8' }}>by {skin.authorName}</div>
 
                   <div className="skin-card-meta" style={{ marginTop: '4px' }}>
-                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>❤️ {skin.likesCount} Likes</span>
-                    <span>★ {skin.ratingAverage || 5.0}</span>
+                    <span style={{ color: '#f59e0b', fontWeight: 700 }}>❤️ {skin.likesCount}</span>
+                    <span>★ {skin.ratingAverage > 0 ? skin.ratingAverage : '—'}</span>
                   </div>
 
                   <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>

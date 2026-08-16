@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { SkinTextureBuffer } from '../engine/SkinTextureBuffer';
 import { HistoryManager } from '../engine/HistoryManager';
 import { ToolConfig, DEFAULT_TOOL_CONFIG } from '../tools/ToolTypes';
-import { ModelType, ToolType } from '../types';
+import { ModelType, ToolType, BodyPart } from '../types';
 import { Canvas2D } from './Canvas2D';
 import { ModelViewer3D } from './ModelViewer3D';
 import { ColorPicker } from '../colors/ColorPicker';
 import { LanguageCode, getTranslation } from '../i18n/translations';
 import { AvatarModal } from './AvatarModal';
+import { ShortcutsModal } from './ShortcutsModal';
 
 interface EditorStudioProps {
   buffer: SkinTextureBuffer;
@@ -31,6 +32,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
   const [toolConfig, setToolConfig] = useState<ToolConfig>(DEFAULT_TOOL_CONFIG);
   const [textureVersion, setTextureVersion] = useState(0);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<'canvas' | '3d' | 'colors'>('canvas');
   const [eyedropperPickedHex, setEyedropperPickedHex] = useState<string | null>(null);
 
@@ -44,36 +46,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
       }
     } catch {}
   }, [buffer]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          if (history.redo(buffer)) {
-            setTextureVersion((v) => v + 1);
-            saveDraft();
-          }
-        } else {
-          if (history.undo(buffer)) {
-            setTextureVersion((v) => v + 1);
-            saveDraft();
-          }
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        if (history.redo(buffer)) {
-          setTextureVersion((v) => v + 1);
-          saveDraft();
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        handleDownloadPNG();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [buffer, history]);
 
   const saveDraft = () => {
     try {
@@ -90,6 +62,10 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
   const handleToolSelect = (tool: ToolType) => {
     setToolConfig((c) => ({ ...c, activeTool: tool }));
     setEyedropperPickedHex(null);
+  };
+
+  const handleBodyPartSelect = (part: BodyPart) => {
+    setToolConfig((c) => ({ ...c, activePart: part }));
   };
 
   const handleUndo = () => {
@@ -129,48 +105,101 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
     reader.readAsDataURL(file);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleDownloadPNG();
+      } else if (e.key === '?' || e.key === 'F1' || ((e.ctrlKey || e.metaKey) && e.key === '/')) {
+        e.preventDefault();
+        setShowShortcutsModal(true);
+      } else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        switch (e.key.toLowerCase()) {
+          case 'p': handleToolSelect('pencil'); break;
+          case 'b': handleToolSelect('brush'); break;
+          case 'e': handleToolSelect('eraser'); break;
+          case 'g': handleToolSelect('fill'); break;
+          case 'i': handleToolSelect('eyedropper'); break;
+          case 'l': handleToolSelect('line'); break;
+          case 'u': handleToolSelect('rectangle'); break;
+          case 'c': handleToolSelect('circle'); break;
+          case 'n': handleToolSelect('noise'); break;
+          case 'm': setToolConfig((c) => ({ ...c, symmetryX: !c.symmetryX })); break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [buffer, history, modelType]);
+
   const getToolDescription = () => {
     switch (toolConfig.activeTool) {
       case 'eyedropper':
         return lang === 'ru'
-          ? '🧪 Пипетка: Нажмите на любой пиксель на холсте, чтобы скопировать его цвет'
-          : '🧪 Eyedropper: Tap any pixel on the canvas to sample its color';
+          ? '🧪 Пипетка (I): Нажмите на любой пиксель на холсте, чтобы скопировать цвет'
+          : '🧪 Eyedropper (I): Tap any pixel on the canvas to sample its color';
       case 'pencil':
         return lang === 'ru'
-          ? '✏️ Карандаш (1px): Точное попиксельное рисование'
-          : '✏️ Pencil (1px): Pixel-precise drawing';
+          ? '✏️ Карандаш (P): Попиксельное точное рисование (1px)'
+          : '✏️ Pencil (P): Pixel-precise drawing (1px)';
       case 'brush':
         return lang === 'ru'
-          ? `🖌️ Кисть (${toolConfig.brushSize}px): Рисование с выбранным размером кисти`
-          : `🖌️ Brush (${toolConfig.brushSize}px): Freehand painting with brush radius`;
+          ? `🖌️ Кисть (B): Рисование с выбранным размером (${toolConfig.brushSize}px)`
+          : `🖌️ Brush (B): Freehand painting (${toolConfig.brushSize}px)`;
       case 'eraser':
         return lang === 'ru'
-          ? '🧹 Ластик: Стирает пиксели до прозрачности на верхнем слое'
-          : '🧹 Eraser: Erases pixels to transparency on overlay layer';
+          ? '🧹 Ластик (E): Стирает пиксели до прозрачности на верхнем слое'
+          : '🧹 Eraser (E): Erases pixels to transparency';
       case 'fill':
         return lang === 'ru'
-          ? '🪣 Заливка: Заполняет цветом всю соединенную область'
-          : '🪣 Flood Fill: Fills connected color area';
+          ? '🪣 Заливка (G): Заполняет цветом всю область'
+          : '🪣 Flood Fill (G): Fills connected color area';
       case 'line':
         return lang === 'ru'
-          ? '📏 Линия: Зажмите и протяните для прямой линии'
-          : '📏 Line Tool: Drag to draw straight lines';
+          ? '📏 Линия (L): Зажмите и протяните для прямой линии'
+          : '📏 Line Tool (L): Drag to draw straight line';
       case 'rectangle':
         return lang === 'ru'
-          ? '⬛ Прямоугольник: Зажмите и протяните для рисования прямоугольника'
-          : '⬛ Rectangle: Drag to draw filled rectangle';
+          ? '⬛ Прямоугольник (U): Зажмите и протяните для прямоугольника'
+          : '⬛ Rectangle (U): Drag to draw rectangle';
       case 'circle':
         return lang === 'ru'
-          ? '⚪ Круг: Зажмите и протяните для рисования круга'
-          : '⚪ Circle: Drag to draw circle';
+          ? '⚪ Круг (C): Зажмите и протяните для рисования круга'
+          : '⚪ Circle (C): Drag to draw circle';
       case 'noise':
         return lang === 'ru'
-          ? '✨ Текстурный шум: Создает естественные полутона и градиент Minecraft'
-          : '✨ Texture Noise: Adds subtle shading dithering';
+          ? '✨ Шум (N): Текстурирование и пиксельные полутона'
+          : '✨ Noise (N): Pixel shading dithering';
       default:
         return '';
     }
   };
+
+  const bodyPartsList: { part: BodyPart; labelRu: string; labelEn: string }[] = [
+    { part: 'all', labelRu: 'Всё тело', labelEn: 'All Body' },
+    { part: 'head', labelRu: 'Голова', labelEn: 'Head' },
+    { part: 'torso', labelRu: 'Тело', labelEn: 'Torso' },
+    { part: 'rightArm', labelRu: 'Прав. рука', labelEn: 'R. Arm' },
+    { part: 'leftArm', labelRu: 'Лев. рука', labelEn: 'L. Arm' },
+    { part: 'rightLeg', labelRu: 'Прав. нога', labelEn: 'R. Leg' },
+    { part: 'leftLeg', labelRu: 'Лев. нога', labelEn: 'L. Leg' },
+  ];
 
   return (
     <div className="editor-clean-layout">
@@ -178,52 +207,52 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'pencil' ? 'active' : ''}`}
           onClick={() => handleToolSelect('pencil')}
-          title={`${t('editor.pencil')} (1px)`}
+          title="Pencil (P)"
         >
           <span>✏️</span>
           <span className="tool-btn-label">{lang === 'ru' ? 'Карандаш' : 'Pencil'}</span>
         </button>
 
         <button
-          className={`tool-icon-btn ${toolConfig.activeTool === 'eyedropper' ? 'active' : ''}`}
-          onClick={() => handleToolSelect('eyedropper')}
-          title={`${t('editor.picker')} (Eyedropper)`}
-        >
-          <span>🧪</span>
-          <span className="tool-btn-label">{lang === 'ru' ? 'Пипетка' : 'Picker'}</span>
-        </button>
-
-        <button
-          className={`tool-icon-btn ${toolConfig.activeTool === 'fill' ? 'active' : ''}`}
-          onClick={() => handleToolSelect('fill')}
-          title={`${t('editor.fill')} (Fill)`}
-        >
-          <span>🪣</span>
-          <span className="tool-btn-label">{lang === 'ru' ? 'Заливка' : 'Fill'}</span>
-        </button>
-
-        <button
-          className={`tool-icon-btn ${toolConfig.activeTool === 'eraser' ? 'active' : ''}`}
-          onClick={() => handleToolSelect('eraser')}
-          title={`${t('editor.eraser')} (Eraser)`}
-        >
-          <span>🧹</span>
-          <span className="tool-btn-label">{lang === 'ru' ? 'Ластик' : 'Eraser'}</span>
-        </button>
-
-        <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'brush' ? 'active' : ''}`}
           onClick={() => handleToolSelect('brush')}
-          title={`${t('editor.brush')} (Brush)`}
+          title="Brush (B)"
         >
           <span>🖌️</span>
           <span className="tool-btn-label">{lang === 'ru' ? 'Кисть' : 'Brush'}</span>
         </button>
 
         <button
+          className={`tool-icon-btn ${toolConfig.activeTool === 'eraser' ? 'active' : ''}`}
+          onClick={() => handleToolSelect('eraser')}
+          title="Eraser (E)"
+        >
+          <span>🧹</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Ластик' : 'Eraser'}</span>
+        </button>
+
+        <button
+          className={`tool-icon-btn ${toolConfig.activeTool === 'fill' ? 'active' : ''}`}
+          onClick={() => handleToolSelect('fill')}
+          title="Fill (G)"
+        >
+          <span>🪣</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Заливка' : 'Fill'}</span>
+        </button>
+
+        <button
+          className={`tool-icon-btn ${toolConfig.activeTool === 'eyedropper' ? 'active' : ''}`}
+          onClick={() => handleToolSelect('eyedropper')}
+          title="Eyedropper (I)"
+        >
+          <span>🧪</span>
+          <span className="tool-btn-label">{lang === 'ru' ? 'Пипетка' : 'Picker'}</span>
+        </button>
+
+        <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'line' ? 'active' : ''}`}
           onClick={() => handleToolSelect('line')}
-          title={`${t('editor.line')} (Line)`}
+          title="Line (L)"
         >
           <span>📏</span>
           <span className="tool-btn-label">{lang === 'ru' ? 'Линия' : 'Line'}</span>
@@ -232,7 +261,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'rectangle' ? 'active' : ''}`}
           onClick={() => handleToolSelect('rectangle')}
-          title={`${t('editor.rect')} (Rectangle)`}
+          title="Rectangle (U)"
         >
           <span>⬛</span>
           <span className="tool-btn-label">{lang === 'ru' ? 'Прямоуг' : 'Rect'}</span>
@@ -241,7 +270,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'circle' ? 'active' : ''}`}
           onClick={() => handleToolSelect('circle')}
-          title={`${t('editor.circle')} (Circle)`}
+          title="Circle (C)"
         >
           <span>⚪</span>
           <span className="tool-btn-label">{lang === 'ru' ? 'Круг' : 'Circle'}</span>
@@ -250,7 +279,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         <button
           className={`tool-icon-btn ${toolConfig.activeTool === 'noise' ? 'active' : ''}`}
           onClick={() => handleToolSelect('noise')}
-          title={`${t('editor.noise')} (Texture Noise)`}
+          title="Noise Shading (N)"
         >
           <span>✨</span>
           <span className="tool-btn-label">{lang === 'ru' ? 'Шум' : 'Noise'}</span>
@@ -261,7 +290,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         <button
           className={`tool-icon-btn ${toolConfig.symmetryX ? 'active' : ''}`}
           onClick={() => setToolConfig((c) => ({ ...c, symmetryX: !c.symmetryX }))}
-          title={`${t('editor.symmetry')} (Mirror X)`}
+          title="Mirror X (M)"
         >
           <span>🪞</span>
           <span className="tool-btn-label">{lang === 'ru' ? 'Зеркало' : 'Mirror'}</span>
@@ -295,18 +324,21 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             <button
               className={`seg-btn ${toolConfig.activeLayer === 'base' ? 'active' : ''}`}
               onClick={() => setToolConfig((c) => ({ ...c, activeLayer: 'base' }))}
+              title="Base Layer 1"
             >
               {t('editor.baseLayer')}
             </button>
             <button
               className={`seg-btn ${toolConfig.activeLayer === 'overlay' ? 'active' : ''}`}
               onClick={() => setToolConfig((c) => ({ ...c, activeLayer: 'overlay' }))}
+              title="Overlay Outer Layer 2"
             >
               {t('editor.outerLayer')}
             </button>
             <button
               className={`seg-btn ${toolConfig.activeLayer === 'both' ? 'active' : ''}`}
               onClick={() => setToolConfig((c) => ({ ...c, activeLayer: 'both' }))}
+              title="Both Layers"
             >
               {t('editor.bothLayers')}
             </button>
@@ -366,6 +398,14 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             <button
               className="mc-btn-secondary"
               style={{ fontSize: '11px', padding: '4px 8px' }}
+              onClick={() => setShowShortcutsModal(true)}
+              title="Keyboard Shortcuts (?)"
+            >
+              ⌨️ Shortcuts
+            </button>
+            <button
+              className="mc-btn-secondary"
+              style={{ fontSize: '11px', padding: '4px 8px' }}
               onClick={() => setShowAvatarModal(true)}
               title="Set Avatar from Skin"
             >
@@ -384,6 +424,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
               className="mc-btn-secondary"
               style={{ fontSize: '11px', padding: '4px 8px' }}
               onClick={handleDownloadPNG}
+              title="Download 64x64 PNG (Ctrl+S)"
             >
               💾 {t('editor.downloadPng')}
             </button>
@@ -395,6 +436,21 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
               🚀 {t('nav.publish')}
             </button>
           </div>
+        </div>
+
+        <div className="body-parts-selector-bar">
+          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginRight: '4px' }}>
+            {lang === 'ru' ? 'Часть тела:' : 'Part:'}
+          </span>
+          {bodyPartsList.map((bp) => (
+            <button
+              key={bp.part}
+              className={`part-pill-btn ${toolConfig.activePart === bp.part ? 'active' : ''}`}
+              onClick={() => handleBodyPartSelect(bp.part)}
+            >
+              {lang === 'ru' ? bp.labelRu : bp.labelEn}
+            </button>
+          ))}
         </div>
 
         <div className="tool-status-banner">
@@ -442,7 +498,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
       </main>
 
       <aside className="editor-sidebar-clean-right">
-        <div style={{ height: '320px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #3b4252' }}>
+        <div style={{ height: '320px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--cs-border)' }}>
           <ModelViewer3D
             buffer={buffer}
             modelType={modelType}
@@ -467,6 +523,10 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           onClose={() => setShowAvatarModal(false)}
           onAvatarSaved={() => {}}
         />
+      )}
+
+      {showShortcutsModal && (
+        <ShortcutsModal onClose={() => setShowShortcutsModal(false)} />
       )}
     </div>
   );

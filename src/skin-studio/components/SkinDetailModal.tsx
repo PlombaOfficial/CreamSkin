@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SkinMetadata, CommentItem } from '../types';
 import { skinService } from '../firebase/SkinService';
 import { SkinTextureBuffer } from '../engine/SkinTextureBuffer';
@@ -40,13 +40,30 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
 
   const [userRating, setUserRating] = useState(0);
   const [hoverStar, setHoverStar] = useState(0);
-  const [ratingAvg, setRatingAvg] = useState(skin.ratingAverage || 5.0);
-  const [ratingCount, setRatingCount] = useState(skin.ratingCount || 1);
+  const [ratingAvg, setRatingAvg] = useState(skin.ratingAverage || 0);
+  const [ratingCount, setRatingCount] = useState(skin.ratingCount || 0);
 
-  const buffer = useMemo(() => {
+  const [buffer, setBuffer] = useState<SkinTextureBuffer>(() => new SkinTextureBuffer());
+  const [textureVersion, setTextureVersion] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
     const buf = new SkinTextureBuffer();
-    buf.loadFromBase64PNG(skin.base64Png);
-    return buf;
+    buf.loadFromBase64PNG(skin.base64Png).then(() => {
+      if (isMounted) {
+        setBuffer(buf);
+        setTextureVersion((v) => v + 1);
+      }
+    }).catch(() => {
+      if (isMounted) {
+        setBuffer(buf);
+        setTextureVersion((v) => v + 1);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [skin.base64Png]);
 
   useEffect(() => {
@@ -129,11 +146,11 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '820px', width: '92%' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: 700 }}>{skin.title}</h2>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px', fontSize: '12px', color: '#94a3b8' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>{skin.title}</h2>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px', fontSize: '12px', color: '#94a3b8' }}>
               <span>
                 by{' '}
                 <strong
@@ -145,8 +162,8 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
               </span>
               {skin.authorUid !== 'mojang' && skin.authorUid !== 'guest' && (
                 <button
-                  className="tool-btn-sm"
-                  style={{ padding: '2px 6px', fontSize: '10px', background: isFollowingAuthor ? '#2563eb' : '#334155' }}
+                  className="mc-btn-secondary"
+                  style={{ padding: '2px 8px', fontSize: '11px' }}
                   onClick={handleToggleFollow}
                 >
                   {isFollowingAuthor ? '✓ Following' : '+ Follow'}
@@ -154,8 +171,8 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
               )}
               {onOpenDMsWithAuthor && skin.authorUid !== 'mojang' && (
                 <button
-                  className="tool-btn-sm"
-                  style={{ padding: '2px 6px', fontSize: '10px' }}
+                  className="mc-btn-secondary"
+                  style={{ padding: '2px 8px', fontSize: '11px' }}
                   onClick={() => requireAuthAction('send messages', () => onOpenDMsWithAuthor(skin.authorUid, skin.authorName))}
                 >
                   💬 Message
@@ -169,27 +186,29 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
         {guestNotice && (
           <div style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#93c5fd', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>🔒 {guestNotice}</span>
-            <button className="tool-btn-sm" style={{ background: '#3b82f6', color: '#fff', padding: '2px 8px' }} onClick={onOpenAuth}>
+            <button className="mc-btn-primary" style={{ padding: '2px 8px', fontSize: '11px' }} onClick={onOpenAuth}>
               Sign In
             </button>
           </div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', minHeight: '360px' }}>
-          <div style={{ height: '360px', borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ height: '360px', borderRadius: '8px', overflow: 'hidden', background: '#0b0f17', border: '1px solid var(--cs-border)' }}>
             <ModelViewer3D
               buffer={buffer}
               modelType={skin.modelType}
-              textureVersion={1}
+              textureVersion={textureVersion}
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <p style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
-              {skin.description}
-            </p>
+            {skin.description && (
+              <p style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>
+                {skin.description}
+              </p>
+            )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#121722', padding: '8px 12px', borderRadius: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#121722', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--cs-border-subtle)' }}>
               <div>
                 <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>{t('modal.rating')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
@@ -207,21 +226,23 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
                     ))}
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: '#f59e0b' }}>
-                    {ratingAvg} <span style={{ color: '#64748b', fontSize: '11px' }}>({ratingCount})</span>
+                    {ratingAvg > 0 ? ratingAvg : '—'} <span style={{ color: '#64748b', fontSize: '11px' }}>({ratingCount})</span>
                   </span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '6px' }}>
                 <button
-                  className={`tool-btn-sm ${hasLiked ? 'active' : ''}`}
+                  className={`mc-btn-secondary ${hasLiked ? 'active' : ''}`}
+                  style={{ padding: '4px 8px', fontSize: '11px' }}
                   onClick={handleLike}
                   title="Like"
                 >
                   ❤️ {likesCount}
                 </button>
                 <button
-                  className={`tool-btn-sm ${isFavorite ? 'active' : ''}`}
+                  className={`mc-btn-secondary ${isFavorite ? 'active' : ''}`}
+                  style={{ padding: '4px 8px', fontSize: '11px' }}
                   onClick={handleToggleFavorite}
                   title="Favorite"
                 >
@@ -230,17 +251,17 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 className="mc-btn-primary"
-                style={{ flex: 1, padding: '8px' }}
+                style={{ flex: 1, padding: '8px', fontSize: '12px' }}
                 onClick={handleDownload}
               >
                 📥 {t('modal.download')}
               </button>
               <button
                 className="mc-btn-secondary"
-                style={{ flex: 1, padding: '8px' }}
+                style={{ flex: 1, padding: '8px', fontSize: '12px' }}
                 onClick={() => {
                   onEditInStudio(skin);
                   onClose();
@@ -267,22 +288,22 @@ export const SkinDetailModal: React.FC<SkinDetailModalProps> = ({
                   /skin set {skin.id}
                 </code>
                 <button
-                  className="tool-btn-sm"
-                  style={{ background: copiedCmd ? '#10b981' : '#1e293b' }}
+                  className="mc-btn-secondary"
+                  style={{ padding: '4px 10px', fontSize: '11px' }}
                   onClick={handleCopyServerCommand}
                 >
-                  {copiedCmd ? '✓' : 'Copy'}
+                  {copiedCmd ? '✓ Copied' : 'Copy'}
                 </button>
               </div>
             </div>
 
             <div className="panel-box" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div className="panel-header">
+              <div className="panel-header" style={{ marginBottom: '2px' }}>
                 <span>💬 {t('modal.comments')} ({comments.length})</span>
                 {onOpenReport && (
                   <button
                     className="tool-btn-sm"
-                    style={{ fontSize: '9px', padding: '1px 5px', background: 'transparent', color: '#ef4444' }}
+                    style={{ fontSize: '10px', padding: '2px 6px', background: 'transparent', color: '#ef4444' }}
                     onClick={() => requireAuthAction('report content', () => onOpenReport('skin', skin.id))}
                   >
                     🚩 Report
