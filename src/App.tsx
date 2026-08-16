@@ -104,6 +104,7 @@ export const App: React.FC = () => {
           buffer={buffer}
           history={history}
           modelType={modelType}
+          lang={lang}
           onModelTypeChange={setModelType}
           onOpenPublish={() => setShowPublishModal(true)}
         />
