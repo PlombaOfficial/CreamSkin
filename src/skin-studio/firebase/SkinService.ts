@@ -110,9 +110,6 @@ export class SkinService {
     }
   }
 
-  /**
-   * Fetch any public user profile by UID (accessible to guests without login)
-   */
   public async getPublicUserProfile(uid: string): Promise<UserProfile | null> {
     try {
       const userRef = doc(firestore, 'users', uid);
@@ -122,7 +119,6 @@ export class SkinService {
       }
     } catch {}
 
-    // Check local published fallback
     try {
       const local = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
       const match = local.find((s: SkinMetadata) => s.authorUid === uid);
@@ -203,7 +199,6 @@ export class SkinService {
   ): Promise<SkinMetadata[]> {
     const result: SkinMetadata[] = [];
 
-    // 1. Fetch genuine skins from Firestore
     try {
       const skinsCol = collection(firestore, 'skins');
       let q = query(skinsCol, limit(50));
@@ -216,7 +211,6 @@ export class SkinService {
       snapshot.forEach((d) => result.push(d.data() as SkinMetadata));
     } catch {}
 
-    // 2. Load Local Published Skins
     try {
       const local = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
       for (const item of local) {
@@ -226,7 +220,6 @@ export class SkinService {
       }
     } catch {}
 
-    // 3. Filter by Category & Search query
     return result.filter((s) => {
       const matchCat = category === 'All' || s.category.toLowerCase() === category.toLowerCase();
       const matchSearch =
@@ -368,7 +361,6 @@ export class SkinService {
     });
   }
 
-  // --- DIRECT MESSAGES ---
   public async sendDirectMessage(recipientUid: string, recipientName: string, text: string): Promise<void> {
     if (!this.currentUser) return;
     const myUid = this.currentUser.uid;
@@ -410,7 +402,6 @@ export class SkinService {
     }, () => onUpdate([]));
   }
 
-  // --- GLOBAL COMMUNITY CHAT (Persisted for all users) ---
   public async sendGlobalChatMessage(text: string): Promise<void> {
     if (!this.currentUser) return;
     const myUid = this.currentUser.uid;
@@ -429,7 +420,6 @@ export class SkinService {
       const chatCol = collection(firestore, 'global_chat');
       await addDoc(chatCol, message);
     } catch {
-      // Offline local storage fallback
       const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');
       saved.push(message);
       if (saved.length > 100) saved.shift();
@@ -445,7 +435,6 @@ export class SkinService {
       return onSnapshot(q, (snapshot) => {
         const list: DirectMessage[] = [];
         snapshot.forEach((d) => list.push(d.data() as DirectMessage));
-        // Reverse so newest messages are at bottom
         onUpdate(list.reverse());
       }, () => {
         const saved = JSON.parse(localStorage.getItem('creamskin_global_chat') || '[]');

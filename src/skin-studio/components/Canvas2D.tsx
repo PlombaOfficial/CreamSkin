@@ -28,7 +28,7 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const checkerboardCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [zoom, setZoom] = useState(8); // 8x scale = 512px
+  const [zoom, setZoom] = useState(8);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
@@ -42,7 +42,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [currentCoord, setCurrentCoord] = useState<{ x: number; y: number } | null>(null);
 
-  // Render Transparency Checkerboard Background
   const renderCheckerboard = useCallback(() => {
     const cb = checkerboardCanvasRef.current;
     if (!cb) return;
@@ -59,7 +58,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     }
   }, []);
 
-  // Redraw 2D Pixel Canvas (runs whenever textureVersion updates via undo/redo or draw)
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -72,7 +70,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     ctx.putImageData(imgData, 0, 0);
   }, [buffer, textureVersion]);
 
-  // Redraw Grid & Guides Overlay
   const renderOverlay = useCallback(() => {
     const overlay = overlayCanvasRef.current;
     if (!overlay) return;
@@ -84,7 +81,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     overlay.height = size;
     ctx.clearRect(0, 0, size, size);
 
-    // 1. Grid Lines
     if (showGrid && zoom >= 4) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
@@ -97,7 +93,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
       }
     }
 
-    // 2. UV Region Outlines
     if (showUVLabels) {
       for (const r of SKIN_UV_REGIONS) {
         const rx = r.x * zoom;
@@ -111,7 +106,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
       }
     }
 
-    // 3. Shape Preview on Drag
     if (isDrawing && drawStart && currentCoord) {
       const tool = toolConfig.activeTool;
       if (tool === 'line' || tool === 'rectangle' || tool === 'circle') {
@@ -144,7 +138,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
     renderOverlay();
   }, [renderCheckerboard, renderCanvas, renderOverlay, textureVersion]);
 
-  // Mouse wheel zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (e.deltaY < 0) {
@@ -276,7 +269,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
-      {/* Floating Canvas Controls */}
       <div className="canvas-controls-bar">
         <button className="tool-btn-sm" onClick={() => setZoom((z) => Math.min(16, z + 1))} title="Zoom In">➕</button>
         <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, minWidth: '40px', textAlign: 'center' }}>{zoom * 100}%</span>
@@ -287,7 +279,6 @@ export const Canvas2D: React.FC<Canvas2DProps> = ({
         {hoverRegion && <span className="hover-region-badge">{hoverRegion}</span>}
       </div>
 
-      {/* Render Canvas Stack (Checkerboard -> Main Pixels -> Overlay Grid) */}
       <div
         className="canvas-render-wrapper"
         style={{

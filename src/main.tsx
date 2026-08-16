@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import './styles/global.css';
 
-// Global React Error Boundary to prevent blank/white screen
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
@@ -17,9 +16,7 @@ class ErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('CreamSkin Application Error caught by boundary:', error, errorInfo);
-  }
+  componentDidCatch() {}
 
   render() {
     if (this.state.hasError) {
@@ -63,13 +60,10 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Register Service Worker safely for PWA
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
   window.addEventListener('load', () => {
     try {
-      navigator.serviceWorker.register('./sw.js').catch(() => {
-        // Silently ignore offline worker errors
-      });
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
     } catch {}
   });
 }
