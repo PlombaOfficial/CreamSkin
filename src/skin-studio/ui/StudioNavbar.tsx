@@ -29,7 +29,10 @@ export const StudioNavbar: React.FC<StudioNavbarProps> = ({
 }) => {
   const user = skinService.currentUser;
   const profile = skinService.userProfile;
-  const isSuperAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isSuperAdmin =
+    user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+    profile?.username?.toLowerCase() === 'plombaiguess' ||
+    user?.email?.toLowerCase().startsWith('plombaiguess');
 
   // Background Music State
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);

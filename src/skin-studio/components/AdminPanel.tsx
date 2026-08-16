@@ -4,7 +4,7 @@ import { SkinMetadata, ReportItem } from '../types';
 import { collection, getDocs, deleteDoc, doc, limit, query } from 'firebase/firestore';
 import { firestore } from '../firebase/FirebaseConfig';
 
-export const ADMIN_EMAIL = 'Plomba@gmail.com';
+export const ADMIN_EMAIL = 'PlombaIGuess@gmail.com';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -12,7 +12,11 @@ interface AdminPanelProps {
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const user = skinService.currentUser;
-  const isSuperAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const userProfile = skinService.userProfile;
+  const isSuperAdmin =
+    user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+    userProfile?.username?.toLowerCase() === 'plombaiguess' ||
+    user?.email?.toLowerCase().startsWith('plombaiguess');
 
   const [activeTab, setActiveTab] = useState<'reports' | 'skins' | 'contests'>('reports');
   const [reports, setReports] = useState<ReportItem[]>([]);
