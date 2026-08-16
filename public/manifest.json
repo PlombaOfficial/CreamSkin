@@ -1,7 +1,7 @@
 {
-  "name": "Minecraft 2D Sandbox",
-  "short_name": "Minecraft 2D",
-  "description": "Procedural 2D Minecraft sandbox game with survival, crafting, mobs, and multiplayer.",
+  "name": "CreamSkin",
+  "short_name": "CreamSkin",
+  "description": "Professional 3D Minecraft Java Edition skin creator and community platform.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0a0c12",

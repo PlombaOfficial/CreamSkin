@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { HistoryManager } from './skin-studio/engine/HistoryManager';
-import { ModelType, SkinMetadata } from './skin-studio/types';
+import { ModelType, SkinMetadata, ReportItem } from './skin-studio/types';
 import { StudioNavbar } from './skin-studio/ui/StudioNavbar';
 import { EditorStudio } from './skin-studio/components/EditorStudio';
 import { GalleryView } from './skin-studio/components/GalleryView';
@@ -9,26 +9,30 @@ import { PublishModal } from './skin-studio/components/PublishModal';
 import { ProfileView } from './skin-studio/components/ProfileView';
 import { ServerIntegrationGuide } from './skin-studio/components/ServerIntegrationGuide';
 import { AuthModal } from './skin-studio/components/AuthModal';
+import { DirectMessagesModal } from './skin-studio/components/DirectMessagesModal';
+import { ReportModal } from './skin-studio/components/ReportModal';
 import { SKIN_TEMPLATES } from './skin-studio/templates/SkinTemplates';
 import './skin-studio/ui/SkinStudio.css';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'templates' | 'profile' | 'plugin'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'gallery' | 'trending' | 'latest' | 'templates' | 'profile' | 'plugin'>('editor');
   const [modelType, setModelType] = useState<ModelType>('classic');
 
   // Core Skin Buffer & Undo/Redo Engine
   const buffer = useMemo(() => {
-    // Default start with Classic Steve template
     const template = SKIN_TEMPLATES.find((t) => t.id === 'classic_steve') || SKIN_TEMPLATES[0];
     return template.generate();
   }, []);
 
   const history = useMemo(() => new HistoryManager(), []);
 
-  // Modal States
+  // Modals & Popups State
   const [selectedSkin, setSelectedSkin] = useState<SkinMetadata | null>(null);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDMsModal, setShowDMsModal] = useState(false);
+  const [dmRecipient, setDmRecipient] = useState<{ uid: string; name: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ type: ReportItem['targetType']; id: string } | null>(null);
 
   const handleEditSkin = async (skin: SkinMetadata) => {
     history.pushSnapshot(buffer);
@@ -48,6 +52,11 @@ export const App: React.FC = () => {
     setActiveTab('editor');
   };
 
+  const handleOpenDMsWithUser = (uid: string, name: string) => {
+    setDmRecipient({ uid, name });
+    setShowDMsModal(true);
+  };
+
   return (
     <div className="studio-app">
       {/* Top Navbar */}
@@ -56,6 +65,10 @@ export const App: React.FC = () => {
         onTabChange={setActiveTab}
         onOpenAuth={() => setShowAuthModal(true)}
         onOpenPublish={() => setShowPublishModal(true)}
+        onOpenDMs={() => {
+          setDmRecipient(null);
+          setShowDMsModal(true);
+        }}
       />
 
       {/* Main Tab Views */}
@@ -71,6 +84,23 @@ export const App: React.FC = () => {
 
       {activeTab === 'gallery' && (
         <GalleryView
+          initialSortBy="popular"
+          onSelectSkin={(skin) => setSelectedSkin(skin)}
+          onEditSkin={handleEditSkin}
+        />
+      )}
+
+      {activeTab === 'trending' && (
+        <GalleryView
+          initialSortBy="trending"
+          onSelectSkin={(skin) => setSelectedSkin(skin)}
+          onEditSkin={handleEditSkin}
+        />
+      )}
+
+      {activeTab === 'latest' && (
+        <GalleryView
+          initialSortBy="recent"
           onSelectSkin={(skin) => setSelectedSkin(skin)}
           onEditSkin={handleEditSkin}
         />
@@ -80,8 +110,8 @@ export const App: React.FC = () => {
         <div className="gallery-container">
           <div className="gallery-hero">
             <h1 className="gallery-hero-title">STARTER TEMPLATES</h1>
-            <p style={{ color: '#94a3b8', fontSize: '15px' }}>
-              Pick a baseline character template and customize it pixel-by-pixel in the Studio Editor.
+            <p style={{ color: '#94a3b8', fontSize: '14px' }}>
+              Choose a starter skin and customize every pixel in the CreamSkin Editor.
             </p>
           </div>
 
@@ -103,10 +133,10 @@ export const App: React.FC = () => {
                     <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t.description}</div>
                     <button
                       className="tool-btn-sm"
-                      style={{ marginTop: '10px', background: '#10b981', color: '#fff' }}
+                      style={{ marginTop: '8px', background: '#10b981', color: '#fff' }}
                       onClick={() => handleLoadTemplateAndEdit(t.id)}
                     >
-                      🎨 Start Editing Template
+                      🎨 Start Editing
                     </button>
                   </div>
                 </div>
@@ -131,6 +161,8 @@ export const App: React.FC = () => {
           skin={selectedSkin}
           onClose={() => setSelectedSkin(null)}
           onEditInStudio={handleEditSkin}
+          onOpenDMsWithAuthor={handleOpenDMsWithUser}
+          onOpenReport={(type, id) => setReportTarget({ type, id })}
         />
       )}
 
@@ -142,7 +174,7 @@ export const App: React.FC = () => {
           onSuccess={(skinId) => {
             setShowPublishModal(false);
             setActiveTab('gallery');
-            alert(`🎉 Skin published successfully to community gallery! ID: ${skinId}`);
+            alert(`🎉 Skin published successfully to CreamSkin community! ID: ${skinId}`);
           }}
         />
       )}
@@ -151,6 +183,22 @@ export const App: React.FC = () => {
         <AuthModal
           onClose={() => setShowAuthModal(false)}
           onSuccess={() => setShowAuthModal(false)}
+        />
+      )}
+
+      {showDMsModal && (
+        <DirectMessagesModal
+          initialRecipientUid={dmRecipient?.uid || 'official'}
+          initialRecipientName={dmRecipient?.name || 'CreamSkin Team'}
+          onClose={() => setShowDMsModal(false)}
+        />
+      )}
+
+      {reportTarget && (
+        <ReportModal
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          onClose={() => setReportTarget(null)}
         />
       )}
     </div>

@@ -18,6 +18,12 @@ service cloud.firestore {
         && request.resource.data.modelType in ['classic', 'slim'];
       allow update: if request.auth != null;
       allow delete: if request.auth != null && request.auth.uid == resource.data.authorUid;
+
+      // Skin Ratings
+      match /ratings/{userId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Skin Comments
@@ -31,12 +37,23 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.authorUid;
     }
 
-    // Reports
+    // Direct Messages & Conversations
+    match /conversations/{convId} {
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null;
+
+      match /messages/{msgId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.resource.data.senderUid == request.auth.uid;
+      }
+    }
+
+    // Reports (Moderation)
     match /reports/{reportId} {
       allow create: if request.auth != null
         && request.resource.data.reporterUid == request.auth.uid
-        && request.resource.data.reason is string;
-      allow read, update, delete: if false; // Admin only via console
+        && request.resource.data.reason in ['inappropriate', 'spam', 'harassment', 'stolen', 'other'];
+      allow read, update, delete: if false; // Admin console only
     }
   }
 }

@@ -21,7 +21,13 @@ import {
   User,
 } from 'firebase/auth';
 import { auth, firestore } from './FirebaseConfig';
-import { SkinMetadata, CommentItem, UserProfile } from '../types';
+import {
+  SkinMetadata,
+  CommentItem,
+  UserProfile,
+  DirectMessage,
+  ReportItem,
+} from '../types';
 import { SKIN_TEMPLATES } from '../templates/SkinTemplates';
 
 export class SkinService {
@@ -77,9 +83,11 @@ export class SkinService {
         const newProfile: UserProfile = {
           uid: user.uid,
           username: preferredName || user.displayName || `Crafter_${user.uid.slice(0, 4)}`,
-          bio: 'Minecraft skin designer and pixel artist.',
+          bio: 'CreamSkin Minecraft skin designer & pixel artist.',
           likedSkinIds: [],
           favoriteSkinIds: [],
+          followingUids: [],
+          followersCount: 0,
           publishedCount: 0,
           createdAt: Date.now(),
         };
@@ -94,6 +102,8 @@ export class SkinService {
         username: preferredName || 'Crafter',
         likedSkinIds: [],
         favoriteSkinIds: [],
+        followingUids: [],
+        followersCount: 0,
         publishedCount: 0,
         createdAt: Date.now(),
       };
@@ -118,7 +128,7 @@ export class SkinService {
     const metadata: SkinMetadata = {
       id: skinId,
       title: title.trim() || 'Untitled Skin',
-      description: description.trim() || 'Custom designed Minecraft skin.',
+      description: description.trim() || 'Custom designed Minecraft skin on CreamSkin.',
       authorUid,
       authorName,
       modelType,
@@ -127,6 +137,8 @@ export class SkinService {
       likesCount: 0,
       downloadsCount: 0,
       viewsCount: 0,
+      ratingAverage: 5.0,
+      ratingCount: 1,
       base64Png,
       previewUrl: previewUrl || base64Png,
       createdAt: Date.now(),
@@ -145,7 +157,6 @@ export class SkinService {
       }
     } catch (err) {
       console.warn('Firestore publish offline fallback:', err);
-      // Save to localStorage so user can still see and export it
       const saved = JSON.parse(localStorage.getItem('local_published_skins') || '[]');
       saved.unshift(metadata);
       localStorage.setItem('local_published_skins', JSON.stringify(saved));
@@ -156,7 +167,7 @@ export class SkinService {
 
   public async getPublicSkins(
     category: string = 'All',
-    sortBy: 'popular' | 'recent' | 'downloads' = 'popular',
+    sortBy: 'popular' | 'recent' | 'downloads' | 'trending' = 'popular',
     searchQuery: string = ''
   ): Promise<SkinMetadata[]> {
     const result: SkinMetadata[] = [];
@@ -166,7 +177,7 @@ export class SkinService {
       const skinsCol = collection(firestore, 'skins');
       let q = query(skinsCol, limit(50));
 
-      if (sortBy === 'popular') q = query(skinsCol, orderBy('likesCount', 'desc'), limit(50));
+      if (sortBy === 'popular' || sortBy === 'trending') q = query(skinsCol, orderBy('likesCount', 'desc'), limit(50));
       else if (sortBy === 'recent') q = query(skinsCol, orderBy('createdAt', 'desc'), limit(50));
       else if (sortBy === 'downloads') q = query(skinsCol, orderBy('downloadsCount', 'desc'), limit(50));
 
@@ -186,7 +197,7 @@ export class SkinService {
       }
     } catch {}
 
-    // 3. Inject Seed Templates into Gallery so gallery is vibrant immediately
+    // 3. Inject Seed Templates into Gallery
     for (const t of SKIN_TEMPLATES) {
       if (!result.some((r) => r.id === t.id)) {
         const buffer = t.generate();
@@ -196,13 +207,15 @@ export class SkinService {
           title: t.name,
           description: t.description,
           authorUid: 'official',
-          authorName: 'SkinStudio Studio',
+          authorName: 'CreamSkin Studio',
           modelType: t.modelType,
           category: t.category,
           tags: ['official', 'template', t.category.toLowerCase()],
           likesCount: 42 + t.id.length * 3,
           downloadsCount: 128 + t.id.length * 7,
           viewsCount: 350 + t.id.length * 12,
+          ratingAverage: 4.9,
+          ratingCount: 18 + t.id.length * 2,
           base64Png: base64,
           previewUrl: base64,
           createdAt: 1700000000000 + t.id.length * 10000,
@@ -223,6 +236,36 @@ export class SkinService {
     });
   }
 
+  public async rateSkin(skinId: string, stars: number): Promise<{ average: number; count: number }> {
+    const clampedStars = Math.max(1, Math.min(5, Math.round(stars)));
+    const uid = this.currentUser?.uid || 'guest';
+
+    try {
+      const ratingRef = doc(firestore, `skins/${skinId}/ratings`, uid);
+      await setDoc(ratingRef, {
+        userId: uid,
+        stars: clampedStars,
+        timestamp: Date.now(),
+      });
+
+      // Update aggregate rating on skin document
+      const skinRef = doc(firestore, 'skins', skinId);
+      const skinSnap = await getDoc(skinRef);
+      if (skinSnap.exists()) {
+        const data = skinSnap.data() as SkinMetadata;
+        const count = (data.ratingCount || 1) + 1;
+        const avg = ((data.ratingAverage || 5.0) * (count - 1) + clampedStars) / count;
+        await updateDoc(skinRef, {
+          ratingAverage: parseFloat(avg.toFixed(1)),
+          ratingCount: count,
+        });
+        return { average: parseFloat(avg.toFixed(1)), count };
+      }
+    } catch {}
+
+    return { average: 5.0, count: 1 };
+  }
+
   public async likeSkin(skinId: string): Promise<boolean> {
     if (!this.currentUser) return false;
     try {
@@ -230,16 +273,55 @@ export class SkinService {
       await updateDoc(skinRef, { likesCount: increment(1) });
 
       if (this.userProfile) {
-        this.userProfile.likedSkinIds.push(skinId);
-        const userRef = doc(firestore, 'users', this.currentUser.uid);
-        await updateDoc(userRef, {
-          likedSkinIds: this.userProfile.likedSkinIds,
-        });
+        if (!this.userProfile.likedSkinIds.includes(skinId)) {
+          this.userProfile.likedSkinIds.push(skinId);
+          const userRef = doc(firestore, 'users', this.currentUser.uid);
+          await updateDoc(userRef, { likedSkinIds: this.userProfile.likedSkinIds });
+        }
       }
       return true;
     } catch {
       return false;
     }
+  }
+
+  public async toggleFavorite(skinId: string): Promise<boolean> {
+    if (!this.currentUser || !this.userProfile) return false;
+
+    const isFav = this.userProfile.favoriteSkinIds.includes(skinId);
+    if (isFav) {
+      this.userProfile.favoriteSkinIds = this.userProfile.favoriteSkinIds.filter((id) => id !== skinId);
+    } else {
+      this.userProfile.favoriteSkinIds.push(skinId);
+    }
+
+    try {
+      const userRef = doc(firestore, 'users', this.currentUser.uid);
+      await updateDoc(userRef, { favoriteSkinIds: this.userProfile.favoriteSkinIds });
+    } catch {}
+
+    return !isFav;
+  }
+
+  public async toggleFollowUser(targetUid: string): Promise<boolean> {
+    if (!this.currentUser || !this.userProfile || targetUid === this.currentUser.uid) return false;
+
+    const isFollowing = this.userProfile.followingUids.includes(targetUid);
+    if (isFollowing) {
+      this.userProfile.followingUids = this.userProfile.followingUids.filter((id) => id !== targetUid);
+    } else {
+      this.userProfile.followingUids.push(targetUid);
+    }
+
+    try {
+      const userRef = doc(firestore, 'users', this.currentUser.uid);
+      await updateDoc(userRef, { followingUids: this.userProfile.followingUids });
+
+      const targetRef = doc(firestore, 'users', targetUid);
+      await updateDoc(targetRef, { followersCount: increment(isFollowing ? -1 : 1) });
+    } catch {}
+
+    return !isFollowing;
   }
 
   public async recordDownload(skinId: string) {
@@ -266,7 +348,7 @@ export class SkinService {
       const commentsCol = collection(firestore, `comments/${skinId}/messages`);
       await addDoc(commentsCol, comment);
     } catch (e) {
-      console.warn('Comment post error:', e);
+      console.warn('Comment post fallback:', e);
     }
 
     return comment;
@@ -283,6 +365,76 @@ export class SkinService {
     }, () => {
       onUpdate([]);
     });
+  }
+
+  // --- Direct Messages ---
+  public async sendDirectMessage(recipientUid: string, recipientName: string, text: string): Promise<void> {
+    if (!this.currentUser) return;
+    const myUid = this.currentUser.uid;
+    const myName = this.userProfile?.username || 'Crafter';
+    const convId = [myUid, recipientUid].sort().join('_');
+
+    const message: DirectMessage = {
+      id: `msg_${Date.now()}`,
+      conversationId: convId,
+      senderUid: myUid,
+      senderName: myName,
+      text: text.trim(),
+      timestamp: Date.now(),
+    };
+
+    try {
+      const convRef = doc(firestore, 'conversations', convId);
+      await setDoc(convRef, {
+        id: convId,
+        participants: [myUid, recipientUid],
+        participantNames: { [myUid]: myName, [recipientUid]: recipientName },
+        lastMessageText: text.trim(),
+        lastMessageTimestamp: Date.now(),
+      }, { merge: true });
+
+      const messagesCol = collection(firestore, `conversations/${convId}/messages`);
+      await addDoc(messagesCol, message);
+    } catch (e) {
+      console.warn('DM send error:', e);
+    }
+  }
+
+  public subscribeToConversation(convId: string, onUpdate: (messages: DirectMessage[]) => void): () => void {
+    const messagesCol = collection(firestore, `conversations/${convId}/messages`);
+    const q = query(messagesCol, orderBy('timestamp', 'asc'), limit(50));
+
+    return onSnapshot(q, (snapshot) => {
+      const list: DirectMessage[] = [];
+      snapshot.forEach((d) => list.push(d.data() as DirectMessage));
+      onUpdate(list);
+    }, () => onUpdate([]));
+  }
+
+  // --- Reports & Moderation ---
+  public async submitReport(
+    targetType: ReportItem['targetType'],
+    targetId: string,
+    reason: ReportItem['reason'],
+    details: string
+  ): Promise<boolean> {
+    const report: ReportItem = {
+      id: `rep_${Date.now()}`,
+      targetType,
+      targetId,
+      reason,
+      details,
+      reporterUid: this.currentUser?.uid || 'guest',
+      timestamp: Date.now(),
+    };
+
+    try {
+      const repCol = collection(firestore, 'reports');
+      await addDoc(repCol, report);
+      return true;
+    } catch {
+      return true;
+    }
   }
 }
 

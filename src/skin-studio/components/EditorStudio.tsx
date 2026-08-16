@@ -67,7 +67,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
   const handleDownloadPNG = () => {
     const dataUrl = buffer.toBase64PNG();
     const link = document.createElement('a');
-    link.download = `minecraft-skin-${modelType}-${Date.now()}.png`;
+    link.download = `creamskin-${modelType}-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
   };
@@ -98,12 +98,12 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
 
   return (
     <div className="editor-layout">
-      {/* LEFT SIDEBAR: Tools & Layers */}
-      <aside className="editor-sidebar">
+      {/* LEFT SIDEBAR: Tools & Modifiers */}
+      <aside className="editor-sidebar-left">
         {/* Tools Palette */}
-        <div className="section-box">
-          <div className="section-header">
-            <span>Drawing Tools</span>
+        <div className="panel-box">
+          <div className="panel-header">
+            <span>Tools</span>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button
                 className="tool-btn-sm"
@@ -111,7 +111,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
                 disabled={!history.canUndo()}
                 title="Undo (Ctrl+Z)"
               >
-                ↩️
+                ↩
               </button>
               <button
                 className="tool-btn-sm"
@@ -119,7 +119,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
                 disabled={!history.canRedo()}
                 title="Redo (Ctrl+Y)"
               >
-                ↪️
+                ↪
               </button>
             </div>
           </div>
@@ -128,7 +128,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             <button
               className={`tool-btn ${toolConfig.activeTool === 'pencil' ? 'active' : ''}`}
               onClick={() => handleToolSelect('pencil')}
-              title="Pencil (1px)"
+              title="Pencil"
             >
               <span>✏️</span>
               <span className="tool-btn-label">Pencil</span>
@@ -136,7 +136,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             <button
               className={`tool-btn ${toolConfig.activeTool === 'brush' ? 'active' : ''}`}
               onClick={() => handleToolSelect('brush')}
-              title="Brush (Multi-pixel)"
+              title="Brush"
             >
               <span>🖌️</span>
               <span className="tool-btn-label">Brush</span>
@@ -152,7 +152,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             <button
               className={`tool-btn ${toolConfig.activeTool === 'fill' ? 'active' : ''}`}
               onClick={() => handleToolSelect('fill')}
-              title="Paint Bucket (Flood Fill)"
+              title="Flood Fill"
             >
               <span>🪣</span>
               <span className="tool-btn-label">Fill</span>
@@ -160,7 +160,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             <button
               className={`tool-btn ${toolConfig.activeTool === 'eyedropper' ? 'active' : ''}`}
               onClick={() => handleToolSelect('eyedropper')}
-              title="Color Picker"
+              title="Eyedropper"
             >
               <span>🧪</span>
               <span className="tool-btn-label">Picker</span>
@@ -192,7 +192,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             <button
               className={`tool-btn ${toolConfig.activeTool === 'noise' ? 'active' : ''}`}
               onClick={() => handleToolSelect('noise')}
-              title="Texture Noise / Shading Shader"
+              title="Texture Shading Shader"
               style={{ gridColumn: 'span 4' }}
             >
               <span>✨ Noise / Texture Shader</span>
@@ -200,13 +200,13 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           </div>
         </div>
 
-        {/* Brush & Mirror Controls */}
-        <div className="section-box">
-          <div className="section-header">Tool Modifiers</div>
+        {/* Tool Modifiers */}
+        <div className="panel-box">
+          <div className="panel-header">Brush Size & Symmetry</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Brush Size:</span>
-              <div style={{ display: 'flex', gap: '4px' }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Size:</span>
+              <div style={{ display: 'flex', gap: '3px' }}>
                 {[1, 2, 3, 4].map((s) => (
                   <button
                     key={s}
@@ -220,7 +220,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Mirror Symmetry:</span>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Symmetry:</span>
               <button
                 className={`tool-btn-sm ${toolConfig.symmetryX ? 'active' : ''}`}
                 onClick={() => setToolConfig((c) => ({ ...c, symmetryX: !c.symmetryX }))}
@@ -231,9 +231,9 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
           </div>
         </div>
 
-        {/* Active Layer & Model Target */}
-        <div className="section-box">
-          <div className="section-header">Target Layer</div>
+        {/* Layer Target & Model */}
+        <div className="panel-box">
+          <div className="panel-header">Target Layer</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
             <button
               className={`tool-btn-sm ${toolConfig.activeLayer === 'base' ? 'active' : ''}`}
@@ -255,8 +255,8 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
             </button>
           </div>
 
-          <div style={{ marginTop: '12px' }}>
-            <div className="section-header">Model Geometry</div>
+          <div style={{ marginTop: '10px' }}>
+            <div className="panel-header">Model Geometry</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
               <button
                 className={`tool-btn-sm ${modelType === 'classic' ? 'active' : ''}`}
@@ -268,14 +268,14 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
                 className={`tool-btn-sm ${modelType === 'slim' ? 'active' : ''}`}
                 onClick={() => onModelTypeChange('slim')}
               >
-                Slim / Alex (3px)
+                Slim (3px)
               </button>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* CENTER WORKSPACE: 2D UV Canvas & 3D Interactive Model */}
+      {/* CENTER WORKSPACE: 2D Canvas & 3D WebGL Viewport */}
       <main className="editor-workspace">
         <Canvas2D
           buffer={buffer}
@@ -288,7 +288,6 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         <ModelViewer3D
           buffer={buffer}
           modelType={modelType}
-          onModelTypeChange={onModelTypeChange}
           textureVersion={textureVersion}
         />
       </main>
@@ -296,8 +295,8 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
       {/* RIGHT SIDEBAR: Colors, Files & Templates */}
       <aside className="editor-sidebar-right">
         {/* Color Palette & Picker */}
-        <div className="section-box">
-          <div className="section-header">Color Palette</div>
+        <div className="panel-box">
+          <div className="panel-header">Color Palette</div>
           <ColorPicker
             color={toolConfig.primaryColor}
             onChange={(color) => setToolConfig((c) => ({ ...c, primaryColor: color }))}
@@ -305,12 +304,12 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
         </div>
 
         {/* File Actions */}
-        <div className="section-box">
-          <div className="section-header">Save & Export</div>
+        <div className="panel-box">
+          <div className="panel-header">Export & Import</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <button
               className="tool-btn-sm"
-              style={{ background: '#10b981', color: '#fff', padding: '10px' }}
+              style={{ background: '#10b981', color: '#fff', padding: '8px' }}
               onClick={handleDownloadPNG}
             >
               💾 Download 64×64 PNG
@@ -318,7 +317,7 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
 
             <label
               className="tool-btn-sm"
-              style={{ textAlign: 'center', cursor: 'pointer', padding: '10px' }}
+              style={{ textAlign: 'center', cursor: 'pointer', padding: '8px' }}
             >
               📥 Import Skin PNG
               <input
@@ -331,27 +330,27 @@ export const EditorStudio: React.FC<EditorStudioProps> = ({
 
             <button
               className="tool-btn-sm"
-              style={{ background: '#3b82f6', color: '#fff', padding: '10px' }}
+              style={{ background: '#2563eb', color: '#fff', padding: '8px' }}
               onClick={onOpenPublish}
             >
-              🚀 Publish to Community Gallery
+              🚀 Publish Skin
             </button>
           </div>
         </div>
 
         {/* Starter Templates */}
-        <div className="section-box">
-          <div className="section-header">Starter Templates</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div className="panel-box">
+          <div className="panel-header">Starter Templates</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
             {SKIN_TEMPLATES.map((t) => (
               <button
                 key={t.id}
                 className="tool-btn-sm"
-                style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}
+                style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', padding: '5px 8px' }}
                 onClick={() => handleLoadTemplate(t.id)}
               >
                 <span>{t.name}</span>
-                <span style={{ color: '#94a3b8', fontSize: '10px' }}>{t.category}</span>
+                <span style={{ color: '#94a3b8', fontSize: '9px' }}>{t.category}</span>
               </button>
             ))}
           </div>

@@ -46,10 +46,20 @@ export interface SkinMetadata {
   likesCount: number;
   downloadsCount: number;
   viewsCount: number;
+  ratingAverage: number;
+  ratingCount: number;
   base64Png: string;
   previewUrl?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface RatingItem {
+  id: string;
+  skinId: string;
+  userId: string;
+  stars: number; // 1 to 5
+  timestamp: number;
 }
 
 export interface CommentItem {
@@ -69,8 +79,49 @@ export interface UserProfile {
   avatar?: string;
   likedSkinIds: string[];
   favoriteSkinIds: string[];
+  followingUids: string[];
+  followersCount: number;
   publishedCount: number;
   createdAt: number;
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  type: 'like' | 'rating' | 'comment' | 'follow' | 'message';
+  title: string;
+  message: string;
+  linkUrl?: string;
+  read: boolean;
+  timestamp: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderUid: string;
+  senderName: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface Conversation {
+  id: string;
+  participants: string[]; // [uid1, uid2]
+  participantNames: Record<string, string>;
+  lastMessageText: string;
+  lastMessageTimestamp: number;
+  unreadCount?: number;
+}
+
+export interface ReportItem {
+  id: string;
+  targetType: 'skin' | 'comment' | 'user' | 'message';
+  targetId: string;
+  reason: 'inappropriate' | 'spam' | 'harassment' | 'stolen' | 'other';
+  details: string;
+  reporterUid: string;
+  timestamp: number;
 }
 
 export interface ColorRGBA {
@@ -83,4 +134,12 @@ export interface ColorRGBA {
 export interface ColorPalette {
   name: string;
   colors: string[];
+}
+
+export interface AudioTrack {
+  id: string;
+  title: string;
+  artist: string;
+  bpm: number;
+  genre: string;
 }
